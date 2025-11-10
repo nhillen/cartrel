@@ -228,12 +228,12 @@ router.get('/partners', async (req, res, next) => {
 });
 
 /**
- * Update connection settings (payment terms, min order, status)
+ * Update connection settings (payment terms, min order, status, default markup)
  */
 router.patch('/connections/:connectionId', async (req, res, next) => {
   try {
     const { connectionId } = req.params;
-    const { shop, paymentTermsType, minOrderAmount, status } = req.body;
+    const { shop, paymentTermsType, minOrderAmount, status, defaultMarkupType, defaultMarkupValue } = req.body;
 
     if (!shop) {
       res.status(400).json({ error: 'Missing shop parameter' });
@@ -268,6 +268,18 @@ router.patch('/connections/:connectionId', async (req, res, next) => {
     if (paymentTermsType !== undefined) updateData.paymentTermsType = paymentTermsType;
     if (minOrderAmount !== undefined) updateData.minOrderAmount = parseFloat(minOrderAmount);
     if (status !== undefined) updateData.status = status;
+
+    // Store default markup in perksConfig JSON field
+    if (defaultMarkupType !== undefined || defaultMarkupValue !== undefined) {
+      const currentPerks = connection.perksConfig as any || {};
+      updateData.perksConfig = {
+        ...currentPerks,
+        defaultMarkup: {
+          type: defaultMarkupType || currentPerks?.defaultMarkup?.type || 'PERCENTAGE',
+          value: defaultMarkupValue !== undefined ? parseFloat(defaultMarkupValue) : (currentPerks?.defaultMarkup?.value || 50),
+        },
+      };
+    }
 
     // Update connection
     const updatedConnection = await prisma.connection.update({

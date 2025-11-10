@@ -43,13 +43,17 @@ router.get('/suppliers', async (req, res, next) => {
 
     logger.debug(`Found ${connections.length} active connections for retailer ${shop}`);
 
-    const suppliers = connections.map((conn) => ({
-      id: conn.supplierShopId,
-      name: conn.supplierShop.myshopifyDomain,
-      paymentTerms: conn.paymentTermsType,
-      tier: conn.tier,
-      connectionId: conn.id,
-    }));
+    const suppliers = connections.map((conn) => {
+      const perks = conn.perksConfig as any || {};
+      return {
+        id: conn.supplierShopId,
+        name: conn.supplierShop.myshopifyDomain,
+        paymentTerms: conn.paymentTermsType,
+        tier: conn.tier,
+        connectionId: conn.id,
+        defaultMarkup: perks.defaultMarkup || { type: 'PERCENTAGE', value: 50 },
+      };
+    });
 
     logger.info(`Loaded ${suppliers.length} suppliers for retailer: ${shop}`);
 
@@ -103,15 +107,29 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
         supplierShopId: supplierId,
         isWholesaleEligible: true,
       },
+      include: {
+        productMappings: {
+          where: {
+            connectionId: connection.id,
+          },
+        },
+      },
     });
 
-    const formattedProducts = products.map((p) => ({
-      id: p.shopifyProductId,
-      variantId: p.shopifyVariantId,
-      title: p.title,
-      price: p.wholesalePrice.toFixed(2),
-      image: p.imageUrl || null,
-    }));
+    const formattedProducts = products.map((p) => {
+      const mapping = p.productMappings[0]; // Should only be one per connection
+      return {
+        id: p.shopifyProductId,
+        variantId: p.shopifyVariantId,
+        title: p.title,
+        price: p.wholesalePrice.toFixed(2),
+        image: p.imageUrl || null,
+        isImported: !!mapping,
+        mappingId: mapping?.id,
+        retailPrice: mapping ? (parseFloat(p.wholesalePrice.toFixed(2)) * (1 + mapping.retailerMarkupValue.toNumber() / 100)).toFixed(2) : null,
+        lastSynced: p.lastSyncedAt,
+      };
+    });
 
     logger.info(
       `Loaded ${formattedProducts.length} products from supplier ${supplierId} for retailer: ${shop}`
@@ -270,6 +288,153 @@ router.post('/order', async (req, res, next) => {
     }
   } catch (error) {
     logger.error('Error placing order:', error);
+    next(error);
+  }
+});
+
+/**
+ * Import product to retailer's store
+ */
+router.post('/import', async (req, res, next) => {
+  try {
+    const { shop, supplierId, productId, variantId, markupType, markupValue } = req.body;
+
+    if (!shop || !supplierId || !productId || !variantId || !markupType || markupValue === undefined) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Get retailer shop
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Retailer shop not found' });
+      return;
+    }
+
+    // Get supplier shop
+    const supplierShop = await prisma.shop.findUnique({
+      where: { id: supplierId },
+    });
+
+    if (!supplierShop) {
+      res.status(404).json({ error: 'Supplier shop not found' });
+      return;
+    }
+
+    // Verify connection
+    const connection = await prisma.connection.findFirst({
+      where: {
+        supplierShopId: supplierId,
+        retailerShopId: retailerShop.id,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (!connection) {
+      res.status(403).json({ error: 'Not connected to this supplier' });
+      return;
+    }
+
+    // Get supplier product details
+    const supplierProduct = await prisma.supplierProduct.findFirst({
+      where: {
+        supplierShopId: supplierId,
+        shopifyProductId: productId,
+        shopifyVariantId: variantId,
+      },
+    });
+
+    if (!supplierProduct) {
+      res.status(404).json({ error: 'Supplier product not found' });
+      return;
+    }
+
+    // Calculate retail price based on markup
+    let retailPrice = supplierProduct.wholesalePrice.toNumber();
+    if (markupType === 'PERCENTAGE') {
+      retailPrice = retailPrice * (1 + parseFloat(markupValue) / 100);
+    } else if (markupType === 'FIXED_AMOUNT') {
+      retailPrice = retailPrice + parseFloat(markupValue);
+    } else if (markupType === 'CUSTOM') {
+      retailPrice = parseFloat(markupValue);
+    }
+
+    // Create product in retailer's Shopify
+    const client = createShopifyClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+
+    const productData = {
+      product: {
+        title: supplierProduct.title,
+        body_html: supplierProduct.description || `Wholesale product from ${supplierShop.myshopifyDomain}`,
+        vendor: supplierProduct.vendor || supplierShop.myshopifyDomain,
+        product_type: supplierProduct.productType || 'Wholesale',
+        tags: `cartrel,wholesale,supplier:${supplierId}`,
+        variants: [
+          {
+            price: retailPrice.toFixed(2),
+            sku: supplierProduct.sku || `WHOLESALE-${productId}`,
+            inventory_management: 'shopify',
+            inventory_quantity: 0, // Start with 0, retailer can adjust
+          },
+        ],
+        images: supplierProduct.imageUrl ? [{ src: supplierProduct.imageUrl }] : [],
+      },
+    };
+
+    const response = await client.post({
+      path: 'products',
+      data: productData,
+    });
+
+    const createdProduct = (response.body as any).product;
+
+    // Create product mapping
+    await prisma.productMapping.create({
+      data: {
+        connectionId: connection.id,
+        supplierProductId: supplierProduct.id,
+        supplierShopifyProductId: productId,
+        supplierShopifyVariantId: variantId,
+        retailerShopifyProductId: createdProduct.id.toString(),
+        retailerShopifyVariantId: createdProduct.variants[0].id.toString(),
+        retailerMarkupType: markupType,
+        retailerMarkupValue: parseFloat(markupValue),
+        syncInventory: false, // Default to false, retailer can enable
+        syncPricing: false,
+        syncDescription: false,
+        syncImages: false,
+      },
+    });
+
+    logger.info(
+      `Product ${productId} imported to ${shop} with ${markupType} markup of ${markupValue}`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: retailerShop.id,
+        action: 'PRODUCT_IMPORTED',
+        resourceType: 'ProductMapping',
+        resourceId: createdProduct.id.toString(),
+        metadata: {
+          supplierProductId: productId,
+          markupType,
+          markupValue,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      productId: createdProduct.id,
+      retailPrice: retailPrice.toFixed(2),
+    });
+  } catch (error) {
+    logger.error('Error importing product:', error);
     next(error);
   }
 });

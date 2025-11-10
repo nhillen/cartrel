@@ -119,6 +119,7 @@
         }
 
         .product-card {
+            position: relative;
             border: 1px solid #E2E8F0;
             border-radius: 8px;
             overflow: hidden;
@@ -497,6 +498,45 @@
         </div>
     </div>
 
+    <div class="modal" id="importModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Import Product to Store</h2>
+                <button class="modal-close" onclick="closeImportModal()">×</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">Product:</div>
+                    <div id="importProductTitle" style="color: #64748B;"></div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">Wholesale Price:</div>
+                    <div id="importWholesalePrice" style="color: #64748B;"></div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;">Markup Type:</label>
+                    <select id="markupType" onchange="updateRetailPrice()" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="PERCENTAGE">Percentage (%)</option>
+                        <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
+                        <option value="CUSTOM">Custom Price</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="font-weight: 600; display: block; margin-bottom: 8px;" id="markupValueLabel">Markup Percentage (%):</label>
+                    <input type="number" id="markupValue" value="50" oninput="updateRetailPrice()" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;" step="0.01">
+                </div>
+                <div style="margin-bottom: 20px; padding: 12px; background: #F1F5F9; border-radius: 6px;">
+                    <div style="font-weight: 600; margin-bottom: 4px;">Retail Price:</div>
+                    <div id="calculatedRetailPrice" style="font-size: 20px; color: #214937; font-weight: 700;">$0.00</div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="closeImportModal()" style="flex: 1;">Cancel</button>
+                    <button class="btn btn-primary" onclick="confirmImport()" style="flex: 1;">Import Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const host = urlParams.get('host');
@@ -504,6 +544,7 @@
 
         let cart = [];
         let currentSupplier = null;
+        let importProduct = null; // Product being imported
 
         // Initialize Shopify App Bridge
         if (host) {
@@ -582,13 +623,21 @@
                     const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23f0f0f0" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14"%3ENo Image%3C/text%3E%3C/svg%3E';
                     container.innerHTML = data.products.map(product => `
                         <div class="product-card">
+                            ${product.isImported ? '<div class="product-badge" style="position: absolute; top: 8px; right: 8px; background: #10B981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">IMPORTED</div>' : ''}
                             <img src="${product.image && product.image !== 'null' ? product.image : placeholderImage}" class="product-image" alt="${product.title}">
                             <div class="product-details">
                                 <div class="product-title">${product.title}</div>
-                                <div class="product-price">$${product.price}</div>
-                                <button class="cart-btn" onclick="addToCart('${product.id}', '${product.variantId}', '${product.title}', ${product.price}, '${product.image || placeholderImage}')">
-                                    Add to Cart
-                                </button>
+                                <div class="product-price">Wholesale: $${product.price}${product.isImported ? ` • Retail: $${product.retailPrice}` : ''}</div>
+                                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                    ${!product.isImported ? `
+                                        <button class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="showImportModal('${product.id}', '${product.variantId}', '${product.title.replace(/'/g, "\\'")}', ${product.price})">
+                                            Import to Store
+                                        </button>
+                                    ` : ''}
+                                    <button class="cart-btn" style="flex: 1; padding: 8px; font-size: 13px;" onclick="addToCart('${product.id}', '${product.variantId}', '${product.title}', ${product.price}, '${product.image || placeholderImage}')">
+                                        Add to Cart
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `).join('');
@@ -776,6 +825,90 @@
             } catch (error) {
                 console.error('Error changing role:', error);
                 alert('Error updating role. Please try again.');
+            }
+        }
+
+        // Product Import Functions
+        function showImportModal(productId, variantId, title, price) {
+            importProduct = {
+                id: productId,
+                variantId: variantId,
+                title: title,
+                price: parseFloat(price)
+            };
+
+            document.getElementById('importProductTitle').textContent = title;
+            document.getElementById('importWholesalePrice').textContent = `$${price}`;
+            document.getElementById('markupType').value = 'PERCENTAGE';
+            document.getElementById('markupValue').value = '50';
+            updateRetailPrice();
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+            importProduct = null;
+        }
+
+        function updateRetailPrice() {
+            if (!importProduct) return;
+
+            const markupType = document.getElementById('markupType').value;
+            const markupValue = parseFloat(document.getElementById('markupValue').value) || 0;
+            const wholesalePrice = importProduct.price;
+            let retailPrice = wholesalePrice;
+
+            if (markupType === 'PERCENTAGE') {
+                retailPrice = wholesalePrice * (1 + markupValue / 100);
+                document.getElementById('markupValueLabel').textContent = 'Markup Percentage (%):';
+            } else if (markupType === 'FIXED_AMOUNT') {
+                retailPrice = wholesalePrice + markupValue;
+                document.getElementById('markupValueLabel').textContent = 'Markup Amount ($):';
+            } else if (markupType === 'CUSTOM') {
+                retailPrice = markupValue;
+                document.getElementById('markupValueLabel').textContent = 'Retail Price ($):';
+                document.getElementById('markupValue').value = retailPrice.toFixed(2);
+            }
+
+            document.getElementById('calculatedRetailPrice').textContent = `$${retailPrice.toFixed(2)}`;
+        }
+
+        async function confirmImport() {
+            if (!importProduct || !currentSupplier) {
+                alert('Error: Missing product or supplier information');
+                return;
+            }
+
+            const markupType = document.getElementById('markupType').value;
+            const markupValue = parseFloat(document.getElementById('markupValue').value) || 0;
+
+            try {
+                const response = await fetch('/api/retailer/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        shop,
+                        supplierId: currentSupplier,
+                        productId: importProduct.id,
+                        variantId: importProduct.variantId,
+                        markupType,
+                        markupValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Product imported successfully! Retail price: $${result.retailPrice}`);
+                    closeImportModal();
+                    // Reload catalog to show updated import status
+                    loadCatalog(currentSupplier);
+                } else {
+                    alert(`Error importing product: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error importing product:', error);
+                alert('Error importing product. Please try again.');
             }
         }
 
