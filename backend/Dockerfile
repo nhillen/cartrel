@@ -66,6 +66,9 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
+# Copy views directory (HTML files) to dist
+COPY --from=build /app/src/views ./dist/views
+
 # Add non-root user for security
 RUN groupadd --gid 1001 nodejs && \
     useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
