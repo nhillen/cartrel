@@ -48,6 +48,17 @@ app.use(session({
   },
 }));
 
+// Root endpoint - shows app is running
+app.get('/', (_req, res) => {
+  res.json({
+    app: 'Cartrel',
+    version: '0.1.0',
+    status: 'running',
+    message: 'Cartrel API - Shopify Wholesale Infrastructure',
+    docs: 'https://github.com/nhillen/cartrel',
+  });
+});
+
 // Health check endpoint
 app.get('/health', (_req, res) => {
   res.json({
