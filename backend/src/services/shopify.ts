@@ -1,8 +1,43 @@
-import { shopifyApi, LATEST_API_VERSION, Session, MemorySessionStorage } from '@shopify/shopify-api';
+import { shopifyApi, LATEST_API_VERSION, Session, SessionStorage } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { config } from '../config';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+
+// Simple in-memory session storage for OAuth flow
+class SimpleSessionStorage implements SessionStorage {
+  private sessions: Map<string, Session> = new Map();
+
+  async storeSession(session: Session): Promise<boolean> {
+    this.sessions.set(session.id, session);
+    logger.debug(`Stored session: ${session.id} for shop: ${session.shop}`);
+    return true;
+  }
+
+  async loadSession(id: string): Promise<Session | undefined> {
+    const session = this.sessions.get(id);
+    logger.debug(`Loaded session: ${id}, found: ${!!session}`);
+    return session;
+  }
+
+  async deleteSession(id: string): Promise<boolean> {
+    const deleted = this.sessions.delete(id);
+    logger.debug(`Deleted session: ${id}, success: ${deleted}`);
+    return deleted;
+  }
+
+  async deleteSessions(ids: string[]): Promise<boolean> {
+    ids.forEach(id => this.sessions.delete(id));
+    logger.debug(`Deleted ${ids.length} sessions`);
+    return true;
+  }
+
+  async findSessionsByShop(shop: string): Promise<Session[]> {
+    const sessions = Array.from(this.sessions.values()).filter(s => s.shop === shop);
+    logger.debug(`Found ${sessions.length} sessions for shop: ${shop}`);
+    return sessions;
+  }
+}
 
 // Initialize Shopify API
 export const shopify = shopifyApi({
@@ -12,9 +47,7 @@ export const shopify = shopifyApi({
   hostName: config.shopify.hostName,
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: false, // Using cookie-based OAuth, not session tokens
-  // Session storage using in-memory store for OAuth cookies
-  // This is required for the OAuth flow to work properly
-  sessionStorage: new MemorySessionStorage(),
+  sessionStorage: new SimpleSessionStorage(),
 });
 
 /**
