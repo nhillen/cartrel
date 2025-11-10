@@ -96,7 +96,7 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
     const products = await prisma.supplierProduct.findMany({
       where: {
         supplierShopId: supplierId,
-        isActive: true,
+        isWholesaleEligible: true,
       },
     });
 
@@ -104,7 +104,7 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
       id: p.shopifyProductId,
       title: p.title,
       price: p.wholesalePrice.toFixed(2),
-      image: (p.cachedData as any)?.images?.[0]?.src || null,
+      image: p.imageUrl || null,
     }));
 
     logger.info(
@@ -165,10 +165,13 @@ router.post('/order', async (req, res, next) => {
     }
 
     // Calculate total
-    const totalAmount = items.reduce(
+    const subtotal = items.reduce(
       (sum: number, item: any) => sum + item.price * item.quantity,
       0
     );
+
+    // Generate PO number
+    const poNumber = `PO-${Date.now()}`;
 
     // Create PO record
     const po = await prisma.purchaseOrder.create({
@@ -176,9 +179,14 @@ router.post('/order', async (req, res, next) => {
         connectionId: connection.id,
         retailerShopId: retailerShop.id,
         supplierShopId: supplierShop.id,
-        status: 'PENDING',
-        totalAmount,
-        lineItems: items,
+        poNumber,
+        status: 'DRAFT',
+        items,
+        subtotal,
+        total: subtotal, // No shipping/tax for now
+        currency: 'USD',
+        paymentTermsType: connection.paymentTermsType,
+        tierAtOrder: connection.tier,
       },
     });
 
@@ -218,7 +226,7 @@ router.post('/order', async (req, res, next) => {
       await prisma.purchaseOrder.update({
         where: { id: po.id },
         data: {
-          shopifyDraftOrderId: draftOrder.id.toString(),
+          supplierShopifyDraftOrderId: draftOrder.id.toString(),
         },
       });
 
@@ -248,7 +256,7 @@ router.post('/order', async (req, res, next) => {
       // Update PO status to failed
       await prisma.purchaseOrder.update({
         where: { id: po.id },
-        data: { status: 'FAILED' },
+        data: { status: 'CANCELLED' },
       });
 
       res.status(500).json({

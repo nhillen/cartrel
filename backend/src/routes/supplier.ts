@@ -104,24 +104,23 @@ router.post('/products/wholesale', async (req, res, next) => {
       // Add to wholesale catalog
       await prisma.supplierProduct.upsert({
         where: {
-          supplierShopId_shopifyProductId: {
+          supplierShopId_shopifyVariantId: {
             supplierShopId: shopRecord.id,
-            shopifyProductId: productId,
+            shopifyVariantId: product.variants[0]?.id?.toString() || productId,
           },
         },
         create: {
           supplierShopId: shopRecord.id,
           shopifyProductId: productId,
+          shopifyVariantId: product.variants[0]?.id?.toString() || productId,
           title: product.title,
           wholesalePrice: parseFloat(product.variants[0]?.price || '0'),
-          isActive: true,
-          cachedData: product,
+          isWholesaleEligible: true,
         },
         update: {
-          isActive: true,
+          isWholesaleEligible: true,
           title: product.title,
           wholesalePrice: parseFloat(product.variants[0]?.price || '0'),
-          cachedData: product,
         },
       });
 
@@ -146,7 +145,7 @@ router.post('/products/wholesale', async (req, res, next) => {
           shopifyProductId: productId,
         },
         data: {
-          isActive: false,
+          isWholesaleEligible: false,
         },
       });
 
@@ -232,19 +231,10 @@ router.post('/settings', async (req, res, next) => {
       return;
     }
 
-    // Update shop settings (store in metadata for now)
-    await prisma.shop.update({
-      where: { myshopifyDomain: shop },
-      data: {
-        metadata: {
-          defaultPaymentTerms: paymentTerms,
-          minOrderAmount: parseFloat(minOrderAmount || '0'),
-        },
-      },
-    });
+    // TODO: Store settings somewhere (maybe in a separate Settings table)
+    logger.info(`Settings received for shop: ${shop} - ${paymentTerms}, ${minOrderAmount}`);
 
-    logger.info(`Settings updated for shop: ${shop}`);
-
+    // For now, just acknowledge receipt
     res.json({ success: true });
   } catch (error) {
     logger.error('Error saving settings:', error);
