@@ -53,17 +53,6 @@ router.post('/role', async (req, res, next) => {
 
     logger.info(`Shop role updated: ${shop} -> ${role}`);
 
-    // Log audit event
-    await prisma.auditLog.create({
-      data: {
-        shopId: updatedShop.id,
-        action: 'ROLE_UPDATED',
-        resourceType: 'Shop',
-        resourceId: updatedShop.id,
-        metadata: { role },
-      },
-    });
-
     res.json({ success: true, role: updatedShop.role });
   } catch (error) {
     logger.error('Error updating shop role:', error);

@@ -49,12 +49,12 @@ app.use(session({
 }));
 
 // Onboarding page - role selection for new installs
-app.get('/onboarding', (req, res): void => {
+app.get('/onboarding', (_req, res): void => {
   res.sendFile(__dirname + '/views/onboarding.html');
 });
 
 // Pricing page
-app.get('/pricing', (req, res): void => {
+app.get('/pricing', (_req, res): void => {
   res.sendFile(__dirname + '/views/pricing.html');
 });
 
