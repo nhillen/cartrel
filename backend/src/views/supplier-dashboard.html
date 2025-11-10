@@ -335,6 +335,31 @@
 
         <!-- Partners Tab -->
         <div class="tab-content" id="partners-tab">
+            <div class="card" id="usageMeterCard" style="background: linear-gradient(135deg, #F8FAF9 0%, #EEF2F0 100%); border: 2px solid #214937;">
+                <h2 style="margin-bottom: 20px;">Plan Usage</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <div style="font-size: 14px; color: #64748B; margin-bottom: 8px;">Retailer Connections</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #214937; margin-bottom: 8px;" id="connectionsCount">-</div>
+                        <div style="background: #E2E8F0; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div id="connectionsBar" style="background: #214937; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; color: #64748B; margin-bottom: 8px;">Purchase Orders This Month</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #214937; margin-bottom: 8px;" id="posCount">-</div>
+                        <div style="background: #E2E8F0; height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div id="posBar" style="background: #214937; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="upgradePrompt" style="display: none; margin-top: 20px; padding: 16px; background: #FEF3C7; border-radius: 8px; border-left: 4px solid #F59E0B;">
+                    <strong style="color: #92400E; display: block; margin-bottom: 4px;">⚠️ Approaching Plan Limit</strong>
+                    <p style="color: #78350F; font-size: 14px; margin-bottom: 12px;">You're using most of your plan capacity. Upgrade to avoid hitting limits.</p>
+                    <a href="/pricing" style="color: #214937; font-weight: 600; text-decoration: underline;">View Plans →</a>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>Invite Retail Partners</h2>
                 <p style="color: #64748B; margin-bottom: 16px;">
@@ -512,8 +537,44 @@
             }
         }
 
+        // Load usage statistics
+        async function loadUsage() {
+            try {
+                const response = await fetch(`/api/shop/usage?shop=${shop}`);
+                const usage = await response.json();
+
+                // Update connections meter
+                document.getElementById('connectionsCount').textContent =
+                    `${usage.connections.current} of ${usage.connections.max}`;
+                document.getElementById('connectionsBar').style.width =
+                    `${usage.connections.percentage}%`;
+
+                // Update POs meter
+                document.getElementById('posCount').textContent =
+                    `${usage.purchaseOrders.current} of ${usage.purchaseOrders.max}`;
+                document.getElementById('posBar').style.width =
+                    `${usage.purchaseOrders.percentage}%`;
+
+                // Show upgrade prompt if approaching limits
+                if (usage.shouldUpgrade) {
+                    document.getElementById('upgradePrompt').style.display = 'block';
+                }
+
+                // Change bar color to warning if >80%
+                if (usage.connections.percentage > 80) {
+                    document.getElementById('connectionsBar').style.background = '#F59E0B';
+                }
+                if (usage.purchaseOrders.percentage > 80) {
+                    document.getElementById('posBar').style.background = '#F59E0B';
+                }
+            } catch (error) {
+                console.error('Error loading usage:', error);
+            }
+        }
+
         // Load partners
         async function loadPartners() {
+            loadUsage(); // Load usage when partners tab opens
             // Generate invite link
             document.getElementById('inviteLink').value = `https://cartrel.com/invite/${shop}`;
 

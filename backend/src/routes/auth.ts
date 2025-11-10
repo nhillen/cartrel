@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { shopify, saveShop, getShop } from '../services/shopify';
 import { config } from '../config';
 import { prisma } from '../index';
+import { canCreateConnection } from '../utils/planLimits';
 
 const router = Router();
 
@@ -103,6 +104,24 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
           });
 
           if (!existingConnection) {
+            // Check plan limits before creating connection
+            const supplierWithConnections = await prisma.shop.findUnique({
+              where: { id: supplier.id },
+              include: {
+                supplierConnections: { where: { status: 'ACTIVE' } },
+              },
+            });
+
+            const currentConnections = supplierWithConnections?.supplierConnections.length || 0;
+            const limitCheck = canCreateConnection(currentConnections, supplier.plan);
+
+            if (!limitCheck.allowed) {
+              logger.warn(`Connection blocked by plan limit: ${supplier.myshopifyDomain} (${currentConnections} connections)`);
+              // Don't create connection, but don't fail OAuth either
+              // Supplier will see upgrade prompt in their dashboard
+              return;
+            }
+
             // Create connection now that retailer is authenticated
             await prisma.connection.create({
               data: {
