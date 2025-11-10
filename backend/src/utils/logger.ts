@@ -10,7 +10,7 @@ const colors = {
   reset: '\x1b[0m',
 };
 
-function formatMessage(level: LogLevel, message: string, ...args: any[]) {
+function formatMessage(level: LogLevel, message: string) {
   const timestamp = new Date().toISOString();
   const color = colors[level];
   const reset = colors.reset;

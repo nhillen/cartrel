@@ -17,41 +17,45 @@ export class AppError extends Error {
 
 export function errorHandler(
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
-) {
+  _next: NextFunction
+): void {
   logger.error('Error:', err);
 
   // Zod validation errors
   if (err instanceof ZodError) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Validation Error',
       details: err.errors,
     });
+    return;
   }
 
   // Prisma errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
-      return res.status(409).json({
+      res.status(409).json({
         error: 'Conflict',
         message: 'A record with this unique field already exists',
       });
+      return;
     }
     if (err.code === 'P2025') {
-      return res.status(404).json({
+      res.status(404).json({
         error: 'Not Found',
         message: 'Record not found',
       });
+      return;
     }
   }
 
   // Custom app errors
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+    res.status(err.statusCode).json({
       error: err.message,
     });
+    return;
   }
 
   // Default server error

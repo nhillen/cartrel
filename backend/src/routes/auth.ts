@@ -5,12 +5,13 @@ const router = Router();
 
 // Shopify OAuth initiation
 // GET /auth/shopify?shop=example.myshopify.com
-router.get('/shopify', async (req, res, next) => {
+router.get('/shopify', async (req, res, next): Promise<void> => {
   try {
     const { shop } = req.query;
 
     if (!shop || typeof shop !== 'string') {
-      return res.status(400).json({ error: 'Missing shop parameter' });
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
     }
 
     // TODO: Implement Shopify OAuth flow
@@ -24,12 +25,13 @@ router.get('/shopify', async (req, res, next) => {
 
 // Shopify OAuth callback
 // GET /auth/shopify/callback?code=...&shop=...&hmac=...
-router.get('/shopify/callback', async (req, res, next) => {
+router.get('/shopify/callback', async (req, res, next): Promise<void> => {
   try {
     const { code, shop, hmac } = req.query;
 
     if (!code || !shop || !hmac) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
     }
 
     // TODO: Implement OAuth callback handling
@@ -42,12 +44,13 @@ router.get('/shopify/callback', async (req, res, next) => {
 });
 
 // Verify session token (for embedded app)
-router.post('/verify', async (req, res, next) => {
+router.post('/verify', async (req, res, next): Promise<void> => {
   try {
     const { sessionToken } = req.body;
 
     if (!sessionToken) {
-      return res.status(400).json({ error: 'Missing session token' });
+      res.status(400).json({ error: 'Missing session token' });
+      return;
     }
 
     // TODO: Implement session token verification

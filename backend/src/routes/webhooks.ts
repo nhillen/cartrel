@@ -5,14 +5,15 @@ const router = Router();
 
 // Shopify webhook handler
 // POST /webhooks/shopify/:topic
-router.post('/shopify/:topic', async (req, res, next) => {
+router.post('/shopify/:topic', async (req, res): Promise<void> => {
   try {
     const { topic } = req.params;
     const shopDomain = req.get('X-Shopify-Shop-Domain');
     const hmac = req.get('X-Shopify-Hmac-Sha256');
 
     if (!shopDomain || !hmac) {
-      return res.status(401).json({ error: 'Missing Shopify headers' });
+      res.status(401).json({ error: 'Missing Shopify headers' });
+      return;
     }
 
     // TODO: Verify webhook HMAC

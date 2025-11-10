@@ -90,25 +90,25 @@ export async function processWebhook(job: Job<WebhookJob>) {
   }
 }
 
-async function handleProductUpdate(shopId: string, payload: any) {
+async function handleProductUpdate(_shopId: string, _payload: any) {
   logger.info('Product update - TO BE IMPLEMENTED');
   // TODO: Update SupplierProduct cache
   // TODO: Propagate to connected retailers if needed
 }
 
-async function handleProductDelete(shopId: string, payload: any) {
+async function handleProductDelete(_shopId: string, _payload: any) {
   logger.info('Product delete - TO BE IMPLEMENTED');
   // TODO: Mark product as inactive
   // TODO: Notify connected retailers
 }
 
-async function handleInventoryUpdate(shopId: string, payload: any) {
+async function handleInventoryUpdate(_shopId: string, _payload: any) {
   logger.info('Inventory update - TO BE IMPLEMENTED');
   // TODO: Update inventory in cache
   // TODO: Sync to connected retailers
 }
 
-async function handleOrderUpdate(shopId: string, payload: any) {
+async function handleOrderUpdate(_shopId: string, _payload: any) {
   logger.info('Order update - TO BE IMPLEMENTED');
   // TODO: Update PurchaseOrder status if this is a wholesale order
 }
