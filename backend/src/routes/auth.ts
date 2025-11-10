@@ -133,7 +133,13 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
             const supplierWithConnections = await prisma.shop.findUnique({
               where: { id: supplier.id },
               include: {
-                supplierConnections: { where: { status: 'ACTIVE' } },
+                supplierConnections: {
+                  where: {
+                    status: {
+                      in: ['ACTIVE', 'PENDING_INVITE'], // Only count active and pending
+                    },
+                  },
+                },
               },
             });
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
+import { prisma } from '../index';
 
 const router = Router();
 
@@ -21,6 +22,11 @@ router.post('/shopify/:topic', async (req, res): Promise<void> => {
 
     logger.info(`Webhook received: ${topic} from ${shopDomain}`);
 
+    // Handle app uninstall webhook
+    if (topic === 'app/uninstalled' || topic === 'uninstalled') {
+      await handleAppUninstall(shopDomain);
+    }
+
     res.status(200).send('OK');
   } catch (error) {
     logger.error('Webhook error:', error);
@@ -28,5 +34,66 @@ router.post('/shopify/:topic', async (req, res): Promise<void> => {
     res.status(200).send('OK');
   }
 });
+
+/**
+ * Handle app uninstall - pause connections to free up supplier slots
+ */
+async function handleAppUninstall(shopDomain: string) {
+  try {
+    logger.info(`Handling app uninstall for: ${shopDomain}`);
+
+    const shop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shopDomain },
+    });
+
+    if (!shop) {
+      logger.warn(`Shop not found for uninstall webhook: ${shopDomain}`);
+      return;
+    }
+
+    // Pause all connections where this shop is the retailer
+    // This frees up supplier connection slots
+    const pausedRetailerConnections = await prisma.connection.updateMany({
+      where: {
+        retailerShopId: shop.id,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'PAUSED',
+      },
+    });
+
+    // Pause all connections where this shop is the supplier
+    const pausedSupplierConnections = await prisma.connection.updateMany({
+      where: {
+        supplierShopId: shop.id,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'PAUSED',
+      },
+    });
+
+    logger.info(
+      `App uninstalled: ${shopDomain} - Paused ${pausedRetailerConnections.count} retailer connections and ${pausedSupplierConnections.count} supplier connections`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shop.id,
+        action: 'SHOP_UNINSTALLED',
+        resourceType: 'Shop',
+        resourceId: shop.id,
+        metadata: {
+          retailerConnectionsPaused: pausedRetailerConnections.count,
+          supplierConnectionsPaused: pausedSupplierConnections.count,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Error handling app uninstall:', error);
+  }
+}
 
 export default router;

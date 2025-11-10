@@ -54,7 +54,13 @@ router.get('/usage', async (req, res, next) => {
     const shopRecord = await prisma.shop.findUnique({
       where: { myshopifyDomain: shop },
       include: {
-        supplierConnections: { where: { status: 'ACTIVE' } },
+        supplierConnections: {
+          where: {
+            status: {
+              in: ['ACTIVE', 'PENDING_INVITE'], // Only count active and pending connections
+            },
+          },
+        },
       },
     });
 

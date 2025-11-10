@@ -195,6 +195,7 @@ router.get('/partners', async (req, res, next) => {
       id: conn.id,
       retailerShop: conn.retailerShop.myshopifyDomain,
       paymentTerms: conn.paymentTermsType,
+      minOrderAmount: conn.minOrderAmount.toString(),
       tier: conn.tier,
       status: conn.status,
       createdAt: conn.createdAt,
@@ -205,6 +206,74 @@ router.get('/partners', async (req, res, next) => {
     res.json({ partners });
   } catch (error) {
     logger.error('Error loading partners:', error);
+    next(error);
+  }
+});
+
+/**
+ * Update connection settings (payment terms, min order, status)
+ */
+router.patch('/connections/:connectionId', async (req, res, next) => {
+  try {
+    const { connectionId } = req.params;
+    const { shop, paymentTermsType, minOrderAmount, status } = req.body;
+
+    if (!shop) {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    // Get shop from database
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Verify connection belongs to this supplier
+    const connection = await prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        supplierShopId: shopRecord.id,
+      },
+    });
+
+    if (!connection) {
+      res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (paymentTermsType !== undefined) updateData.paymentTermsType = paymentTermsType;
+    if (minOrderAmount !== undefined) updateData.minOrderAmount = parseFloat(minOrderAmount);
+    if (status !== undefined) updateData.status = status;
+
+    // Update connection
+    const updatedConnection = await prisma.connection.update({
+      where: { id: connectionId },
+      data: updateData,
+    });
+
+    logger.info(`Connection ${connectionId} updated by ${shop}`);
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shopRecord.id,
+        action: 'CONNECTION_UPDATED',
+        resourceType: 'Connection',
+        resourceId: connectionId,
+        metadata: updateData,
+      },
+    });
+
+    res.json({ success: true, connection: updatedConnection });
+  } catch (error) {
+    logger.error('Error updating connection:', error);
     next(error);
   }
 });
