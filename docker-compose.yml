@@ -1,0 +1,70 @@
+# Docker Compose for Local Development
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: cartrel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cartrel
+      POSTGRES_PASSWORD: cartrel
+      POSTGRES_DB: cartrel
+    ports:
+      - "5432:5432"
+    volumes:
+      - cartrel_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cartrel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: cartrel-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - cartrel_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cartrel-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      DATABASE_URL: postgresql://cartrel:cartrel@db:5432/cartrel
+      REDIS_URL: redis://redis:6379/2
+      APP_URL: http://localhost:3002
+      # Copy from .env file for sensitive values
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/dist
+    command: npm run dev
+
+volumes:
+  cartrel_db_data:
+  cartrel_redis_data:
