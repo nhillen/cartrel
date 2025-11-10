@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Session } from '@shopify/shopify-api';
 import { logger } from '../utils/logger';
-import { shopify, saveShop } from '../services/shopify';
+import { shopify, saveShop, getShop } from '../services/shopify';
 import { config } from '../config';
 
 const router = Router();
@@ -55,6 +55,10 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
 
     logger.info(`OAuth completed for shop: ${session.shop}`);
 
+    // Check if this is a new installation
+    const existingShop = await getShop(session.shop);
+    const isNewInstall = !existingShop;
+
     // Save shop and access token to database
     await saveShop(session.shop, session.accessToken!);
 
@@ -66,11 +70,20 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
       // Don't fail the OAuth flow if webhooks fail
     }
 
-    // Redirect to app embedded in Shopify admin
+    // Get host parameter for embedded app URL
+    const host = req.query.host as string;
+
+    // If new install, redirect to onboarding to set role
+    if (isNewInstall) {
+      const onboardingUrl = `https://${session.shop}/admin/apps/${config.shopify.apiKey}/onboarding?shop=${session.shop}&host=${host}`;
+      logger.info(`New install, redirecting to onboarding: ${onboardingUrl}`);
+      res.redirect(onboardingUrl);
+      return;
+    }
+
+    // Existing shop, redirect to app
     const redirectUrl = `https://${session.shop}/admin/apps/${config.shopify.apiKey}`;
-
     logger.info(`Redirecting to: ${redirectUrl}`);
-
     res.redirect(redirectUrl);
   } catch (error) {
     logger.error('OAuth callback error:', error);

@@ -48,6 +48,16 @@ app.use(session({
   },
 }));
 
+// Onboarding page - role selection for new installs
+app.get('/onboarding', (req, res): void => {
+  res.sendFile(__dirname + '/views/onboarding.html');
+});
+
+// Pricing page
+app.get('/pricing', (req, res): void => {
+  res.sendFile(__dirname + '/views/pricing.html');
+});
+
 // Root endpoint - serve landing page for browsers, JSON for API clients, or app for embedded Shopify
 app.get('/', (req, res): void => {
   // Check if this is an embedded Shopify app request (has host and shop query params)

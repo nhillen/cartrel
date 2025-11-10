@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - Cartrel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: #0F172A;
+            background: #F5F5F3;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #fff;
+            border-bottom: 1px solid #E0DED8;
+            padding: 20px 0;
+            margin-bottom: 60px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #214937;
+            text-decoration: none;
+        }
+
+        .nav-link {
+            color: #475569;
+            text-decoration: none;
+            margin-left: 24px;
+            font-size: 15px;
+        }
+
+        .nav-link:hover {
+            color: #214937;
+        }
+
+        .pricing-hero {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+
+        .pricing-hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            color: #214937;
+            margin-bottom: 16px;
+        }
+
+        .pricing-hero p {
+            font-size: 20px;
+            color: #64748B;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .pricing-model-note {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            color: #92400E;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 40px 0;
+            font-size: 15px;
+        }
+
+        .pricing-model-note strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin: 60px 0;
+        }
+
+        .pricing-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            border: 2px solid #E0DED8;
+            transition: all 0.2s;
+        }
+
+        .pricing-card:hover {
+            border-color: #214937;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(33, 73, 55, 0.12);
+        }
+
+        .pricing-card.featured {
+            border-color: #214937;
+            background: linear-gradient(135deg, #F8FAF9 0%, #EEF2F0 100%);
+            position: relative;
+        }
+
+        .featured-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #214937;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .pricing-card h3 {
+            font-size: 24px;
+            color: #214937;
+            margin-bottom: 12px;
+        }
+
+        .pricing-card .description {
+            color: #64748B;
+            font-size: 15px;
+            margin-bottom: 24px;
+            min-height: 60px;
+        }
+
+        .price {
+            font-size: 42px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 8px;
+        }
+
+        .price-period {
+            color: #64748B;
+            font-size: 15px;
+            margin-bottom: 32px;
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .features-list li {
+            padding: 12px 0;
+            color: #475569;
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .features-list li::before {
+            content: '✓';
+            color: #214937;
+            font-weight: 700;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .cta-button {
+            background: #214937;
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: block;
+            text-align: center;
+            transition: all 0.2s;
+            border: 2px solid #214937;
+        }
+
+        .cta-button:hover {
+            background: #1a3829;
+            border-color: #1a3829;
+        }
+
+        .cta-button.secondary {
+            background: transparent;
+            color: #214937;
+            border: 2px solid #E0DED8;
+        }
+
+        .cta-button.secondary:hover {
+            border-color: #214937;
+        }
+
+        .comparison-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 60px 40px;
+            margin: 60px 0;
+            border: 1px solid #E0DED8;
+        }
+
+        .comparison-section h2 {
+            font-size: 32px;
+            color: #214937;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .comparison-item {
+            display: flex;
+            gap: 20px;
+        }
+
+        .comparison-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+        }
+
+        .comparison-content h4 {
+            font-size: 18px;
+            color: #214937;
+            margin-bottom: 8px;
+        }
+
+        .comparison-content p {
+            color: #64748B;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .faq-section {
+            max-width: 800px;
+            margin: 60px auto;
+        }
+
+        .faq-section h2 {
+            font-size: 32px;
+            color: #214937;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .faq-item {
+            background: #fff;
+            border-radius: 8px;
+            padding: 32px;
+            margin-bottom: 16px;
+            border: 1px solid #E0DED8;
+        }
+
+        .faq-item h4 {
+            font-size: 18px;
+            color: #214937;
+            margin-bottom: 12px;
+        }
+
+        .faq-item p {
+            color: #475569;
+            line-height: 1.7;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748B;
+            border-top: 1px solid #E0DED8;
+            background: #fff;
+            margin-top: 60px;
+        }
+
+        .footer-links {
+            margin-top: 20px;
+        }
+
+        .footer-links a {
+            color: #214937;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .pricing-hero h1 {
+                font-size: 36px;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">Cartrel</a>
+                <nav>
+                    <a href="/" class="nav-link">Home</a>
+                    <a href="/pricing" class="nav-link">Pricing</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="pricing-hero">
+            <h1>Simple pricing, no GMV tax</h1>
+            <p>
+                Infrastructure pricing that scales with your usage, not a commission on your relationships.
+                Retailers always free.
+            </p>
+        </div>
+
+        <div class="pricing-model-note">
+            <strong>Early Access Pricing</strong>
+            We're finalizing our pricing model based on early partner feedback. All early access users get locked-in rates.
+        </div>
+
+        <div class="pricing-grid">
+            <!-- Retailer Plan -->
+            <div class="pricing-card">
+                <h3>Retailer</h3>
+                <p class="description">For stores buying wholesale from brands.</p>
+                <div class="price">Free</div>
+                <p class="price-period">Always</p>
+                <ul class="features-list">
+                    <li>Browse supplier catalogs</li>
+                    <li>Place unlimited orders</li>
+                    <li>Track shipments</li>
+                    <li>Multiple supplier connections</li>
+                </ul>
+                <a href="#" class="cta-button secondary">Get Started</a>
+            </div>
+
+            <!-- Supplier Starter -->
+            <div class="pricing-card featured">
+                <div class="featured-badge">Most Popular</div>
+                <h3>Supplier Starter</h3>
+                <p class="description">For brands just starting with wholesale.</p>
+                <div class="price">$99</div>
+                <p class="price-period">per month</p>
+                <ul class="features-list">
+                    <li>Up to 10 retail partners</li>
+                    <li>Automated product sync</li>
+                    <li>Flexible payment terms</li>
+                    <li>PO management</li>
+                    <li>Basic tier system</li>
+                </ul>
+                <a href="#" class="cta-button">Start Free Trial</a>
+            </div>
+
+            <!-- Supplier Pro -->
+            <div class="pricing-card">
+                <h3>Supplier Pro</h3>
+                <p class="description">For growing wholesale operations.</p>
+                <div class="price">$299</div>
+                <p class="price-period">per month</p>
+                <ul class="features-list">
+                    <li>Unlimited retail partners</li>
+                    <li>Advanced tier & perk rules</li>
+                    <li>Custom payment terms per partner</li>
+                    <li>Priority support</li>
+                    <li>API access</li>
+                </ul>
+                <a href="#" class="cta-button secondary">Contact Sales</a>
+            </div>
+        </div>
+
+        <!-- Comparison Section -->
+        <div class="comparison-section">
+            <h2>Why Cartrel vs Marketplaces</h2>
+            <div class="comparison-grid">
+                <div class="comparison-item">
+                    <div class="comparison-icon">💰</div>
+                    <div class="comparison-content">
+                        <h4>No GMV Commission</h4>
+                        <p>Pay a flat monthly fee, not 10-30% of every transaction. Your margins stay yours.</p>
+                    </div>
+                </div>
+
+                <div class="comparison-item">
+                    <div class="comparison-icon">🤝</div>
+                    <div class="comparison-content">
+                        <h4>You Own the Relationship</h4>
+                        <p>Direct contact with partners. No platform as middleman. Full control of terms and pricing.</p>
+                    </div>
+                </div>
+
+                <div class="comparison-item">
+                    <div class="comparison-icon">💳</div>
+                    <div class="comparison-content">
+                        <h4>Direct Payments</h4>
+                        <p>Payments flow directly between you and your partners. We never touch your money.</p>
+                    </div>
+                </div>
+
+                <div class="comparison-item">
+                    <div class="comparison-icon">🔧</div>
+                    <div class="comparison-content">
+                        <h4>Infrastructure, Not Marketplace</h4>
+                        <p>Built for existing relationships. No discovery algorithms or competing with other brands.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="faq-section">
+            <h2>Pricing FAQ</h2>
+
+            <div class="faq-item">
+                <h4>Why is Cartrel free for retailers?</h4>
+                <p>Retailers are the network. Making Cartrel free for them encourages adoption and makes it easier for suppliers to invite partners. Suppliers capture most of the value, so they pay.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What about transaction fees or GMV percentage?</h4>
+                <p>We're exploring usage-based models as an alternative to flat monthly fees, but will never charge traditional marketplace commissions (10-30%). Any usage pricing would be <1% with reasonable caps.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Can I change plans later?</h4>
+                <p>Yes, upgrade or downgrade anytime. Changes take effect on your next billing cycle.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Is there a free trial?</h4>
+                <p>Yes, all supplier plans include a 14-day free trial. No credit card required to start.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What if I'm both a supplier and retailer?</h4>
+                <p>You only pay for the supplier side. Your retailer features remain free.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Cartrel. Direct wholesale infrastructure for Shopify stores.</p>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/pricing">Pricing</a>
+                <a href="https://github.com/nhillen/cartrel">Documentation</a>
+                <a href="/health">API Status</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
