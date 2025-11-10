@@ -131,43 +131,35 @@
 
         <h1>Welcome to Cartrel</h1>
         <p class="intro">
-            Your wholesale infrastructure is ready. Cartrel connects your Shopify store to retail partners with automated product sync, flexible payment terms, and clean purchase orders.
+            Your wholesale infrastructure is ready. Choose how you'll use Cartrel to get started.
         </p>
 
         <div class="setup-card">
-            <h2>Quick Setup</h2>
-            <ol class="setup-steps">
-                <li>Choose which products to offer wholesale</li>
-                <li>Set default payment terms and tier rules</li>
-                <li>Invite or approve retail partners</li>
-                <li>Receive POs as Shopify draft orders</li>
-            </ol>
-        </div>
+            <h2>Select Your Role</h2>
+            <p style="color: #475569; margin-bottom: 24px;">
+                Choose how you'll use Cartrel. You can change this anytime.
+            </p>
 
-        <div class="features">
-            <div class="feature">
-                <h3>🔄 Automated Sync</h3>
-                <p>Product, price, and inventory updates flow automatically to approved partners.</p>
-            </div>
+            <div class="features">
+                <div class="feature" style="cursor: pointer; transition: all 0.2s; border: 2px solid #E0DED8;" onclick="selectRole('SUPPLIER')">
+                    <h3>🏪 Supplier</h3>
+                    <p>I sell wholesale to other stores. I want to share my catalog and receive purchase orders.</p>
+                </div>
 
-            <div class="feature">
-                <h3>📦 Clean Orders</h3>
-                <p>Purchase orders arrive as draft orders in your Shopify workflow.</p>
-            </div>
+                <div class="feature" style="cursor: pointer; transition: all 0.2s; border: 2px solid #E0DED8;" onclick="selectRole('RETAILER')">
+                    <h3>🏬 Retailer</h3>
+                    <p>I buy wholesale from brands. I want to browse catalogs and place orders.</p>
+                </div>
 
-            <div class="feature">
-                <h3>🤝 Direct Terms</h3>
-                <p>Set prepay or net terms per relationship. You own the customer.</p>
-            </div>
-
-            <div class="feature">
-                <h3>📊 Tier System</h3>
-                <p>Reward high-volume partners with automated perks and discounts.</p>
+                <div class="feature" style="cursor: pointer; transition: all 0.2s; border: 2px solid #E0DED8;" onclick="selectRole('BOTH')">
+                    <h3>🔄 Both</h3>
+                    <p>I both sell to retailers and buy from suppliers. I need full access to both sides.</p>
+                </div>
             </div>
         </div>
 
         <div class="coming-soon">
-            Full supplier dashboard coming soon. Check back for updates or contact support.
+            Need help? Check the <a href="https://github.com/nhillen/cartrel" style="color: #214937;">documentation</a> or contact support.
         </div>
     </div>
 
@@ -184,6 +176,32 @@
             });
 
             console.log('Cartrel app initialized for shop:', shop);
+        }
+
+        // Select role
+        async function selectRole(role) {
+            if (!shop) {
+                alert('Shop parameter missing');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/shop/role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, role })
+                });
+
+                if (response.ok) {
+                    // Reload page to show role-specific dashboard
+                    window.location.reload();
+                } else {
+                    alert('Error setting role. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error setting role. Please try again.');
+            }
         }
     </script>
 </body>
