@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import { PrismaClient } from '@prisma/client';
 import { createBullBoard } from '@bull-board/api';
@@ -30,6 +31,9 @@ app.use(cors({
   origin: config.appUrl,
   credentials: true,
 }));
+
+// Cookie parser - needed for Shopify OAuth flow
+app.use(cookieParser());
 
 // Webhook routes need raw body
 app.use('/webhooks', express.raw({ type: 'application/json' }));
