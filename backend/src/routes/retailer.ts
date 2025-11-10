@@ -214,10 +214,7 @@ router.post('/order', async (req, res, next) => {
             variant_id: item.variantId || item.id,
             quantity: item.quantity,
           })),
-          customer: {
-            email: `${shop}@cartrel.com`, // Placeholder
-          },
-          note: `Wholesale order from ${shop} via Cartrel (PO: ${po.id})`,
+          note: `Wholesale order from ${shop} via Cartrel\nPO Number: ${poNumber}\nPO ID: ${po.id}`,
           tags: 'cartrel,wholesale',
         },
       };
