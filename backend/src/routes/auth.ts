@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Session } from '@shopify/shopify-api';
 import { logger } from '../utils/logger';
 import { shopify, saveShop } from '../services/shopify';
 import { config } from '../config';
@@ -40,7 +41,7 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
 
 // Shopify OAuth callback
 // GET /auth/shopify/callback?code=...&shop=...&hmac=...&host=...&timestamp=...
-router.get('/shopify/callback', async (req, res, next): Promise<void> => {
+router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
   try {
     logger.info('OAuth callback received');
 
@@ -66,7 +67,6 @@ router.get('/shopify/callback', async (req, res, next): Promise<void> => {
     }
 
     // Redirect to app embedded in Shopify admin
-    const host = req.query.host as string;
     const redirectUrl = `https://${session.shop}/admin/apps/${config.shopify.apiKey}`;
 
     logger.info(`Redirecting to: ${redirectUrl}`);
@@ -123,7 +123,15 @@ router.post('/verify', async (req, res, next): Promise<void> => {
  * Register webhooks for a shop
  */
 async function registerWebhooks(shop: string, accessToken: string) {
-  const client = new shopify.clients.Rest({ session: { shop, accessToken, state: '', isOnline: false } });
+  const session = new Session({
+    id: `offline_${shop}`,
+    shop,
+    state: '',
+    isOnline: false,
+    accessToken,
+  });
+
+  const client = new shopify.clients.Rest({ session });
 
   const webhooks = [
     { topic: 'PRODUCTS_CREATE', address: `${config.appUrl}/webhooks/shopify/products/create` },

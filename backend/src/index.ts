@@ -49,18 +49,19 @@ app.use(session({
 }));
 
 // Root endpoint - serve landing page for browsers, JSON for API clients
-app.get('/', (req, res) => {
+app.get('/', (req, res): void => {
   // Check if request wants JSON (API client)
   const acceptsJson = req.accepts('html') === 'html' ? false : true;
 
   if (acceptsJson || req.query.json) {
-    return res.json({
+    res.json({
       app: 'Cartrel',
       version: '0.1.0',
       status: 'running',
       message: 'Cartrel API - Shopify Wholesale Infrastructure',
       docs: 'https://github.com/nhillen/cartrel',
     });
+    return;
   }
 
   // Serve landing page for browsers

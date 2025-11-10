@@ -131,12 +131,13 @@ export async function getShop(shopDomain: string) {
  * Create Shopify API client for a specific shop
  */
 export function createShopifyClient(shop: string, accessToken: string) {
-  return new shopify.clients.Rest({
-    session: {
-      shop,
-      accessToken,
-      state: '',
-      isOnline: false,
-    },
+  const session = new Session({
+    id: `offline_${shop}`,
+    shop,
+    state: '',
+    isOnline: false,
+    accessToken,
   });
+
+  return new shopify.clients.Rest({ session });
 }
