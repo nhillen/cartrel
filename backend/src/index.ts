@@ -12,6 +12,8 @@ import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
 import shopRoutes from './routes/shop';
 import webhookRoutes from './routes/webhooks';
+import supplierRoutes from './routes/supplier';
+import retailerRoutes from './routes/retailer';
 import { errorHandler } from './middleware/errorHandler';
 import { initializeQueues } from './queues';
 
@@ -58,10 +60,126 @@ app.get('/pricing', (_req, res): void => {
   res.sendFile(__dirname + '/views/pricing.html');
 });
 
+// Invite page
+app.get('/invite/:supplierShop', (_req, res): void => {
+  res.sendFile(__dirname + '/views/invite.html');
+});
+
+// Get supplier info for invite
+app.get('/api/invite/:supplierShop/info', async (req, res): Promise<void> => {
+  try {
+    const { supplierShop } = req.params;
+    const shop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: supplierShop },
+    });
+
+    res.json({
+      name: shop?.myshopifyDomain || supplierShop,
+      exists: !!shop,
+    });
+  } catch (error) {
+    logger.error('Error loading supplier info:', error);
+    res.json({ name: req.params.supplierShop, exists: false });
+  }
+});
+
+// Accept invite and create connection
+app.post('/api/invite/:supplierShop/accept', async (req, res): Promise<void> => {
+  try {
+    const { supplierShop } = req.params;
+    const { retailerShop } = req.body;
+
+    // Get supplier
+    const supplier = await prisma.shop.findUnique({
+      where: { myshopifyDomain: supplierShop },
+    });
+
+    if (!supplier) {
+      res.status(404).json({ error: 'Supplier not found' });
+      return;
+    }
+
+    // Check if retailer exists, if not they'll install during OAuth
+    let retailer = await prisma.shop.findUnique({
+      where: { myshopifyDomain: retailerShop },
+    });
+
+    // If retailer doesn't exist yet, create placeholder
+    if (!retailer) {
+      retailer = await prisma.shop.create({
+        data: {
+          myshopifyDomain: retailerShop,
+          accessToken: '', // Will be set during OAuth
+          role: 'RETAILER',
+        },
+      });
+    }
+
+    // Check if connection already exists
+    const existingConnection = await prisma.connection.findFirst({
+      where: {
+        supplierShopId: supplier.id,
+        retailerShopId: retailer.id,
+      },
+    });
+
+    if (!existingConnection) {
+      // Create connection
+      await prisma.connection.create({
+        data: {
+          supplierShopId: supplier.id,
+          retailerShopId: retailer.id,
+          status: 'ACTIVE',
+          paymentTermsType: 'PREPAY', // Default
+          tier: 'STANDARD',
+        },
+      });
+
+      logger.info(`Created connection: ${supplierShop} → ${retailerShop}`);
+
+      // Log audit event
+      await prisma.auditLog.create({
+        data: {
+          shopId: retailer.id,
+          action: 'CONNECTION_CREATED',
+          resourceType: 'Connection',
+          resourceId: `${supplier.id}-${retailer.id}`,
+        },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error accepting invite:', error);
+    res.status(500).json({ error: 'Failed to accept invite' });
+  }
+});
+
 // Root endpoint - serve landing page for browsers, JSON for API clients, or app for embedded Shopify
-app.get('/', (req, res): void => {
+app.get('/', async (req, res): Promise<void> => {
   // Check if this is an embedded Shopify app request (has host and shop query params)
   if (req.query.host && req.query.shop) {
+    try {
+      // Get shop from database to check role
+      const shop = await prisma.shop.findUnique({
+        where: { myshopifyDomain: req.query.shop as string },
+      });
+
+      if (shop) {
+        // Serve role-specific dashboard
+        if (shop.role === 'SUPPLIER' || shop.role === 'BOTH') {
+          res.sendFile(__dirname + '/views/supplier-dashboard.html');
+          return;
+        } else if (shop.role === 'RETAILER') {
+          res.sendFile(__dirname + '/views/retailer-dashboard.html');
+          return;
+        }
+      }
+    } catch (error) {
+      logger.error('Error loading shop role:', error);
+    }
+
+    // Fallback to generic app view
     res.sendFile(__dirname + '/views/app.html');
     return;
   }
@@ -97,6 +215,8 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.use('/auth', authRoutes);
 app.use('/api/shop', shopRoutes);
+app.use('/api/supplier', supplierRoutes);
+app.use('/api/retailer', retailerRoutes);
 app.use('/webhooks', webhookRoutes);
 
 // Bull Board for queue monitoring (development only)

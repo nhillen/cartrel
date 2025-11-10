@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartrel - Supplier Dashboard</title>
+    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #F5F5F3;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #214937;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #475569;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: #F1F5F9;
+        }
+
+        .tab.active {
+            background: #214937;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            color: #214937;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #214937;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a3829;
+        }
+
+        .btn-secondary {
+            background: #E2E8F0;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #CBD5E1;
+        }
+
+        .products-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .product-item:hover {
+            border-color: #214937;
+            box-shadow: 0 2px 8px rgba(33,73,55,0.1);
+        }
+
+        .product-image {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            background: #F1F5F9;
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-title {
+            font-weight: 600;
+            color: #0F172A;
+            margin-bottom: 4px;
+        }
+
+        .product-price {
+            color: #64748B;
+            font-size: 14px;
+        }
+
+        .product-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #CBD5E1;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background-color: #214937;
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #D1F2E8;
+            color: #1C6E4F;
+        }
+
+        .badge-warning {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748B;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748B;
+        }
+
+        .spinner {
+            border: 3px solid #E0DED8;
+            border-top: 3px solid #214937;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .invite-link {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .invite-link input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .connections-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .connection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+        }
+
+        .connection-name {
+            font-weight: 600;
+            color: #0F172A;
+        }
+
+        .connection-details {
+            font-size: 14px;
+            color: #64748B;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Supplier Dashboard</h1>
+            <span class="badge badge-success">Supplier Mode</span>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="products">Products</button>
+            <button class="tab" data-tab="partners">Partners</button>
+            <button class="tab" data-tab="orders">Orders</button>
+            <button class="tab" data-tab="settings">Settings</button>
+        </div>
+
+        <!-- Products Tab -->
+        <div class="tab-content active" id="products-tab">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>Wholesale Catalog</h2>
+                    <button class="btn btn-primary" onclick="loadProducts()">↻ Refresh</button>
+                </div>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Select which products to offer wholesale. Toggle products on to make them available to your retail partners.
+                </p>
+
+                <div id="products-list" class="products-grid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading products from Shopify...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Partners Tab -->
+        <div class="tab-content" id="partners-tab">
+            <div class="card">
+                <h2>Invite Retail Partners</h2>
+                <p style="color: #64748B; margin-bottom: 16px;">
+                    Share this link with retailers to connect them to your wholesale catalog.
+                </p>
+                <div class="invite-link">
+                    <input type="text" id="inviteLink" readonly value="Loading...">
+                    <button class="btn btn-secondary" onclick="copyInviteLink()">Copy Link</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Connected Partners</h2>
+                <div id="partners-list" class="connections-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading partners...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="tab-content" id="orders-tab">
+            <div class="card">
+                <h2>Purchase Orders</h2>
+                <div id="orders-list">
+                    <div class="empty-state">
+                        <h3>No orders yet</h3>
+                        <p>Purchase orders from your retail partners will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settings-tab">
+            <div class="card">
+                <h2>Default Wholesale Settings</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    These settings apply to all new retail partner connections.
+                </p>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Payment Terms</label>
+                    <select id="paymentTerms" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="PREPAY">Prepay (payment before fulfillment)</option>
+                        <option value="NET_30">Net 30 (payment due in 30 days)</option>
+                        <option value="NET_60">Net 60 (payment due in 60 days)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Minimum Order Amount</label>
+                    <input type="number" id="minOrderAmount" placeholder="0.00" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const host = urlParams.get('host');
+        const shop = urlParams.get('shop');
+
+        // Initialize Shopify App Bridge
+        if (host) {
+            const app = window['app-bridge'].createApp({
+                apiKey: '38477b096ee4819cf7ba22322d8fa9f9',
+                host: host,
+            });
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update active content
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+
+                // Load data for tab
+                if (tabName === 'products') loadProducts();
+                if (tabName === 'partners') loadPartners();
+                if (tabName === 'orders') loadOrders();
+            });
+        });
+
+        // Load products from Shopify
+        async function loadProducts() {
+            const container = document.getElementById('products-list');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading products...</p></div>';
+
+            try {
+                const response = await fetch(`/api/supplier/products?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.products && data.products.length > 0) {
+                    container.innerHTML = data.products.map(product => `
+                        <div class="product-item">
+                            <img src="${product.image || '/placeholder.png'}" class="product-image" alt="${product.title}">
+                            <div class="product-info">
+                                <div class="product-title">${product.title}</div>
+                                <div class="product-price">$${product.price}</div>
+                            </div>
+                            <div class="product-actions">
+                                ${product.isWholesale ? '<span class="badge badge-success">Wholesale</span>' : '<span class="badge badge-warning">Retail Only</span>'}
+                                <label class="toggle">
+                                    <input type="checkbox" ${product.isWholesale ? 'checked' : ''} onchange="toggleWholesale('${product.id}', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="empty-state"><h3>No products found</h3><p>Add products to your Shopify store to get started.</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading products:', error);
+                container.innerHTML = '<div class="empty-state"><h3>Error loading products</h3><p>Please try again.</p></div>';
+            }
+        }
+
+        // Toggle product as wholesale
+        async function toggleWholesale(productId, isWholesale) {
+            try {
+                await fetch('/api/supplier/products/wholesale', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, productId, isWholesale })
+                });
+                // Reload products to show updated state
+                loadProducts();
+            } catch (error) {
+                console.error('Error toggling wholesale:', error);
+                alert('Error updating product. Please try again.');
+            }
+        }
+
+        // Load partners
+        async function loadPartners() {
+            // Generate invite link
+            document.getElementById('inviteLink').value = `https://cartrel.com/invite/${shop}`;
+
+            const container = document.getElementById('partners-list');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading partners...</p></div>';
+
+            try {
+                const response = await fetch(`/api/supplier/partners?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.partners && data.partners.length > 0) {
+                    container.innerHTML = data.partners.map(partner => `
+                        <div class="connection-item">
+                            <div>
+                                <div class="connection-name">${partner.retailerShop}</div>
+                                <div class="connection-details">
+                                    ${partner.paymentTerms} • ${partner.tier} Tier • Connected ${new Date(partner.createdAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <span class="badge badge-success">${partner.status}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="empty-state"><h3>No partners yet</h3><p>Share your invite link to connect with retailers.</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading partners:', error);
+                container.innerHTML = '<div class="empty-state"><h3>Error loading partners</h3><p>Please try again.</p></div>';
+            }
+        }
+
+        // Load orders
+        async function loadOrders() {
+            const container = document.getElementById('orders-list');
+            // TODO: Implement orders loading
+            container.innerHTML = '<div class="empty-state"><h3>No orders yet</h3><p>Purchase orders from your retail partners will appear here.</p></div>';
+        }
+
+        // Copy invite link
+        function copyInviteLink() {
+            const input = document.getElementById('inviteLink');
+            input.select();
+            document.execCommand('copy');
+            alert('Invite link copied to clipboard!');
+        }
+
+        // Save settings
+        async function saveSettings() {
+            const paymentTerms = document.getElementById('paymentTerms').value;
+            const minOrderAmount = document.getElementById('minOrderAmount').value;
+
+            try {
+                await fetch('/api/supplier/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, paymentTerms, minOrderAmount })
+                });
+                alert('Settings saved successfully!');
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings. Please try again.');
+            }
+        }
+
+        // Load initial data
+        loadProducts();
+    </script>
+</body>
+</html>
