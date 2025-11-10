@@ -45,17 +45,22 @@ router.post('/role', async (req, res, next) => {
       return;
     }
 
-    // Update shop role
-    const updatedShop = await prisma.shop.update({
+    // Upsert shop (create if doesn't exist, update if it does)
+    const updatedShop = await prisma.shop.upsert({
       where: { myshopifyDomain: shop },
-      data: { role },
+      update: { role },
+      create: {
+        myshopifyDomain: shop,
+        accessToken: '', // Will be set during OAuth
+        role,
+      },
     });
 
-    logger.info(`Shop role updated: ${shop} -> ${role}`);
+    logger.info(`Shop role set: ${shop} -> ${role}`);
 
     res.json({ success: true, role: updatedShop.role });
   } catch (error) {
-    logger.error('Error updating shop role:', error);
+    logger.error('Error setting shop role:', error);
     next(error);
   }
 });
