@@ -257,13 +257,13 @@ async function registerWebhooks(shop: string, accessToken: string) {
   const client = new shopify.clients.Rest({ session });
 
   const webhooks = [
-    { topic: 'PRODUCTS_CREATE', address: `${config.appUrl}/webhooks/shopify/products/create` },
-    { topic: 'PRODUCTS_UPDATE', address: `${config.appUrl}/webhooks/shopify/products/update` },
-    { topic: 'PRODUCTS_DELETE', address: `${config.appUrl}/webhooks/shopify/products/delete` },
-    { topic: 'INVENTORY_LEVELS_UPDATE', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
-    { topic: 'ORDERS_CREATE', address: `${config.appUrl}/webhooks/shopify/orders/create` },
-    { topic: 'ORDERS_UPDATED', address: `${config.appUrl}/webhooks/shopify/orders/update` },
-    { topic: 'APP_UNINSTALLED', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
+    { topic: 'products/create', address: `${config.appUrl}/webhooks/shopify/products/create` },
+    { topic: 'products/update', address: `${config.appUrl}/webhooks/shopify/products/update` },
+    { topic: 'products/delete', address: `${config.appUrl}/webhooks/shopify/products/delete` },
+    { topic: 'inventory_levels/update', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
+    { topic: 'orders/create', address: `${config.appUrl}/webhooks/shopify/orders/create` },
+    { topic: 'orders/updated', address: `${config.appUrl}/webhooks/shopify/orders/update` },
+    { topic: 'app/uninstalled', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
   ];
 
   for (const webhook of webhooks) {
