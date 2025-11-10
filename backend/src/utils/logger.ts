@@ -1,5 +1,3 @@
-import { config } from '../config';
-
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 const colors = {
@@ -33,8 +31,7 @@ export const logger = {
   },
 
   debug: (message: string, ...args: any[]) => {
-    if (config.isDevelopment) {
-      console.log(formatMessage('debug', message), ...args);
-    }
+    // Always log debug in production for OAuth troubleshooting
+    console.log(formatMessage('debug', message), ...args);
   },
 };

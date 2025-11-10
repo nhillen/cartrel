@@ -26,6 +26,8 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
     }
 
     logger.info(`OAuth initiated for shop: ${shop}${invite ? ` (invite from ${invite})` : ''}`);
+    logger.debug('OAuth begin - Request cookies:', req.cookies);
+    logger.debug('OAuth begin - Request headers:', req.headers);
 
     // Store invite in session if present (will be used after OAuth)
     if (invite && typeof invite === 'string') {
@@ -42,6 +44,8 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
       rawRequest: req,
       rawResponse: res,
     });
+
+    logger.debug('OAuth begin - Response headers:', res.getHeaders());
   } catch (error) {
     logger.error('OAuth initiation error:', error);
     next(error);
@@ -53,6 +57,9 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
 router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
   try {
     logger.info('OAuth callback received');
+    logger.debug('OAuth callback - Request cookies:', req.cookies);
+    logger.debug('OAuth callback - Cookie header:', req.headers.cookie);
+    logger.debug('OAuth callback - Query params:', req.query);
 
     // Complete OAuth flow and get access token
     const callback = await shopify.auth.callback({
