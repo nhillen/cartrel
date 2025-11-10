@@ -1,11 +1,20 @@
-import { shopifyApi, LATEST_API_VERSION, Session, SessionStorage } from '@shopify/shopify-api';
+import { shopifyApi, LATEST_API_VERSION, Session } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { config } from '../config';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 
+// Session storage interface for Shopify OAuth
+interface ISessionStorage {
+  storeSession(session: Session): Promise<boolean>;
+  loadSession(id: string): Promise<Session | undefined>;
+  deleteSession(id: string): Promise<boolean>;
+  deleteSessions(ids: string[]): Promise<boolean>;
+  findSessionsByShop(shop: string): Promise<Session[]>;
+}
+
 // Simple in-memory session storage for OAuth flow
-class SimpleSessionStorage implements SessionStorage {
+class SimpleSessionStorage implements ISessionStorage {
   private sessions: Map<string, Session> = new Map();
 
   async storeSession(session: Session): Promise<boolean> {
