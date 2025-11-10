@@ -1,6 +1,5 @@
 # Docker Compose for Production
 # Connects to shared PostgreSQL and Redis from GridTome
-version: '3.8'
 
 services:
   # Backend API (production build)
@@ -11,22 +10,25 @@ services:
       target: production
     container_name: cartrel-app
     restart: unless-stopped
-    network_mode: host  # Use host network to access localhost PostgreSQL/Redis
+    ports:
+      - "3002:3002"  # Expose port for Caddy
     environment:
       NODE_ENV: production
       PORT: 3002
-      # Database URL points to host PostgreSQL (GridTome's instance)
-      DATABASE_URL: postgresql://gridtome:${POSTGRES_PASSWORD}@localhost:5432/cartrel
-      # Redis URL points to host Redis (DB 2 for Cartrel)
-      REDIS_URL: redis://localhost:6379/2
-      APP_URL: https://cartrel.com
     env_file:
       - .env.production
     volumes:
       - ./logs:/app/logs
+    networks:
+      - gridtome_default  # Join GridTome's Docker network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+# Use GridTome's existing Docker network
+networks:
+  gridtome_default:
+    external: true
