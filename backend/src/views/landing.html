@@ -4,14 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cartrel - Direct Wholesale Rails for Shopify</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
             line-height: 1.6;
-            color: #0F172A;
-            background: #F5F5F3;
+            color: #0a0a0a;
+            background: #FAFAF8;
         }
 
         .container {
@@ -22,7 +25,7 @@
 
         header {
             background: #fff;
-            border-bottom: 1px solid #E0DED8;
+            border-bottom: 1px solid #E5E5E0;
             padding: 20px 0;
         }
 
@@ -33,9 +36,10 @@
         }
 
         .logo {
+            font-family: 'DM Sans', sans-serif;
             font-size: 24px;
             font-weight: 700;
-            color: #214937;
+            color: #1a3d2e;
             text-decoration: none;
         }
 
@@ -58,22 +62,25 @@
             grid-template-columns: 1fr 1fr;
             gap: 60px;
             align-items: center;
-            padding: 80px 0 60px;
+            padding: 100px 0 80px;
         }
 
         .hero-content h1 {
-            font-size: 52px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 48px;
             font-weight: 700;
-            line-height: 1.15;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
             margin-bottom: 24px;
-            color: #214937;
+            color: #0a0a0a;
         }
 
         .hero-content .subhead {
-            font-size: 20px;
-            color: #475569;
-            line-height: 1.65;
+            font-size: 18px;
+            color: #525252;
+            line-height: 1.6;
             margin-bottom: 36px;
+            max-width: 520px;
         }
 
         .hero-buttons {
@@ -82,7 +89,7 @@
         }
 
         .btn-primary {
-            background: #214937;
+            background: #1a3d2e;
             color: #fff;
             padding: 14px 32px;
             border-radius: 8px;
@@ -90,113 +97,158 @@
             font-weight: 600;
             font-size: 16px;
             transition: all 0.2s;
-            border: 2px solid #214937;
+            border: 2px solid #1a3d2e;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .btn-primary:hover {
-            background: #1a3829;
-            border-color: #1a3829;
+            background: #152f23;
+            border-color: #152f23;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
 
         .btn-secondary {
             background: transparent;
-            color: #214937;
+            color: #1a3d2e;
             padding: 14px 32px;
             border-radius: 8px;
             text-decoration: none;
             font-weight: 600;
             font-size: 16px;
-            border: 2px solid #E0DED8;
+            border: 2px solid #D4D4CC;
             transition: all 0.2s;
         }
 
         .btn-secondary:hover {
-            border-color: #214937;
+            border-color: #1a3d2e;
+            background: #fafaf8;
         }
 
         .hero-visual {
-            background: linear-gradient(135deg, #F8FAF9 0%, #EEF2F0 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f2 100%);
             border-radius: 16px;
-            padding: 48px;
-            box-shadow: 0 4px 20px rgba(33, 73, 55, 0.08);
-            border: 1px solid #E0DED8;
+            padding: 32px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            border: 1px solid #E5E5E0;
         }
 
-        .schematic {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
+        .app-mock {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
         }
 
-        .store-icon {
-            background: #214937;
-            color: #fff;
-            width: 80px;
-            height: 80px;
+        .supplier-card {
+            background: #fff;
+            border: 1px solid #e5e5e0;
             border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .supplier-logo {
+            width: 48px;
+            height: 48px;
+            background: #1a3d2e;
+            border-radius: 8px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            box-shadow: 0 2px 8px rgba(33, 73, 55, 0.2);
+            font-size: 24px;
         }
 
-        .arrow-group {
+        .supplier-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #737373;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .supplier-name {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #0a0a0a;
+        }
+
+        .retailer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .retailer-card {
+            background: #fff;
+            border: 1px solid #e5e5e0;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+        }
+
+        .retailer-avatar {
+            width: 32px;
+            height: 32px;
+            background: #f5f5f2;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .retailer-info {
             flex: 1;
+        }
+
+        .retailer-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0a0a0a;
+            line-height: 1.2;
+        }
+
+        .retailer-status {
+            font-size: 11px;
+            color: #737373;
+        }
+
+        .connection-badge {
+            font-size: 10px;
+            padding: 4px 8px;
+            background: #D1F2E8;
+            color: #1C6E4F;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .flow-labels {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             display: flex;
             flex-direction: column;
             gap: 8px;
+            pointer-events: none;
         }
 
-        .arrow {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .arrow-line {
-            flex: 1;
-            height: 2px;
-            background: #214937;
-            position: relative;
-        }
-
-        .arrow-line::after {
-            content: '';
-            position: absolute;
-            right: -6px;
-            top: -4px;
-            width: 0;
-            height: 0;
-            border-left: 8px solid #214937;
-            border-top: 5px solid transparent;
-            border-bottom: 5px solid transparent;
-        }
-
-        .arrow-label {
-            font-size: 12px;
-            color: #475569;
-            font-weight: 500;
-        }
-
-        .retailer-icons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .retailer-icon {
-            background: #fff;
-            color: #214937;
-            width: 48px;
-            height: 48px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            border: 2px solid #E0DED8;
+        .flow-label {
+            font-size: 11px;
+            color: #F59E0B;
+            font-weight: 600;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
         }
 
         .how-it-works {
@@ -204,16 +256,18 @@
             border-radius: 12px;
             padding: 40px;
             margin: 60px 0;
-            border: 1px solid #E0DED8;
+            border: 1px solid #E5E5E0;
         }
 
         .how-it-works h2 {
-            font-size: 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #64748B;
-            margin-bottom: 24px;
+            letter-spacing: 1.2px;
+            color: #737373;
+            margin-bottom: 32px;
             text-align: center;
+            font-weight: 600;
         }
 
         .steps {
@@ -229,20 +283,22 @@
         .step-icon {
             width: 48px;
             height: 48px;
-            background: #214937;
+            background: #F59E0B;
             color: #fff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 16px;
-            font-size: 20px;
+            font-size: 18px;
+            font-weight: 700;
         }
 
         .step-text {
             font-size: 14px;
-            color: #475569;
+            color: #525252;
             line-height: 1.5;
+            font-weight: 500;
         }
 
         .features-section {
@@ -258,37 +314,54 @@
 
         .feature-card {
             background: #fff;
-            padding: 32px;
+            padding: 40px;
             border-radius: 12px;
-            border: 1px solid #E0DED8;
+            border: 1px solid #E5E5E0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: #F59E0B;
+            color: #fff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 20px;
         }
 
         .feature-card h3 {
-            font-size: 22px;
-            margin-bottom: 16px;
-            color: #214937;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #0a0a0a;
+            font-weight: 600;
         }
 
         .feature-card p {
-            color: #475569;
-            line-height: 1.7;
+            color: #525252;
+            line-height: 1.65;
             font-size: 15px;
         }
 
         .features-supporting {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #E5E5E0;
+            display: flex;
+            gap: 32px;
+            justify-content: center;
         }
 
         .feature-inline {
-            background: #fff;
-            padding: 24px;
-            border-radius: 8px;
-            border: 1px solid #E0DED8;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+            max-width: 340px;
         }
 
         .feature-inline-icon {
@@ -297,30 +370,48 @@
         }
 
         .feature-inline-text {
-            color: #475569;
-            font-size: 15px;
-            line-height: 1.6;
+            color: #525252;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
         .social-proof {
-            background: #214937;
+            background: #1a3d2e;
             color: #fff;
-            padding: 60px 40px;
-            border-radius: 12px;
+            padding: 64px 48px;
+            border-radius: 16px;
             text-align: center;
-            margin: 60px 0;
+            margin: 80px 0;
         }
 
         .social-proof-quote {
-            font-size: 24px;
-            font-style: italic;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 26px;
+            font-style: normal;
             margin-bottom: 24px;
-            line-height: 1.5;
+            line-height: 1.4;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 500;
         }
 
         .social-proof-attribution {
             font-size: 14px;
             color: #A8C5BA;
+        }
+
+        .metric-strip {
+            text-align: center;
+            padding: 24px 0;
+            margin: 60px 0;
+        }
+
+        .metric-text {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 16px;
+            color: #525252;
+            font-weight: 500;
         }
 
         .manifesto {
@@ -329,13 +420,13 @@
             padding: 48px;
             margin: 60px 0;
             text-align: center;
-            border: 1px solid #E0DED8;
+            border: 1px solid #E5E5E0;
         }
 
         .manifesto p {
-            font-size: 18px;
-            color: #475569;
-            line-height: 1.8;
+            font-size: 17px;
+            color: #525252;
+            line-height: 1.7;
             max-width: 800px;
             margin: 0 auto 16px;
         }
@@ -343,10 +434,10 @@
         footer {
             text-align: center;
             padding: 40px 20px;
-            color: #64748B;
-            border-top: 1px solid #E0DED8;
+            color: #737373;
+            border-top: 1px solid #E5E5E0;
             background: #fff;
-            margin-top: 60px;
+            margin-top: 80px;
         }
 
         .footer-links {
@@ -354,9 +445,10 @@
         }
 
         .footer-links a {
-            color: #214937;
+            color: #1a3d2e;
             text-decoration: none;
             margin: 0 15px;
+            font-weight: 500;
         }
 
         .footer-links a:hover {
@@ -367,10 +459,15 @@
             .hero {
                 grid-template-columns: 1fr;
                 gap: 40px;
+                padding: 60px 0 40px;
             }
 
             .hero-content h1 {
                 font-size: 36px;
+            }
+
+            .app-mock {
+                grid-template-columns: 1fr;
             }
 
             .steps {
@@ -382,14 +479,14 @@
             }
 
             .features-supporting {
-                grid-template-columns: 1fr;
+                flex-direction: column;
             }
         }
     </style>
 </head>
 <body>
     <div class="early-access">
-        <strong>Early Access:</strong> Cartrel is live for Shopify brands with existing wholesale partners. Limited onboarding spots available.
+        <strong>Early Access:</strong> Cartrel is live for Shopify brands with existing wholesale partners. Limited onboarding spots.
     </div>
 
     <header>
@@ -397,7 +494,7 @@
             <div class="header-content">
                 <a href="/" class="logo">Cartrel</a>
                 <nav style="display: flex; align-items: center; gap: 32px;">
-                    <a href="/pricing" style="color: #475569; text-decoration: none; font-size: 15px; font-weight: 500;">Pricing</a>
+                    <a href="/pricing" style="color: #525252; text-decoration: none; font-size: 15px; font-weight: 500;">Pricing</a>
                     <a href="#install" class="btn-primary" style="padding: 10px 24px; font-size: 15px;">Install App</a>
                 </nav>
             </div>
@@ -410,33 +507,55 @@
             <div class="hero-content">
                 <h1>Direct wholesale rails that stay out of your way</h1>
                 <p class="subhead">
-                    Cartrel connects your Shopify store to trusted retail partners with synced catalogs, clean purchase orders, and flexible terms. You sell together. We stay invisible.
+                    Cartrel connects your Shopify store to trusted retail partners with synced catalogs, clean purchase orders, and clear terms. You sell together. Cartrel keeps it straight.
                 </p>
                 <div class="hero-buttons">
                     <a href="#install" class="btn-primary">Install for suppliers</a>
-                    <a href="#retailer" class="btn-secondary">See retailer view</a>
+                    <a href="#retailer" class="btn-secondary">View retailer experience</a>
                 </div>
             </div>
 
             <div class="hero-visual">
-                <div class="schematic">
-                    <div class="store-icon">🏪</div>
+                <div class="app-mock" style="position: relative;">
+                    <!-- Supplier Card -->
+                    <div class="supplier-card">
+                        <div class="supplier-logo">🏪</div>
+                        <div class="supplier-label">SUPPLIER</div>
+                        <div class="supplier-name">Your Store</div>
+                    </div>
 
-                    <div class="arrow-group">
-                        <div class="arrow">
-                            <div class="arrow-line"></div>
-                            <span class="arrow-label">Products, prices, inventory</span>
+                    <!-- Retailer List -->
+                    <div class="retailer-list">
+                        <div class="retailer-card">
+                            <div class="retailer-avatar">🏬</div>
+                            <div class="retailer-info">
+                                <div class="retailer-name">Boutique A</div>
+                                <div class="retailer-status">Net 30 • Gold Tier</div>
+                            </div>
+                            <div class="connection-badge">ACTIVE</div>
                         </div>
-                        <div class="arrow" style="margin-left: 40px;">
-                            <span class="arrow-label">POs → Shopify orders</span>
-                            <div class="arrow-line" style="transform: scaleX(-1);"></div>
+                        <div class="retailer-card">
+                            <div class="retailer-avatar">🏬</div>
+                            <div class="retailer-info">
+                                <div class="retailer-name">Shop B</div>
+                                <div class="retailer-status">Prepay • Standard</div>
+                            </div>
+                            <div class="connection-badge">ACTIVE</div>
+                        </div>
+                        <div class="retailer-card">
+                            <div class="retailer-avatar">🏬</div>
+                            <div class="retailer-info">
+                                <div class="retailer-name">Store C</div>
+                                <div class="retailer-status">Net 15 • Silver</div>
+                            </div>
+                            <div class="connection-badge">ACTIVE</div>
                         </div>
                     </div>
 
-                    <div class="retailer-icons">
-                        <div class="retailer-icon">🏬</div>
-                        <div class="retailer-icon">🏬</div>
-                        <div class="retailer-icon">🏬</div>
+                    <!-- Flow Labels -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(255,255,255,0.95); padding: 8px 12px; border-radius: 6px; border: 1px solid #F59E0B; pointer-events: none;">
+                        <div style="font-size: 10px; color: #F59E0B; font-weight: 700; margin-bottom: 2px;">↓ Catalog sync</div>
+                        <div style="font-size: 10px; color: #F59E0B; font-weight: 700;">↑ POs</div>
                     </div>
                 </div>
             </div>
@@ -460,7 +579,7 @@
                 </div>
                 <div class="step">
                     <div class="step-icon">4</div>
-                    <p class="step-text">Retailers submit POs that appear as draft orders</p>
+                    <p class="step-text">Receive POs as draft orders in Shopify</p>
                 </div>
             </div>
         </div>
@@ -469,16 +588,19 @@
         <div class="features-section">
             <div class="features-primary">
                 <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
                     <h3>Automated Sync</h3>
                     <p>Select wholesale SKUs once. Cartrel keeps products, prices, and inventory aligned for every approved retailer.</p>
                 </div>
 
                 <div class="feature-card">
+                    <div class="feature-icon">📋</div>
                     <h3>Clean POs in Shopify</h3>
                     <p>Retailers build orders in Cartrel. You receive draft orders in your Shopify with your payment flow and tags.</p>
                 </div>
 
                 <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
                     <h3>Flexible Terms & Tiers</h3>
                     <p>Offer prepay or net terms, credit limits, and tier perks per partner. Cartrel enforces rules, you own the relationship.</p>
                 </div>
@@ -487,25 +609,30 @@
             <!-- Features - Supporting -->
             <div class="features-supporting">
                 <div class="feature-inline">
-                    <div class="feature-inline-icon">🤝</div>
+                    <div class="feature-inline-icon">✓</div>
                     <div class="feature-inline-text">
-                        Direct relationships, no marketplace fees. You own your customer data and terms.
+                        Direct relationships, no marketplace fees
                     </div>
                 </div>
 
                 <div class="feature-inline">
-                    <div class="feature-inline-icon">📊</div>
+                    <div class="feature-inline-icon">✓</div>
                     <div class="feature-inline-text">
-                        Tier perks and VIP logic built in. Automated rewards for your best wholesale partners.
+                        Tier perks and automated rewards
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Metric Strip -->
+        <div class="metric-strip">
+            <p class="metric-text">Built for Shopify brands with 5 to 500 stockists.</p>
+        </div>
+
         <!-- Social Proof -->
         <div class="social-proof">
             <div class="social-proof-quote">
-                "We stopped juggling wholesale spreadsheets in a weekend. Our stockists order inside Shopify now."
+                "Ordering with Cartrel feels like it should have been built into Shopify."
             </div>
             <div class="social-proof-attribution">
                 Early partners from independent brands and boutiques
