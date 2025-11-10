@@ -187,6 +187,7 @@ router.post('/order', async (req, res, next) => {
         currency: 'USD',
         paymentTermsType: connection.paymentTermsType,
         tierAtOrder: connection.tier,
+        shippingAddress: { shop: retailerShop.myshopifyDomain }, // Placeholder
       },
     });
 
