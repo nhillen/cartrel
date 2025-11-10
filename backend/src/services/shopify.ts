@@ -12,56 +12,9 @@ export const shopify = shopifyApi({
   hostName: config.shopify.hostName,
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: false, // Using cookie-based OAuth, not session tokens
-  // Session storage (we'll use database)
-  sessionStorage: {
-    async storeSession(session: Session): Promise<boolean> {
-      try {
-        // Store session in database if needed
-        logger.debug(`Storing session for shop: ${session.shop}`);
-        return true;
-      } catch (error) {
-        logger.error('Error storing session:', error);
-        return false;
-      }
-    },
-    async loadSession(id: string): Promise<Session | undefined> {
-      try {
-        logger.debug(`Loading session: ${id}`);
-        // Load session from database if needed
-        return undefined;
-      } catch (error) {
-        logger.error('Error loading session:', error);
-        return undefined;
-      }
-    },
-    async deleteSession(id: string): Promise<boolean> {
-      try {
-        logger.debug(`Deleting session: ${id}`);
-        return true;
-      } catch (error) {
-        logger.error('Error deleting session:', error);
-        return false;
-      }
-    },
-    async deleteSessions(ids: string[]): Promise<boolean> {
-      try {
-        logger.debug(`Deleting ${ids.length} sessions`);
-        return true;
-      } catch (error) {
-        logger.error('Error deleting sessions:', error);
-        return false;
-      }
-    },
-    async findSessionsByShop(shop: string): Promise<Session[]> {
-      try {
-        logger.debug(`Finding sessions for shop: ${shop}`);
-        return [];
-      } catch (error) {
-        logger.error('Error finding sessions:', error);
-        return [];
-      }
-    },
-  },
+  // Session storage using in-memory store for OAuth cookies
+  // This is required for the OAuth flow to work properly
+  sessionStorage: new shopify.session.MemorySessionStorage(),
 });
 
 /**
