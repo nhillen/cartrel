@@ -585,7 +585,7 @@
                             <div class="product-details">
                                 <div class="product-title">${product.title}</div>
                                 <div class="product-price">$${product.price}</div>
-                                <button class="cart-btn" onclick="addToCart('${product.id}', '${product.title}', ${product.price}, '${product.image}')">
+                                <button class="cart-btn" onclick="addToCart('${product.id}', '${product.variantId}', '${product.title}', ${product.price}, '${product.image}')">
                                     Add to Cart
                                 </button>
                             </div>
@@ -601,12 +601,12 @@
         }
 
         // Add to cart
-        function addToCart(id, title, price, image) {
+        function addToCart(id, variantId, title, price, image) {
             const existing = cart.find(item => item.id === id);
             if (existing) {
                 existing.quantity++;
             } else {
-                cart.push({ id, title, price, image, quantity: 1 });
+                cart.push({ id, variantId, title, price, image, quantity: 1 });
             }
             updateCart();
             alert('Added to cart!');

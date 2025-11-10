@@ -107,6 +107,7 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
 
     const formattedProducts = products.map((p) => ({
       id: p.shopifyProductId,
+      variantId: p.shopifyVariantId,
       title: p.title,
       price: p.wholesalePrice.toFixed(2),
       image: p.imageUrl || null,
@@ -210,7 +211,7 @@ router.post('/order', async (req, res, next) => {
       const draftOrderData = {
         draft_order: {
           line_items: items.map((item: any) => ({
-            variant_id: item.id,
+            variant_id: item.variantId || item.id,
             quantity: item.quantity,
           })),
           customer: {
