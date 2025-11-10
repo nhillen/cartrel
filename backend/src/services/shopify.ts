@@ -1,4 +1,4 @@
-import { shopifyApi, LATEST_API_VERSION, Session } from '@shopify/shopify-api';
+import { shopifyApi, LATEST_API_VERSION, Session, MemorySessionStorage } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { config } from '../config';
 import { prisma } from '../index';
@@ -14,7 +14,7 @@ export const shopify = shopifyApi({
   isEmbeddedApp: false, // Using cookie-based OAuth, not session tokens
   // Session storage using in-memory store for OAuth cookies
   // This is required for the OAuth flow to work properly
-  sessionStorage: new shopify.session.MemorySessionStorage(),
+  sessionStorage: new MemorySessionStorage(),
 });
 
 /**
