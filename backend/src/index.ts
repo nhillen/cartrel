@@ -48,8 +48,14 @@ app.use(session({
   },
 }));
 
-// Root endpoint - serve landing page for browsers, JSON for API clients
+// Root endpoint - serve landing page for browsers, JSON for API clients, or app for embedded Shopify
 app.get('/', (req, res): void => {
+  // Check if this is an embedded Shopify app request (has host and shop query params)
+  if (req.query.host && req.query.shop) {
+    res.sendFile(__dirname + '/views/app.html');
+    return;
+  }
+
   // Check if request wants JSON (API client)
   const acceptsJson = req.accepts('html') === 'html' ? false : true;
 

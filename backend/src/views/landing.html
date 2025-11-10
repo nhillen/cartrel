@@ -24,7 +24,6 @@
             background: #fff;
             border-bottom: 1px solid #E0DED8;
             padding: 20px 0;
-            margin-bottom: 60px;
         }
 
         .header-content {
@@ -40,76 +39,305 @@
             text-decoration: none;
         }
 
-        .cta-button {
-            background: #214937;
+        .early-access {
+            background: #F59E0B;
             color: #fff;
-            padding: 12px 24px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: background 0.2s;
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
 
-        .cta-button:hover {
-            background: #1a3829;
+        .early-access strong {
+            font-weight: 700;
         }
 
         .hero {
-            text-align: center;
-            padding: 60px 20px;
-            background: #fff;
-            border-radius: 12px;
-            margin-bottom: 60px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            padding: 80px 0 60px;
         }
 
-        h1 {
-            font-size: 48px;
+        .hero-content h1 {
+            font-size: 52px;
             font-weight: 700;
-            margin-bottom: 20px;
+            line-height: 1.15;
+            margin-bottom: 24px;
             color: #214937;
         }
 
-        .tagline {
+        .hero-content .subhead {
             font-size: 20px;
-            color: #64748B;
-            margin-bottom: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            color: #475569;
+            line-height: 1.65;
+            margin-bottom: 36px;
         }
 
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 60px;
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
         }
 
-        .feature {
-            background: #fff;
-            padding: 30px;
+        .btn-primary {
+            background: #214937;
+            color: #fff;
+            padding: 14px 32px;
             border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s;
+            border: 2px solid #214937;
+        }
+
+        .btn-primary:hover {
+            background: #1a3829;
+            border-color: #1a3829;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #214937;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            border: 2px solid #E0DED8;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: #214937;
+        }
+
+        .hero-visual {
+            background: linear-gradient(135deg, #F8FAF9 0%, #EEF2F0 100%);
+            border-radius: 16px;
+            padding: 48px;
+            box-shadow: 0 4px 20px rgba(33, 73, 55, 0.08);
             border: 1px solid #E0DED8;
         }
 
-        .feature h3 {
+        .schematic {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .store-icon {
+            background: #214937;
+            color: #fff;
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 2px 8px rgba(33, 73, 55, 0.2);
+        }
+
+        .arrow-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .arrow {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .arrow-line {
+            flex: 1;
+            height: 2px;
+            background: #214937;
+            position: relative;
+        }
+
+        .arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid #214937;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
+
+        .arrow-label {
+            font-size: 12px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .retailer-icons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .retailer-icon {
+            background: #fff;
+            color: #214937;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 20px;
-            margin-bottom: 12px;
+            border: 2px solid #E0DED8;
+        }
+
+        .how-it-works {
+            background: #fff;
+            border-radius: 12px;
+            padding: 40px;
+            margin: 60px 0;
+            border: 1px solid #E0DED8;
+        }
+
+        .how-it-works h2 {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748B;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 32px;
+        }
+
+        .step {
+            text-align: center;
+        }
+
+        .step-icon {
+            width: 48px;
+            height: 48px;
+            background: #214937;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 20px;
+        }
+
+        .step-text {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.5;
+        }
+
+        .features-section {
+            margin: 60px 0;
+        }
+
+        .features-primary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .feature-card {
+            background: #fff;
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid #E0DED8;
+        }
+
+        .feature-card h3 {
+            font-size: 22px;
+            margin-bottom: 16px;
             color: #214937;
         }
 
-        .feature p {
-            color: #64748B;
+        .feature-card p {
+            color: #475569;
+            line-height: 1.7;
+            font-size: 15px;
         }
 
-        .status {
-            background: #FEF3C7;
-            border: 1px solid #F59E0B;
-            color: #92400E;
-            padding: 16px;
-            border-radius: 6px;
+        .features-supporting {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .feature-inline {
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #E0DED8;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .feature-inline-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .feature-inline-text {
+            color: #475569;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .social-proof {
+            background: #214937;
+            color: #fff;
+            padding: 60px 40px;
+            border-radius: 12px;
             text-align: center;
-            margin-bottom: 40px;
+            margin: 60px 0;
+        }
+
+        .social-proof-quote {
+            font-size: 24px;
+            font-style: italic;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .social-proof-attribution {
+            font-size: 14px;
+            color: #A8C5BA;
+        }
+
+        .manifesto {
+            background: #fff;
+            border-radius: 12px;
+            padding: 48px;
+            margin: 60px 0;
+            text-align: center;
+            border: 1px solid #E0DED8;
+        }
+
+        .manifesto p {
+            font-size: 18px;
+            color: #475569;
+            line-height: 1.8;
+            max-width: 800px;
+            margin: 0 auto 16px;
         }
 
         footer {
@@ -134,61 +362,156 @@
         .footer-links a:hover {
             text-decoration: underline;
         }
+
+        @media (max-width: 768px) {
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .hero-content h1 {
+                font-size: 36px;
+            }
+
+            .steps {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .features-primary {
+                grid-template-columns: 1fr;
+            }
+
+            .features-supporting {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="early-access">
+        <strong>Early Access:</strong> Cartrel is live for Shopify brands with existing wholesale partners. Limited onboarding spots available.
+    </div>
+
     <header>
         <div class="container">
             <div class="header-content">
                 <a href="/" class="logo">Cartrel</a>
-                <a href="https://partners.shopify.com" class="cta-button">Install App</a>
             </div>
         </div>
     </header>
 
     <div class="container">
-        <div class="status">
-            <strong>🚧 Early Access</strong> - Cartrel is currently in development. API is live and accepting test installations.
-        </div>
-
+        <!-- Split Hero -->
         <div class="hero">
-            <h1>Direct wholesale rails for Shopify</h1>
-            <p class="tagline">
-                Connect with your retail partners through automated product sync, flexible terms, and clean purchase orders—without marketplace fees.
-            </p>
-            <a href="https://partners.shopify.com" class="cta-button">Get Started</a>
+            <div class="hero-content">
+                <h1>Direct wholesale rails that stay out of your way</h1>
+                <p class="subhead">
+                    Cartrel connects your Shopify store to trusted retail partners with synced catalogs, clean purchase orders, and flexible terms. You sell together. We stay invisible.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#install" class="btn-primary">Install for suppliers</a>
+                    <a href="#retailer" class="btn-secondary">See retailer view</a>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="schematic">
+                    <div class="store-icon">🏪</div>
+
+                    <div class="arrow-group">
+                        <div class="arrow">
+                            <div class="arrow-line"></div>
+                            <span class="arrow-label">Products, prices, inventory</span>
+                        </div>
+                        <div class="arrow" style="margin-left: 40px;">
+                            <span class="arrow-label">POs → Shopify orders</span>
+                            <div class="arrow-line" style="transform: scaleX(-1);"></div>
+                        </div>
+                    </div>
+
+                    <div class="retailer-icons">
+                        <div class="retailer-icon">🏬</div>
+                        <div class="retailer-icon">🏬</div>
+                        <div class="retailer-icon">🏬</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="features">
-            <div class="feature">
-                <h3>🔄 Automated Sync</h3>
-                <p>Real-time product and inventory sync between your store and your stockists. No more manual updates or spreadsheets.</p>
+        <!-- How It Works -->
+        <div class="how-it-works">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-icon">1</div>
+                    <p class="step-text">Install Cartrel in your Shopify</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">2</div>
+                    <p class="step-text">Invite or approve partners</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">3</div>
+                    <p class="step-text">Mark wholesale products</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">4</div>
+                    <p class="step-text">Retailers submit POs that appear as draft orders</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features - Primary -->
+        <div class="features-section">
+            <div class="features-primary">
+                <div class="feature-card">
+                    <h3>Automated Sync</h3>
+                    <p>Select wholesale SKUs once. Cartrel keeps products, prices, and inventory aligned for every approved retailer.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Clean POs in Shopify</h3>
+                    <p>Retailers build orders in Cartrel. You receive draft orders in your Shopify with your payment flow and tags.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Flexible Terms & Tiers</h3>
+                    <p>Offer prepay or net terms, credit limits, and tier perks per partner. Cartrel enforces rules, you own the relationship.</p>
+                </div>
             </div>
 
-            <div class="feature">
-                <h3>🤝 Direct Relationships</h3>
-                <p>Keep full ownership of your retailer relationships. Payments flow directly between you and your partners.</p>
-            </div>
+            <!-- Features - Supporting -->
+            <div class="features-supporting">
+                <div class="feature-inline">
+                    <div class="feature-inline-icon">🤝</div>
+                    <div class="feature-inline-text">
+                        Direct relationships, no marketplace fees. You own your customer data and terms.
+                    </div>
+                </div>
 
-            <div class="feature">
-                <h3>📊 Flexible Terms</h3>
-                <p>Set custom payment terms, tier pricing, and automated perks for each relationship. PREPAY, NET 30, NET 60, or custom.</p>
+                <div class="feature-inline">
+                    <div class="feature-inline-icon">📊</div>
+                    <div class="feature-inline-text">
+                        Tier perks and VIP logic built in. Automated rewards for your best wholesale partners.
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <div class="feature">
-                <h3>📦 Clean Orders</h3>
-                <p>Purchase orders create draft orders in your Shopify. Review, fulfill, and track everything in your normal workflow.</p>
+        <!-- Social Proof -->
+        <div class="social-proof">
+            <div class="social-proof-quote">
+                "We stopped juggling wholesale spreadsheets in a weekend. Our stockists order inside Shopify now."
             </div>
+            <div class="social-proof-attribution">
+                Early partners from independent brands and boutiques
+            </div>
+        </div>
 
-            <div class="feature">
-                <h3>💰 Lower Fees</h3>
-                <p>SaaS pricing, not commission. No GMV percentage, no hidden fees, no penalties for offline relationships.</p>
-            </div>
-
-            <div class="feature">
-                <h3>📈 Tier System</h3>
-                <p>Reward your best partners with automated tier upgrades, volume discounts, free shipping, and custom perks.</p>
-            </div>
+        <!-- Manifesto -->
+        <div class="manifesto">
+            <p>No GMV tax. No marketplace rules. Just rails between stores that already trust each other.</p>
+            <p>Cartrel never becomes merchant of record. Payments stay between you and your partners.</p>
         </div>
     </div>
 
