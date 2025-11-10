@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
+import { shopify, saveShop } from '../services/shopify';
+import { config } from '../config';
 
 const router = Router();
 
@@ -14,32 +16,76 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
       return;
     }
 
-    // TODO: Implement Shopify OAuth flow
+    // Validate shop domain format
+    if (!shop.endsWith('.myshopify.com')) {
+      res.status(400).json({ error: 'Invalid shop domain' });
+      return;
+    }
+
     logger.info(`OAuth initiated for shop: ${shop}`);
 
-    res.json({ message: 'OAuth flow - TO BE IMPLEMENTED' });
+    // Begin OAuth flow
+    await shopify.auth.begin({
+      shop: shopify.utils.sanitizeShop(shop, true)!,
+      callbackPath: '/auth/shopify/callback',
+      isOnline: false, // Offline access tokens for background operations
+      rawRequest: req,
+      rawResponse: res,
+    });
   } catch (error) {
+    logger.error('OAuth initiation error:', error);
     next(error);
   }
 });
 
 // Shopify OAuth callback
-// GET /auth/shopify/callback?code=...&shop=...&hmac=...
+// GET /auth/shopify/callback?code=...&shop=...&hmac=...&host=...&timestamp=...
 router.get('/shopify/callback', async (req, res, next): Promise<void> => {
   try {
-    const { code, shop, hmac } = req.query;
+    logger.info('OAuth callback received');
 
-    if (!code || !shop || !hmac) {
-      res.status(400).json({ error: 'Missing required parameters' });
-      return;
+    // Complete OAuth flow and get access token
+    const callback = await shopify.auth.callback({
+      rawRequest: req,
+      rawResponse: res,
+    });
+
+    const { session } = callback;
+
+    logger.info(`OAuth completed for shop: ${session.shop}`);
+
+    // Save shop and access token to database
+    await saveShop(session.shop, session.accessToken!);
+
+    // Register webhooks for this shop
+    try {
+      await registerWebhooks(session.shop, session.accessToken!);
+    } catch (error) {
+      logger.error('Error registering webhooks:', error);
+      // Don't fail the OAuth flow if webhooks fail
     }
 
-    // TODO: Implement OAuth callback handling
-    logger.info(`OAuth callback received for shop: ${shop}`);
+    // Redirect to app embedded in Shopify admin
+    const host = req.query.host as string;
+    const redirectUrl = `https://${session.shop}/admin/apps/${config.shopify.apiKey}`;
 
-    res.json({ message: 'OAuth callback - TO BE IMPLEMENTED' });
+    logger.info(`Redirecting to: ${redirectUrl}`);
+
+    res.redirect(redirectUrl);
   } catch (error) {
-    next(error);
+    logger.error('OAuth callback error:', error);
+    // Redirect to error page
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>Installation Error</title></head>
+        <body>
+          <h1>Installation Error</h1>
+          <p>There was an error installing the Cartrel app. Please try again.</p>
+          <p>Error: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+        </body>
+      </html>
+    `);
   }
 });
 
@@ -53,13 +99,59 @@ router.post('/verify', async (req, res, next): Promise<void> => {
       return;
     }
 
-    // TODO: Implement session token verification
-    logger.info('Session token verification - TO BE IMPLEMENTED');
+    // Verify JWT session token from embedded app
+    try {
+      const payload = await shopify.session.decodeSessionToken(sessionToken);
 
-    res.json({ valid: false, message: 'TO BE IMPLEMENTED' });
+      logger.debug(`Session token verified for shop: ${payload.dest.replace('https://', '')}`);
+
+      res.json({
+        valid: true,
+        shop: payload.dest.replace('https://', ''),
+        sub: payload.sub,
+      });
+    } catch (error) {
+      logger.warn('Invalid session token');
+      res.status(401).json({ valid: false, error: 'Invalid session token' });
+    }
   } catch (error) {
     next(error);
   }
 });
+
+/**
+ * Register webhooks for a shop
+ */
+async function registerWebhooks(shop: string, accessToken: string) {
+  const client = new shopify.clients.Rest({ session: { shop, accessToken, state: '', isOnline: false } });
+
+  const webhooks = [
+    { topic: 'PRODUCTS_CREATE', address: `${config.appUrl}/webhooks/shopify/products/create` },
+    { topic: 'PRODUCTS_UPDATE', address: `${config.appUrl}/webhooks/shopify/products/update` },
+    { topic: 'PRODUCTS_DELETE', address: `${config.appUrl}/webhooks/shopify/products/delete` },
+    { topic: 'INVENTORY_LEVELS_UPDATE', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
+    { topic: 'ORDERS_CREATE', address: `${config.appUrl}/webhooks/shopify/orders/create` },
+    { topic: 'ORDERS_UPDATED', address: `${config.appUrl}/webhooks/shopify/orders/update` },
+    { topic: 'APP_UNINSTALLED', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
+  ];
+
+  for (const webhook of webhooks) {
+    try {
+      await client.post({
+        path: 'webhooks',
+        data: {
+          webhook: {
+            topic: webhook.topic,
+            address: webhook.address,
+            format: 'json',
+          },
+        },
+      });
+      logger.info(`Registered webhook: ${webhook.topic} for ${shop}`);
+    } catch (error) {
+      logger.error(`Failed to register webhook ${webhook.topic}:`, error);
+    }
+  }
+}
 
 export default router;

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartrel - Direct Wholesale Rails for Shopify</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: #0F172A;
+            background: #F5F5F3;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #fff;
+            border-bottom: 1px solid #E0DED8;
+            padding: 20px 0;
+            margin-bottom: 60px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #214937;
+            text-decoration: none;
+        }
+
+        .cta-button {
+            background: #214937;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .cta-button:hover {
+            background: #1a3829;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 60px 20px;
+            background: #fff;
+            border-radius: 12px;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #214937;
+        }
+
+        .tagline {
+            font-size: 20px;
+            color: #64748B;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .feature {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid #E0DED8;
+        }
+
+        .feature h3 {
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #214937;
+        }
+
+        .feature p {
+            color: #64748B;
+        }
+
+        .status {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            color: #92400E;
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748B;
+            border-top: 1px solid #E0DED8;
+            background: #fff;
+            margin-top: 60px;
+        }
+
+        .footer-links {
+            margin-top: 20px;
+        }
+
+        .footer-links a {
+            color: #214937;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">Cartrel</a>
+                <a href="https://partners.shopify.com" class="cta-button">Install App</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="status">
+            <strong>🚧 Early Access</strong> - Cartrel is currently in development. API is live and accepting test installations.
+        </div>
+
+        <div class="hero">
+            <h1>Direct wholesale rails for Shopify</h1>
+            <p class="tagline">
+                Connect with your retail partners through automated product sync, flexible terms, and clean purchase orders—without marketplace fees.
+            </p>
+            <a href="https://partners.shopify.com" class="cta-button">Get Started</a>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <h3>🔄 Automated Sync</h3>
+                <p>Real-time product and inventory sync between your store and your stockists. No more manual updates or spreadsheets.</p>
+            </div>
+
+            <div class="feature">
+                <h3>🤝 Direct Relationships</h3>
+                <p>Keep full ownership of your retailer relationships. Payments flow directly between you and your partners.</p>
+            </div>
+
+            <div class="feature">
+                <h3>📊 Flexible Terms</h3>
+                <p>Set custom payment terms, tier pricing, and automated perks for each relationship. PREPAY, NET 30, NET 60, or custom.</p>
+            </div>
+
+            <div class="feature">
+                <h3>📦 Clean Orders</h3>
+                <p>Purchase orders create draft orders in your Shopify. Review, fulfill, and track everything in your normal workflow.</p>
+            </div>
+
+            <div class="feature">
+                <h3>💰 Lower Fees</h3>
+                <p>SaaS pricing, not commission. No GMV percentage, no hidden fees, no penalties for offline relationships.</p>
+            </div>
+
+            <div class="feature">
+                <h3>📈 Tier System</h3>
+                <p>Reward your best partners with automated tier upgrades, volume discounts, free shipping, and custom perks.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Cartrel. Direct wholesale infrastructure for Shopify stores.</p>
+            <div class="footer-links">
+                <a href="https://github.com/nhillen/cartrel">Documentation</a>
+                <a href="/health">API Status</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
