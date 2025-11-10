@@ -123,7 +123,7 @@ export async function getShop(shopDomain: string) {
 }
 
 /**
- * Create Shopify API client for a specific shop
+ * Create Shopify REST API client for a specific shop
  */
 export function createShopifyClient(shop: string, accessToken: string) {
   const session = new Session({
@@ -135,4 +135,19 @@ export function createShopifyClient(shop: string, accessToken: string) {
   });
 
   return new shopify.clients.Rest({ session });
+}
+
+/**
+ * Create Shopify GraphQL API client for a specific shop
+ */
+export function createShopifyGraphQLClient(shop: string, accessToken: string) {
+  const session = new Session({
+    id: `offline_${shop}`,
+    shop,
+    state: '',
+    isOnline: false,
+    accessToken,
+  });
+
+  return new shopify.clients.Graphql({ session });
 }

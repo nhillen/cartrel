@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
-import { createShopifyClient } from '../services/shopify';
+import { createShopifyClient, createShopifyGraphQLClient } from '../services/shopify';
 
 const router = Router();
 
@@ -221,7 +221,7 @@ router.post('/order', async (req, res, next) => {
 
     // Create draft order in supplier's Shopify using GraphQL
     try {
-      const client = createShopifyClient(
+      const client = createShopifyGraphQLClient(
         supplierShop.myshopifyDomain,
         supplierShop.accessToken
       );
