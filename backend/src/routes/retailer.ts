@@ -23,9 +23,12 @@ router.get('/suppliers', async (req, res, next) => {
     });
 
     if (!shopRecord) {
+      logger.warn(`Retailer shop not found: ${shop}`);
       res.status(404).json({ error: 'Shop not found' });
       return;
     }
+
+    logger.debug(`Loading suppliers for retailer: ${shop} (ID: ${shopRecord.id})`);
 
     // Get connections where this shop is the retailer
     const connections = await prisma.connection.findMany({
@@ -37,6 +40,8 @@ router.get('/suppliers', async (req, res, next) => {
         supplierShop: true,
       },
     });
+
+    logger.debug(`Found ${connections.length} active connections for retailer ${shop}`);
 
     const suppliers = connections.map((conn) => ({
       id: conn.supplierShopId,
