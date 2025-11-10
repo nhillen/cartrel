@@ -42,10 +42,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: config.sessionSecret,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true, // Need to save for OAuth flow
   cookie: {
     secure: config.isProduction,
     httpOnly: true,
+    sameSite: config.isProduction ? 'none' : 'lax', // Required for embedded apps
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   },
 }));
