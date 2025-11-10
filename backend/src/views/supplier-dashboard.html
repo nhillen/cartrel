@@ -548,7 +548,12 @@
         }
 
         // Load initial data
-        loadProducts();
+        if (!shop) {
+            console.error('Shop parameter missing from URL');
+            document.getElementById('products-list').innerHTML = '<div class="empty-state"><h3>Error</h3><p>Shop parameter missing. Please reload the app from Shopify Admin.</p></div>';
+        } else {
+            loadProducts();
+        }
     </script>
 </body>
 </html>

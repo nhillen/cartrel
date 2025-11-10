@@ -166,6 +166,14 @@ app.get('/', async (req, res): Promise<void> => {
       });
 
       if (shop) {
+        // Check if shop has access token - if not, need to redo OAuth
+        if (!shop.accessToken || shop.accessToken === '') {
+          logger.warn(`Shop ${shop.myshopifyDomain} has no access token, redirecting to OAuth`);
+          const oauthUrl = `/auth/shopify?shop=${shop.myshopifyDomain}&host=${req.query.host}`;
+          res.redirect(oauthUrl);
+          return;
+        }
+
         // Serve role-specific dashboard
         if (shop.role === 'SUPPLIER' || shop.role === 'BOTH') {
           res.sendFile(__dirname + '/views/supplier-dashboard.html');
