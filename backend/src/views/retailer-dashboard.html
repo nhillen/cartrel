@@ -903,6 +903,9 @@
                     closeImportModal();
                     // Reload catalog to show updated import status
                     loadCatalog(currentSupplier);
+                } else if (result.requiresReinstall) {
+                    alert(`${result.error}\n\nYour access token is invalid. Please uninstall and reinstall the Cartrel app to fix this.`);
+                    closeImportModal();
                 } else {
                     alert(`Error importing product: ${result.error || 'Unknown error'}`);
                 }
