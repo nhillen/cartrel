@@ -1,0 +1,402 @@
+// Cartrel Database Schema
+// Prisma ORM schema for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+enum ShopRole {
+  SUPPLIER
+  RETAILER
+  BOTH
+}
+
+enum ShopPlan {
+  STARTER
+  GROWTH
+  PLUS
+  ENTERPRISE
+}
+
+model Shop {
+  id               String   @id @default(cuid())
+  myshopifyDomain  String   @unique // e.g., "brandname.myshopify.com"
+  accessToken      String   // Encrypted Shopify access token
+  role             ShopRole
+  plan             ShopPlan @default(STARTER)
+
+  // Shop details
+  companyName      String?
+  email            String?
+  timezone         String   @default("America/New_York")
+
+  // Relationships
+  supplierConnections   Connection[]     @relation("SupplierConnections")
+  retailerConnections   Connection[]     @relation("RetailerConnections")
+  supplierProducts      SupplierProduct[]
+  supplierPurchaseOrders PurchaseOrder[] @relation("SupplierPurchaseOrders")
+  retailerPurchaseOrders PurchaseOrder[] @relation("RetailerPurchaseOrders")
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([myshopifyDomain])
+}
+
+// ============================================================================
+// CONNECTIONS & RELATIONSHIPS
+// ============================================================================
+
+enum ConnectionStatus {
+  PENDING_INVITE
+  ACTIVE
+  PAUSED
+  TERMINATED
+}
+
+enum PaymentTermsType {
+  PREPAY
+  NET_15
+  NET_30
+  NET_60
+}
+
+enum TierLevel {
+  STANDARD
+  SILVER
+  GOLD
+  CUSTOM
+}
+
+model Connection {
+  id              String            @id @default(cuid())
+
+  // Relationship
+  supplierShopId  String
+  supplierShop    Shop              @relation("SupplierConnections", fields: [supplierShopId], references: [id], onDelete: Cascade)
+  retailerShopId  String
+  retailerShop    Shop              @relation("RetailerConnections", fields: [retailerShopId], references: [id], onDelete: Cascade)
+
+  // Payment terms
+  paymentTermsType PaymentTermsType @default(PREPAY)
+  creditLimit      Decimal?         @db.Decimal(10, 2)
+  currency         String           @default("USD")
+  minOrderAmount   Decimal          @default(0) @db.Decimal(10, 2)
+
+  // Tier & perks
+  tier             TierLevel        @default(STANDARD)
+  tierRules        Json?            // Array of TierRule objects
+  perksConfig      Json?            // Perks configuration
+
+  // Status
+  status           ConnectionStatus @default(PENDING_INVITE)
+  inviteToken      String?          @unique
+  invitedAt        DateTime?
+  acceptedAt       DateTime?
+
+  // Metadata
+  notes            String?          @db.Text
+
+  // Relationships
+  productMappings  ProductMapping[]
+  purchaseOrders   PurchaseOrder[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([supplierShopId, retailerShopId])
+  @@index([supplierShopId])
+  @@index([retailerShopId])
+  @@index([inviteToken])
+  @@index([status])
+}
+
+// ============================================================================
+// PRODUCTS & CATALOG
+// ============================================================================
+
+model SupplierProduct {
+  id                   String   @id @default(cuid())
+
+  // Supplier relationship
+  supplierShopId       String
+  supplierShop         Shop     @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
+
+  // Shopify identifiers
+  shopifyProductId     String
+  shopifyVariantId     String
+
+  // Product info (cached from Shopify)
+  title                String
+  description          String?  @db.Text
+  vendor               String?
+  productType          String?
+  imageUrl             String?
+
+  // Variant info
+  sku                  String?
+  variantTitle         String?
+  wholesalePrice       Decimal  @db.Decimal(10, 2)
+  compareAtPrice       Decimal? @db.Decimal(10, 2)
+  inventoryQuantity    Int      @default(0)
+
+  // Wholesale config
+  isWholesaleEligible  Boolean  @default(false)
+  minQuantity          Int      @default(1)
+
+  // Sync metadata
+  lastSyncedAt         DateTime @default(now())
+
+  // Relationships
+  productMappings      ProductMapping[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([supplierShopId, shopifyVariantId])
+  @@index([supplierShopId, isWholesaleEligible])
+  @@index([shopifyProductId])
+  @@index([sku])
+}
+
+// ============================================================================
+// PRODUCT MAPPINGS (Supplier � Retailer)
+// ============================================================================
+
+enum ProductMappingStatus {
+  ACTIVE
+  PAUSED
+  DISCONTINUED
+}
+
+enum MarkupType {
+  FIXED_AMOUNT
+  PERCENTAGE
+  CUSTOM
+}
+
+model ProductMapping {
+  id                       String                @id @default(cuid())
+
+  // Connection
+  connectionId             String
+  connection               Connection            @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Supplier side
+  supplierProductId        String
+  supplierProduct          SupplierProduct       @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  supplierShopifyProductId String
+  supplierShopifyVariantId String
+
+  // Retailer side (when imported)
+  retailerShopifyProductId String?
+  retailerShopifyVariantId String?
+
+  // Sync preferences
+  syncInventory            Boolean               @default(true)
+  syncPricing              Boolean               @default(false)
+  syncDescription          Boolean               @default(false)
+  syncImages               Boolean               @default(false)
+
+  // Retailer pricing
+  retailerMarkupType       MarkupType            @default(PERCENTAGE)
+  retailerMarkupValue      Decimal               @db.Decimal(10, 2)
+
+  // Status
+  status                   ProductMappingStatus  @default(ACTIVE)
+
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  @@unique([connectionId, supplierProductId])
+  @@index([connectionId])
+  @@index([supplierProductId])
+  @@index([retailerShopifyProductId])
+}
+
+// ============================================================================
+// PURCHASE ORDERS
+// ============================================================================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  AWAITING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id                       String               @id @default(cuid())
+
+  // Connection
+  connectionId             String
+  connection               Connection           @relation(fields: [connectionId], references: [id])
+
+  // Shop references
+  supplierShopId           String
+  supplierShop             Shop                 @relation("SupplierPurchaseOrders", fields: [supplierShopId], references: [id])
+  retailerShopId           String
+  retailerShop             Shop                 @relation("RetailerPurchaseOrders", fields: [retailerShopId], references: [id])
+
+  // Order identification
+  poNumber                 String               @unique // e.g., "PO-2024-001"
+
+  // Line items (stored as JSON)
+  items                    Json                 // Array of POItem objects
+
+  // Financials
+  subtotal                 Decimal              @db.Decimal(10, 2)
+  shippingCost             Decimal              @default(0) @db.Decimal(10, 2)
+  taxAmount                Decimal              @default(0) @db.Decimal(10, 2)
+  total                    Decimal              @db.Decimal(10, 2)
+  currency                 String
+
+  // Terms applied at time of order
+  paymentTermsType         String
+  tierAtOrder              String?
+  perksApplied             Json?                // Array of AppliedPerk objects
+
+  // Shopify integration
+  supplierShopifyOrderId      String?
+  supplierShopifyDraftOrderId String?
+
+  // Status tracking
+  status                   PurchaseOrderStatus  @default(DRAFT)
+
+  // Shipping
+  shippingAddress          Json                 // Address object
+  trackingNumber           String?
+  trackingUrl              String?
+
+  // Audit timestamps
+  submittedAt              DateTime?
+  paidAt                   DateTime?
+  shippedAt                DateTime?
+
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+
+  @@index([connectionId])
+  @@index([supplierShopId])
+  @@index([retailerShopId])
+  @@index([status])
+  @@index([poNumber])
+}
+
+// ============================================================================
+// WEBHOOKS & SYNC
+// ============================================================================
+
+enum WebhookTopic {
+  PRODUCTS_CREATE
+  PRODUCTS_UPDATE
+  PRODUCTS_DELETE
+  INVENTORY_LEVELS_UPDATE
+  ORDERS_CREATE
+  ORDERS_UPDATED
+  APP_UNINSTALLED
+}
+
+model WebhookLog {
+  id              String       @id @default(cuid())
+  shopId          String
+  topic           WebhookTopic
+  shopifyId       String       // ID of the resource (product, order, etc.)
+  payload         Json
+  processed       Boolean      @default(false)
+  processedAt     DateTime?
+  errorMessage    String?      @db.Text
+
+  createdAt       DateTime     @default(now())
+
+  @@index([shopId, topic])
+  @@index([processed])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// USAGE ANALYTICS (for flexible billing models)
+// ============================================================================
+
+model UsageMetric {
+  id              String   @id @default(cuid())
+  shopId          String
+  period          String   // e.g., "2024-11", "2024-Q4"
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  // Connection metrics
+  activeConnections      Int      @default(0)
+  newConnections         Int      @default(0)
+  terminatedConnections  Int      @default(0)
+
+  // Order metrics
+  purchaseOrdersCreated  Int      @default(0)
+  purchaseOrdersTotal    Decimal  @default(0) @db.Decimal(12, 2)
+  avgOrderValue          Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Product metrics
+  wholesaleProducts      Int      @default(0)
+  productMappings        Int      @default(0)
+  syncOperations         Int      @default(0)
+
+  // API usage
+  webhooksProcessed      Int      @default(0)
+  apiCallsMade           Int      @default(0)
+
+  // Feature usage
+  tierUpgrades           Int      @default(0)
+  perksApplied           Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([shopId, period])
+  @@index([shopId])
+  @@index([periodStart])
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+enum AuditAction {
+  SHOP_INSTALLED
+  SHOP_UNINSTALLED
+  CONNECTION_CREATED
+  CONNECTION_ACCEPTED
+  CONNECTION_TERMINATED
+  PRODUCT_MARKED_WHOLESALE
+  PRODUCT_IMPORTED
+  PURCHASE_ORDER_CREATED
+  PURCHASE_ORDER_PAID
+  PURCHASE_ORDER_SHIPPED
+  TIER_UPGRADED
+}
+
+model AuditLog {
+  id              String      @id @default(cuid())
+  shopId          String
+  action          AuditAction
+  resourceType    String?     // e.g., "PurchaseOrder", "Connection"
+  resourceId      String?
+  metadata        Json?
+  createdAt       DateTime    @default(now())
+
+  @@index([shopId])
+  @@index([action])
+  @@index([createdAt])
+}
