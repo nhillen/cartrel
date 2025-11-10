@@ -3,14 +3,15 @@ import { Session } from '@shopify/shopify-api';
 import { logger } from '../utils/logger';
 import { shopify, saveShop, getShop } from '../services/shopify';
 import { config } from '../config';
+import { prisma } from '../index';
 
 const router = Router();
 
 // Shopify OAuth initiation
-// GET /auth/shopify?shop=example.myshopify.com
+// GET /auth/shopify?shop=example.myshopify.com&invite=supplier.myshopify.com
 router.get('/shopify', async (req, res, next): Promise<void> => {
   try {
-    const { shop } = req.query;
+    const { shop, invite } = req.query;
 
     if (!shop || typeof shop !== 'string') {
       res.status(400).json({ error: 'Missing shop parameter' });
@@ -23,7 +24,14 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
       return;
     }
 
-    logger.info(`OAuth initiated for shop: ${shop}`);
+    logger.info(`OAuth initiated for shop: ${shop}${invite ? ` (invite from ${invite})` : ''}`);
+
+    // Store invite in session if present (will be used after OAuth)
+    if (invite && typeof invite === 'string') {
+      // We'll pass this through the state parameter
+      (req as any).session = (req as any).session || {};
+      (req as any).session.pendingInvite = invite;
+    }
 
     // Begin OAuth flow
     await shopify.auth.begin({
@@ -68,6 +76,64 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
     } catch (error) {
       logger.error('Error registering webhooks:', error);
       // Don't fail the OAuth flow if webhooks fail
+    }
+
+    // Check for pending invite and create connection (AFTER authentication)
+    const pendingInvite = (req as any).session?.pendingInvite;
+    if (pendingInvite && typeof pendingInvite === 'string') {
+      try {
+        logger.info(`Processing invite: ${session.shop} → ${pendingInvite}`);
+
+        // Get supplier and retailer shops
+        const supplier = await prisma.shop.findUnique({
+          where: { myshopifyDomain: pendingInvite },
+        });
+
+        const retailer = await prisma.shop.findUnique({
+          where: { myshopifyDomain: session.shop },
+        });
+
+        if (supplier && retailer) {
+          // Check if connection already exists
+          const existingConnection = await prisma.connection.findFirst({
+            where: {
+              supplierShopId: supplier.id,
+              retailerShopId: retailer.id,
+            },
+          });
+
+          if (!existingConnection) {
+            // Create connection now that retailer is authenticated
+            await prisma.connection.create({
+              data: {
+                supplierShopId: supplier.id,
+                retailerShopId: retailer.id,
+                status: 'ACTIVE',
+                paymentTermsType: 'PREPAY',
+                tier: 'STANDARD',
+              },
+            });
+
+            logger.info(`Created authenticated connection: ${pendingInvite} → ${session.shop}`);
+
+            // Log audit event
+            await prisma.auditLog.create({
+              data: {
+                shopId: retailer.id,
+                action: 'CONNECTION_CREATED',
+                resourceType: 'Connection',
+                resourceId: `${supplier.id}-${retailer.id}`,
+              },
+            });
+          }
+        }
+
+        // Clear pending invite from session
+        delete (req as any).session.pendingInvite;
+      } catch (inviteError) {
+        logger.error('Error processing pending invite:', inviteError);
+        // Don't fail OAuth flow if invite processing fails
+      }
     }
 
     // Get host parameter for embedded app URL

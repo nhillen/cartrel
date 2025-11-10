@@ -373,6 +373,36 @@
         <!-- Settings Tab -->
         <div class="tab-content" id="settings-tab">
             <div class="card">
+                <h2>Account Role</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Manage how you use Cartrel. You can upgrade to access both supplier and retailer features.
+                </p>
+
+                <div style="background: #F8F9FA; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">Current Role</div>
+                            <div id="currentRole" style="font-size: 14px; color: #64748B;">Loading...</div>
+                        </div>
+                        <span class="badge badge-success" id="roleBadge">SUPPLIER</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Upgrade Role</label>
+                    <select id="newRole" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="">-- Select New Role --</option>
+                        <option value="BOTH">Both Supplier & Retailer - Access all features</option>
+                    </select>
+                    <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        Note: Changing your role will give you access to retailer features in addition to supplier features.
+                    </p>
+                </div>
+
+                <button class="btn btn-primary" onclick="changeRole()" style="margin-bottom: 32px;">Update Role</button>
+            </div>
+
+            <div class="card">
                 <h2>Default Wholesale Settings</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     These settings apply to all new retail partner connections.
@@ -427,6 +457,7 @@
                 if (tabName === 'products') loadProducts();
                 if (tabName === 'partners') loadPartners();
                 if (tabName === 'orders') loadOrders();
+                if (tabName === 'settings') loadCurrentRole();
             });
         });
 
@@ -544,6 +575,75 @@
             } catch (error) {
                 console.error('Error saving settings:', error);
                 alert('Error saving settings. Please try again.');
+            }
+        }
+
+        // Load current role
+        async function loadCurrentRole() {
+            try {
+                const response = await fetch(`/api/shop/me?shop=${shop}`);
+                const data = await response.json();
+
+                const roleDisplay = {
+                    'SUPPLIER': 'Supplier - Sell wholesale to retailers',
+                    'RETAILER': 'Retailer - Buy wholesale from suppliers',
+                    'BOTH': 'Both Supplier & Retailer - Full access'
+                };
+
+                document.getElementById('currentRole').textContent = roleDisplay[data.role] || data.role;
+                document.getElementById('roleBadge').textContent = data.role;
+
+                // Update dropdown based on current role
+                const newRoleSelect = document.getElementById('newRole');
+                if (data.role === 'BOTH') {
+                    newRoleSelect.innerHTML = '<option value="">You already have full access</option>';
+                    newRoleSelect.disabled = true;
+                } else if (data.role === 'SUPPLIER') {
+                    // Already set correctly
+                } else if (data.role === 'RETAILER') {
+                    newRoleSelect.innerHTML = '<option value="">-- Select New Role --</option><option value="BOTH">Both Supplier & Retailer - Access all features</option>';
+                }
+            } catch (error) {
+                console.error('Error loading role:', error);
+            }
+        }
+
+        // Change role with confirmation
+        async function changeRole() {
+            const newRole = document.getElementById('newRole').value;
+
+            if (!newRole) {
+                alert('Please select a role to upgrade to');
+                return;
+            }
+
+            // Confirmation dialog
+            const confirmed = confirm(
+                `Are you sure you want to upgrade your account to ${newRole === 'BOTH' ? 'Both Supplier & Retailer' : newRole}?\n\n` +
+                `This will give you access to both supplier and retailer features. This change will be logged for security.`
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/shop/role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, role: newRole })
+                });
+
+                if (response.ok) {
+                    alert('Role updated successfully! Reloading...');
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Error updating role: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error changing role:', error);
+                alert('Error updating role. Please try again.');
             }
         }
 

@@ -83,13 +83,19 @@ app.get('/api/invite/:supplierShop/info', async (req, res): Promise<void> => {
   }
 });
 
-// Accept invite and create connection
+// Validate invite (connection created after OAuth for security)
 app.post('/api/invite/:supplierShop/accept', async (req, res): Promise<void> => {
   try {
     const { supplierShop } = req.params;
     const { retailerShop } = req.body;
 
-    // Get supplier
+    // Validate retailer shop format
+    if (!retailerShop || !retailerShop.includes('.myshopify.com')) {
+      res.status(400).json({ error: 'Invalid shop domain' });
+      return;
+    }
+
+    // Verify supplier exists
     const supplier = await prisma.shop.findUnique({
       where: { myshopifyDomain: supplierShop },
     });
@@ -99,59 +105,14 @@ app.post('/api/invite/:supplierShop/accept', async (req, res): Promise<void> => 
       return;
     }
 
-    // Check if retailer exists, if not they'll install during OAuth
-    let retailer = await prisma.shop.findUnique({
-      where: { myshopifyDomain: retailerShop },
-    });
-
-    // If retailer doesn't exist yet, create placeholder
-    if (!retailer) {
-      retailer = await prisma.shop.create({
-        data: {
-          myshopifyDomain: retailerShop,
-          accessToken: '', // Will be set during OAuth
-          role: 'RETAILER',
-        },
-      });
-    }
-
-    // Check if connection already exists
-    const existingConnection = await prisma.connection.findFirst({
-      where: {
-        supplierShopId: supplier.id,
-        retailerShopId: retailer.id,
-      },
-    });
-
-    if (!existingConnection) {
-      // Create connection
-      await prisma.connection.create({
-        data: {
-          supplierShopId: supplier.id,
-          retailerShopId: retailer.id,
-          status: 'ACTIVE',
-          paymentTermsType: 'PREPAY', // Default
-          tier: 'STANDARD',
-        },
-      });
-
-      logger.info(`Created connection: ${supplierShop} → ${retailerShop}`);
-
-      // Log audit event
-      await prisma.auditLog.create({
-        data: {
-          shopId: retailer.id,
-          action: 'CONNECTION_CREATED',
-          resourceType: 'Connection',
-          resourceId: `${supplier.id}-${retailer.id}`,
-        },
-      });
-    }
+    // Don't create connection yet - will be created after OAuth authentication
+    // This prevents anyone from creating unauthorized connections
+    logger.info(`Invite validated: ${retailerShop} → ${supplierShop}`);
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Error accepting invite:', error);
-    res.status(500).json({ error: 'Failed to accept invite' });
+    logger.error('Error validating invite:', error);
+    res.status(500).json({ error: 'Failed to validate invite' });
   }
 });
 
