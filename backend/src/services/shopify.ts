@@ -55,8 +55,9 @@ export const shopify = shopifyApi({
   scopes: config.shopify.scopes,
   hostName: config.shopify.hostName,
   apiVersion: LATEST_API_VERSION,
-  isEmbeddedApp: false, // Using cookie-based OAuth, not session tokens
+  isEmbeddedApp: true, // Embedded app with session tokens
   sessionStorage: new SimpleSessionStorage(),
+  useOnlineTokens: false, // Use offline tokens for background operations
 });
 
 /**

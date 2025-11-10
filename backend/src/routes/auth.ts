@@ -36,6 +36,24 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
       (req as any).session.pendingInvite = invite;
     }
 
+    // Intercept response to fix OAuth cookie SameSite
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = function(name: string, value: any) {
+      if (name.toLowerCase() === 'set-cookie') {
+        // Fix SameSite for OAuth cookies
+        const cookies = Array.isArray(value) ? value : [value];
+        const fixedCookies = cookies.map((cookie: string) => {
+          if (cookie.includes('shopify_app_state')) {
+            // Replace sameSite=lax with sameSite=none for OAuth cookies
+            return cookie.replace(/sameSite=lax/gi, 'sameSite=none');
+          }
+          return cookie;
+        });
+        return originalSetHeader(name, fixedCookies);
+      }
+      return originalSetHeader(name, value);
+    };
+
     // Begin OAuth flow
     await shopify.auth.begin({
       shop: shopify.utils.sanitizeShop(shop, true)!,
