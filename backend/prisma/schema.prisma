@@ -21,10 +21,10 @@ enum ShopRole {
 }
 
 enum ShopPlan {
+  FREE
   STARTER
   GROWTH
-  PLUS
-  ENTERPRISE
+  SCALE
 }
 
 model Shop {
@@ -32,7 +32,11 @@ model Shop {
   myshopifyDomain  String   @unique // e.g., "brandname.myshopify.com"
   accessToken      String   // Encrypted Shopify access token
   role             ShopRole
-  plan             ShopPlan @default(STARTER)
+  plan             ShopPlan @default(FREE)
+
+  // Usage tracking for plan limits
+  currentPeriodStart     DateTime @default(now()) // Start of current billing period
+  purchaseOrdersThisMonth Int     @default(0)     // PO count this billing period
 
   // Shop details
   companyName      String?

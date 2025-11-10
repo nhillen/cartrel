@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
+import { getUsageSummary, shouldResetMonthlyUsage } from '../utils/planLimits';
 
 const router = Router();
 
@@ -36,6 +37,54 @@ router.get('/me', async (req, res, next) => {
     res.json(shopRecord);
   } catch (error) {
     logger.error('Error getting shop info:', error);
+    next(error);
+  }
+});
+
+// Get usage statistics and plan limits
+router.get('/usage', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+      include: {
+        supplierConnections: { where: { status: 'ACTIVE' } },
+      },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Reset monthly usage if needed
+    if (shouldResetMonthlyUsage(shopRecord.currentPeriodStart)) {
+      await prisma.shop.update({
+        where: { id: shopRecord.id },
+        data: {
+          purchaseOrdersThisMonth: 0,
+          currentPeriodStart: new Date(),
+        },
+      });
+      shopRecord.purchaseOrdersThisMonth = 0;
+    }
+
+    const activeConnections = shopRecord.supplierConnections.length;
+    const usage = getUsageSummary(
+      shopRecord.plan,
+      activeConnections,
+      shopRecord.purchaseOrdersThisMonth
+    );
+
+    res.json(usage);
+  } catch (error) {
+    logger.error('Error getting usage stats:', error);
     next(error);
   }
 });

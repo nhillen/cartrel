@@ -11,7 +11,7 @@ export const shopify = shopifyApi({
   scopes: config.shopify.scopes,
   hostName: config.shopify.hostName,
   apiVersion: LATEST_API_VERSION,
-  isEmbeddedApp: true,
+  isEmbeddedApp: false, // Using cookie-based OAuth, not session tokens
   // Session storage (we'll use database)
   sessionStorage: {
     async storeSession(session: Session): Promise<boolean> {
