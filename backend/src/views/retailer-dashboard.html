@@ -546,6 +546,40 @@
                     <div style="font-weight: 600; margin-bottom: 4px;">Retail Price:</div>
                     <div id="calculatedRetailPrice" style="font-size: 20px; color: #214937; font-weight: 700;">$0.00</div>
                 </div>
+
+                <!-- Sync Settings -->
+                <div style="margin-bottom: 20px; padding: 16px; background: #F8F9FA; border: 1px solid #E0DED8; border-radius: 8px;">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: #214937;">Keep in Sync with Supplier:</div>
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" id="syncInventory" checked style="margin-right: 8px;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 14px;">Inventory Quantity</div>
+                            <div style="font-size: 12px; color: #64748B;">Auto-update stock levels</div>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" id="syncPricing" style="margin-right: 8px;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 14px;">Pricing</div>
+                            <div style="font-size: 12px; color: #64748B;">Keep retail price based on supplier's wholesale price</div>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                        <input type="checkbox" id="syncDescription" style="margin-right: 8px;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 14px;">Description</div>
+                            <div style="font-size: 12px; color: #64748B;">Sync product description changes</div>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="syncImages" style="margin-right: 8px;">
+                        <div>
+                            <div style="font-weight: 500; font-size: 14px;">Images</div>
+                            <div style="font-size: 12px; color: #64748B;">Sync product images</div>
+                        </div>
+                    </label>
+                </div>
+
                 <div style="display: flex; gap: 12px;">
                     <button class="btn btn-secondary" onclick="closeImportModal()" style="flex: 1;">Cancel</button>
                     <button class="btn btn-primary" onclick="confirmImport()" style="flex: 1;">Import Product</button>
@@ -692,7 +726,11 @@
                                         <button class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="showImportModal('${product.id}', '${product.variantId}', '${product.title.replace(/'/g, "\\'")}', ${product.price})">
                                             Import to Store
                                         </button>
-                                    ` : ''}
+                                    ` : `
+                                        <button class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 13px;" onclick="showReimportModal('${product.mappingId}', '${product.title.replace(/'/g, "\\'")}')">
+                                            ⟳ Re-import
+                                        </button>
+                                    `}
                                     <button class="cart-btn" style="flex: 1; padding: 8px; font-size: 13px;" onclick="addToCart('${product.id}', '${product.variantId}', '${product.title}', ${product.price}, '${product.image || placeholderImage}')">
                                         Add to Cart
                                     </button>
@@ -1011,6 +1049,12 @@
             const markupType = document.getElementById('markupType').value;
             const markupValue = parseFloat(document.getElementById('markupValue').value) || 0;
 
+            // Get sync preferences
+            const syncInventory = document.getElementById('syncInventory').checked;
+            const syncPricing = document.getElementById('syncPricing').checked;
+            const syncDescription = document.getElementById('syncDescription').checked;
+            const syncImages = document.getElementById('syncImages').checked;
+
             try {
                 const response = await fetch('/api/retailer/import', {
                     method: 'POST',
@@ -1021,7 +1065,11 @@
                         productId: importProduct.id,
                         variantId: importProduct.variantId,
                         markupType,
-                        markupValue
+                        markupValue,
+                        syncInventory,
+                        syncPricing,
+                        syncDescription,
+                        syncImages
                     })
                 });
 
@@ -1054,6 +1102,50 @@
             } catch (error) {
                 console.error('Error importing product:', error);
                 alert('Error importing product. Please try again.');
+            }
+        }
+
+        // Re-import product (for products that were deleted from store)
+        async function showReimportModal(mappingId, title) {
+            const confirmed = confirm(
+                `Re-import "${title}" to your store?\n\n` +
+                `This will recreate the product in your Shopify store with the same settings you used before.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch('/api/retailer/reimport', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        shop,
+                        mappingId
+                    })
+                });
+
+                // Check for auth error
+                if (response.status === 401) {
+                    console.log('Invalid access token, redirecting to OAuth...');
+                    alert('Your session has expired. Redirecting to re-authenticate...');
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Product re-imported successfully!`);
+                    // Reload catalog to show updated status
+                    browseSupplier(currentSupplier, document.getElementById('catalogTitle').textContent.replace("'s Catalog", ''));
+                } else {
+                    alert(`Error re-importing product: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error re-importing product:', error);
+                alert('Error re-importing product. Please try again.');
             }
         }
 

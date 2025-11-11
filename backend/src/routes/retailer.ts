@@ -345,7 +345,18 @@ router.post('/order', async (req, res, next) => {
  */
 router.post('/import', async (req, res, next) => {
   try {
-    const { shop, supplierId, productId, variantId, markupType, markupValue } = req.body;
+    const {
+      shop,
+      supplierId,
+      productId,
+      variantId,
+      markupType,
+      markupValue,
+      syncInventory = true,
+      syncPricing = false,
+      syncDescription = false,
+      syncImages = false,
+    } = req.body;
 
     if (!shop || !supplierId || !productId || !variantId || !markupType || markupValue === undefined) {
       res.status(400).json({ error: 'Missing required parameters' });
@@ -439,7 +450,7 @@ router.post('/import', async (req, res, next) => {
 
     const createdProduct = (response.body as any).product;
 
-    // Create product mapping
+    // Create product mapping with retailer's sync preferences
     await prisma.productMapping.create({
       data: {
         connectionId: connection.id,
@@ -450,10 +461,10 @@ router.post('/import', async (req, res, next) => {
         retailerShopifyVariantId: createdProduct.variants[0].id.toString(),
         retailerMarkupType: markupType,
         retailerMarkupValue: parseFloat(markupValue),
-        syncInventory: false, // Default to false, retailer can enable
-        syncPricing: false,
-        syncDescription: false,
-        syncImages: false,
+        syncInventory,
+        syncPricing,
+        syncDescription,
+        syncImages,
       },
     });
 
@@ -483,6 +494,132 @@ router.post('/import', async (req, res, next) => {
     });
   } catch (error: any) {
     logger.error('Error importing product:', error);
+
+    // Check for auth errors (invalid/expired token)
+    if (error?.response?.code === 401 || error?.message?.includes('Invalid API key')) {
+      res.status(401).json({
+        error: 'Invalid access token. Please try uninstalling and reinstalling the app.',
+        requiresReinstall: true
+      });
+      return;
+    }
+
+    // Check for GraphQL errors
+    if (error?.response?.errors) {
+      res.status(400).json({ error: error.response.errors[0]?.message || 'Error creating product in Shopify' });
+      return;
+    }
+
+    next(error);
+  }
+});
+
+/**
+ * Re-import product (for products that were deleted from store but mapping still exists)
+ */
+router.post('/reimport', async (req, res, next) => {
+  try {
+    const { shop, mappingId } = req.body;
+
+    if (!shop || !mappingId) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Get retailer shop
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Retailer shop not found' });
+      return;
+    }
+
+    // Get product mapping with supplier product details
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: mappingId },
+      include: {
+        supplierProduct: {
+          include: {
+            supplierShop: true,
+          },
+        },
+        connection: true,
+      },
+    });
+
+    if (!mapping) {
+      res.status(404).json({ error: 'Product mapping not found' });
+      return;
+    }
+
+    // Verify the mapping belongs to this retailer
+    if (mapping.connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const supplierProduct = mapping.supplierProduct;
+
+    // Calculate retail price based on existing markup
+    let retailPrice = supplierProduct.wholesalePrice.toNumber();
+    if (mapping.retailerMarkupType === 'PERCENTAGE') {
+      retailPrice = retailPrice * (1 + mapping.retailerMarkupValue.toNumber() / 100);
+    } else if (mapping.retailerMarkupType === 'FIXED_AMOUNT') {
+      retailPrice = retailPrice + mapping.retailerMarkupValue.toNumber();
+    } else if (mapping.retailerMarkupType === 'CUSTOM') {
+      retailPrice = mapping.retailerMarkupValue.toNumber();
+    }
+
+    // Create product in retailer's Shopify
+    const client = createShopifyClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+
+    const productData = {
+      product: {
+        title: supplierProduct.title,
+        body_html: supplierProduct.description || '',
+        vendor: supplierProduct.vendor || supplierProduct.supplierShop.myshopifyDomain,
+        product_type: supplierProduct.productType || 'Wholesale',
+        tags: `cartrel,wholesale,supplier:${supplierProduct.supplierShopId}`,
+        variants: [
+          {
+            price: retailPrice.toFixed(2),
+            sku: supplierProduct.sku || `WHOLESALE-${supplierProduct.shopifyProductId}`,
+            inventory_management: 'shopify',
+            inventory_quantity: 0, // Start with 0, retailer can adjust
+          },
+        ],
+        images: supplierProduct.imageUrl ? [{ src: supplierProduct.imageUrl }] : [],
+      },
+    };
+
+    const response = await client.post({
+      path: 'products',
+      data: productData,
+    });
+
+    const createdProduct = (response.body as any).product;
+
+    // Update product mapping with new Shopify IDs
+    await prisma.productMapping.update({
+      where: { id: mappingId },
+      data: {
+        retailerShopifyProductId: createdProduct.id.toString(),
+        retailerShopifyVariantId: createdProduct.variants[0].id.toString(),
+      },
+    });
+
+    logger.info(
+      `Product ${supplierProduct.shopifyProductId} re-imported to ${shop} (mapping ${mappingId})`
+    );
+
+    res.json({
+      success: true,
+      productId: createdProduct.id,
+    });
+  } catch (error: any) {
+    logger.error('Error re-importing product:', error);
 
     // Check for auth errors (invalid/expired token)
     if (error?.response?.code === 401 || error?.message?.includes('Invalid API key')) {

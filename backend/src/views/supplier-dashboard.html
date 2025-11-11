@@ -323,10 +323,7 @@
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h2>Wholesale Catalog</h2>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn" onclick="showSyncSettings()" style="border: 1px solid #E2E8F0;">⚙️ Sync Settings</button>
-                        <button class="btn btn-primary" onclick="syncAllProducts()">⟳ Sync All Products</button>
-                    </div>
+                    <button class="btn btn-primary" onclick="syncAllProducts()">⟳ Sync All Products</button>
                 </div>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Select which products to offer wholesale. Toggle products on to make them available to your retail partners.
@@ -538,67 +535,6 @@
             <div style="display: flex; gap: 12px;">
                 <button class="btn btn-secondary" onclick="closeCreateInviteModal()" style="flex: 1;">Cancel</button>
                 <button class="btn btn-primary" onclick="createInvite()" style="flex: 1;">Create Invite</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sync Settings Modal -->
-    <div id="syncSettingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h2 style="margin: 0; color: #214937;">Product Sync Settings</h2>
-                <button onclick="closeSyncSettings()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748B;">&times;</button>
-            </div>
-
-            <p style="font-size: 14px; color: #64748B; margin-bottom: 20px;">
-                Choose which fields to sync when importing or updating products from Shopify.
-            </p>
-
-            <div style="margin-bottom: 24px;">
-                <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-                    <input type="checkbox" id="syncTitle" checked style="margin-right: 10px; width: 18px; height: 18px;">
-                    <div>
-                        <div style="font-weight: 600;">Product Title</div>
-                        <div style="font-size: 13px; color: #64748B;">Keep product names in sync</div>
-                    </div>
-                </label>
-
-                <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-                    <input type="checkbox" id="syncDescription" checked style="margin-right: 10px; width: 18px; height: 18px;">
-                    <div>
-                        <div style="font-weight: 600;">Description</div>
-                        <div style="font-size: 13px; color: #64748B;">Sync product descriptions</div>
-                    </div>
-                </label>
-
-                <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-                    <input type="checkbox" id="syncImages" checked style="margin-right: 10px; width: 18px; height: 18px;">
-                    <div>
-                        <div style="font-weight: 600;">Images</div>
-                        <div style="font-size: 13px; color: #64748B;">Update product images</div>
-                    </div>
-                </label>
-
-                <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-                    <input type="checkbox" id="syncPrice" checked style="margin-right: 10px; width: 18px; height: 18px;">
-                    <div>
-                        <div style="font-weight: 600;">Price</div>
-                        <div style="font-size: 13px; color: #64748B;">Keep wholesale prices updated</div>
-                    </div>
-                </label>
-
-                <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-                    <input type="checkbox" id="syncInventory" checked style="margin-right: 10px; width: 18px; height: 18px;">
-                    <div>
-                        <div style="font-weight: 600;">Inventory</div>
-                        <div style="font-size: 13px; color: #64748B;">Sync stock quantities</div>
-                    </div>
-                </label>
-            </div>
-
-            <div style="display: flex; gap: 12px;">
-                <button class="btn btn-secondary" onclick="closeSyncSettings()" style="flex: 1;">Cancel</button>
-                <button class="btn btn-primary" onclick="saveSyncSettings()" style="flex: 1;">Save Settings</button>
             </div>
         </div>
     </div>
@@ -1085,65 +1021,7 @@
             });
         }
 
-        // Sync Settings Functions
-        function showSyncSettings() {
-            // Load current settings
-            loadSyncSettings();
-            document.getElementById('syncSettingsModal').style.display = 'flex';
-        }
-
-        function closeSyncSettings() {
-            document.getElementById('syncSettingsModal').style.display = 'none';
-        }
-
-        async function loadSyncSettings() {
-            try {
-                const response = await fetch(`/api/supplier/sync-settings?shop=${shop}`);
-                const data = await response.json();
-
-                if (data.settings) {
-                    document.getElementById('syncTitle').checked = data.settings.syncTitle !== false;
-                    document.getElementById('syncDescription').checked = data.settings.syncDescription !== false;
-                    document.getElementById('syncImages').checked = data.settings.syncImages !== false;
-                    document.getElementById('syncPrice').checked = data.settings.syncPrice !== false;
-                    document.getElementById('syncInventory').checked = data.settings.syncInventory !== false;
-                }
-            } catch (error) {
-                console.error('Error loading sync settings:', error);
-                // Default to all checked on error
-            }
-        }
-
-        async function saveSyncSettings() {
-            const settings = {
-                syncTitle: document.getElementById('syncTitle').checked,
-                syncDescription: document.getElementById('syncDescription').checked,
-                syncImages: document.getElementById('syncImages').checked,
-                syncPrice: document.getElementById('syncPrice').checked,
-                syncInventory: document.getElementById('syncInventory').checked,
-            };
-
-            try {
-                const response = await fetch('/api/supplier/sync-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shop, settings })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    alert('Sync settings saved successfully!');
-                    closeSyncSettings();
-                } else {
-                    alert('Error saving settings: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error saving sync settings:', error);
-                alert('Error saving settings. Please try again.');
-            }
-        }
-
+        // Sync all products from Shopify
         async function syncAllProducts() {
             if (!confirm('Sync all products with Shopify?\n\nThis will import new products, update existing ones, and clean up deleted products.\n\nThis may take a few moments...')) {
                 return;
