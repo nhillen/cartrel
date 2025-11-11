@@ -53,8 +53,9 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'cdn.shopify.com'],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com', 'unpkg.com'],
+      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
       imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
-      connectSrc: ["'self'", 'https://cartrel.com'],
+      connectSrc: ["'self'", 'https://cartrel.com', 'https://*.shopify.com'],
       frameSrc: ["'self'", 'https://*.myshopify.com'],
       frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
     },
