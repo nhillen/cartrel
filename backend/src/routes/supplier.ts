@@ -626,4 +626,219 @@ router.get('/orders', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /sync-settings - Get product sync preferences
+ */
+router.get('/sync-settings', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+      select: { syncPreferences: true },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Default to all enabled if no preferences set
+    const defaultPreferences = {
+      syncTitle: true,
+      syncDescription: true,
+      syncImages: true,
+      syncPrice: true,
+      syncInventory: true,
+    };
+
+    res.json({
+      settings: shopRecord.syncPreferences || defaultPreferences,
+    });
+  } catch (error) {
+    logger.error('Error loading sync settings:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /sync-settings - Save product sync preferences
+ */
+router.post('/sync-settings', async (req, res, next) => {
+  try {
+    const { shop, settings } = req.body;
+
+    if (!shop || !settings) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    await prisma.shop.update({
+      where: { id: shopRecord.id },
+      data: {
+        syncPreferences: settings,
+      },
+    });
+
+    logger.info(`Sync preferences updated for shop: ${shop}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error saving sync settings:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /products/sync - Full product sync from Shopify
+ * Imports new products, updates existing ones, marks deleted ones as inactive
+ */
+router.post('/products/sync', async (req, res, next) => {
+  try {
+    const { shop } = req.body;
+
+    if (!shop) {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get sync preferences
+    const syncPrefs: any = shopRecord.syncPreferences || {
+      syncTitle: true,
+      syncDescription: true,
+      syncImages: true,
+      syncPrice: true,
+      syncInventory: true,
+    };
+
+    // Fetch all products from Shopify
+    const client = createShopifyClient(shop, shopRecord.accessToken);
+    const response = await client.get({
+      path: 'products',
+      query: { limit: '250' }, // Max limit
+    });
+
+    const shopifyProducts = (response.body as any).products || [];
+    const shopifyProductIds = new Set(
+      shopifyProducts.map((p: any) => p.id.toString())
+    );
+
+    // Get all existing wholesale products from database
+    const existingProducts = await prisma.supplierProduct.findMany({
+      where: {
+        supplierShopId: shopRecord.id,
+        isWholesaleEligible: true,
+      },
+    });
+
+    const existingProductIds = new Set(
+      existingProducts.map((p) => p.shopifyProductId)
+    );
+
+    let imported = 0;
+    let updated = 0;
+    let removed = 0;
+
+    // Update existing products and keep track of what's still in Shopify
+    for (const existing of existingProducts) {
+      if (shopifyProductIds.has(existing.shopifyProductId)) {
+        // Product still exists in Shopify, update it
+        const shopifyProduct = shopifyProducts.find(
+          (p: any) => p.id.toString() === existing.shopifyProductId
+        );
+
+        if (shopifyProduct) {
+          const updateData: any = {
+            lastSyncedAt: new Date(),
+          };
+
+          if (syncPrefs.syncTitle) {
+            updateData.title = shopifyProduct.title;
+          }
+          if (syncPrefs.syncDescription) {
+            updateData.description = shopifyProduct.body_html || null;
+          }
+          if (syncPrefs.syncImages) {
+            updateData.imageUrl = shopifyProduct.images?.[0]?.src || null;
+          }
+          if (syncPrefs.syncPrice) {
+            updateData.wholesalePrice = parseFloat(
+              shopifyProduct.variants[0]?.price || '0'
+            );
+            updateData.compareAtPrice = shopifyProduct.variants[0]
+              ?.compare_at_price
+              ? parseFloat(shopifyProduct.variants[0].compare_at_price)
+              : null;
+          }
+          if (syncPrefs.syncInventory) {
+            updateData.inventoryQuantity =
+              shopifyProduct.variants[0]?.inventory_quantity || 0;
+          }
+
+          // Always update these metadata fields
+          updateData.vendor = shopifyProduct.vendor || null;
+          updateData.productType = shopifyProduct.product_type || null;
+          updateData.sku = shopifyProduct.variants[0]?.sku || null;
+          updateData.variantTitle = shopifyProduct.variants[0]?.title || null;
+
+          await prisma.supplierProduct.updateMany({
+            where: {
+              supplierShopId: shopRecord.id,
+              shopifyProductId: existing.shopifyProductId,
+            },
+            data: updateData,
+          });
+
+          updated++;
+        }
+      } else {
+        // Product no longer exists in Shopify, mark as not wholesale eligible
+        await prisma.supplierProduct.updateMany({
+          where: {
+            supplierShopId: shopRecord.id,
+            shopifyProductId: existing.shopifyProductId,
+          },
+          data: {
+            isWholesaleEligible: false,
+          },
+        });
+
+        removed++;
+      }
+    }
+
+    logger.info(
+      `Product sync completed for ${shop}: ${imported} imported, ${updated} updated, ${removed} removed`
+    );
+
+    res.json({ success: true, imported, updated, removed });
+  } catch (error) {
+    logger.error('Error syncing products:', error);
+    next(error);
+  }
+});
+
 export default router;

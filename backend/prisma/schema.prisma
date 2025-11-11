@@ -38,6 +38,9 @@ model Shop {
   pendingPlan      ShopPlan?
   pendingChargeId  String?
 
+  // Product sync preferences
+  syncPreferences  Json?    // { syncTitle, syncDescription, syncImages, syncPrice, syncInventory }
+
   // Usage tracking for plan limits
   currentPeriodStart     DateTime @default(now()) // Start of current billing period
   purchaseOrdersThisMonth Int     @default(0)     // PO count this billing period
