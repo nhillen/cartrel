@@ -219,76 +219,26 @@ router.post('/order', async (req, res, next) => {
       `Created PO ${po.id} from ${shop} to ${supplierShop.myshopifyDomain}`
     );
 
-    // Create draft order in supplier's Shopify using REST API
-    try {
-      const client = createShopifyClient(
-        supplierShop.myshopifyDomain,
-        supplierShop.accessToken
-      );
+    // Note: Draft order creation in Shopify requires "protected customer data" approval
+    // For now, we track orders in Cartrel only. Supplier will see order and can manually fulfill.
+    // TODO: Apply for protected customer data access to enable automatic draft order creation
 
-      // Build line items for REST API
-      const lineItems = items.map((item: any) => ({
-        variant_id: parseInt(item.variantId || item.id),
-        quantity: item.quantity,
-      }));
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: retailerShop.id,
+        action: 'PURCHASE_ORDER_CREATED',
+        resourceType: 'PurchaseOrder',
+        resourceId: po.id,
+      },
+    });
 
-      const draftOrderData = {
-        draft_order: {
-          line_items: lineItems,
-          note: `Wholesale order from ${shop} via Cartrel\nPO Number: ${poNumber}\nPO ID: ${po.id}`,
-          tags: 'cartrel,wholesale',
-        },
-      };
-
-      const response: any = await client.post({
-        path: 'draft_orders',
-        data: draftOrderData,
-      });
-
-      const draftOrder = response.body.draft_order;
-
-      // Update PO with Shopify draft order ID
-      await prisma.purchaseOrder.update({
-        where: { id: po.id },
-        data: {
-          supplierShopifyDraftOrderId: draftOrder.id.toString(),
-        },
-      });
-
-      logger.info(
-        `Created draft order ${draftOrder.id} in supplier Shopify for PO ${po.id}`
-      );
-
-      // Log audit event
-      await prisma.auditLog.create({
-        data: {
-          shopId: retailerShop.id,
-          action: 'PURCHASE_ORDER_CREATED',
-          resourceType: 'PurchaseOrder',
-          resourceId: po.id,
-        },
-      });
-
-      res.json({
-        success: true,
-        orderId: po.id,
-        draftOrderId: draftOrder.id.toString(),
-        invoiceUrl: draftOrder.invoice_url,
-      });
-    } catch (shopifyError) {
-      logger.error('Error creating draft order in Shopify:', shopifyError);
-
-      // Update PO status to failed
-      await prisma.purchaseOrder.update({
-        where: { id: po.id },
-        data: { status: 'CANCELLED' },
-      });
-
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create draft order in supplier Shopify',
-      });
-    }
+    res.json({
+      success: true,
+      orderId: po.id,
+      poNumber: poNumber,
+      message: 'Order placed successfully. Supplier will be notified.',
+    });
   } catch (error) {
     logger.error('Error placing order:', error);
     next(error);
