@@ -661,4 +661,58 @@ router.post('/redeem-code', async (req, res, next) => {
   }
 });
 
+/**
+ * Get purchase orders for a retailer
+ */
+router.get('/orders', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get purchase orders where this shop is the retailer
+    const orders = await prisma.purchaseOrder.findMany({
+      where: { retailerShopId: shopRecord.id },
+      include: {
+        supplierShop: true,
+        connection: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const formattedOrders = orders.map((order) => ({
+      id: order.id,
+      poNumber: order.poNumber,
+      supplierShop: order.supplierShop.myshopifyDomain,
+      status: order.status,
+      subtotal: order.subtotal.toString(),
+      total: order.total.toString(),
+      currency: order.currency,
+      paymentTerms: order.paymentTermsType,
+      items: order.items,
+      createdAt: order.createdAt,
+      supplierDraftOrderId: order.supplierShopifyDraftOrderId,
+    }));
+
+    logger.info(`Loaded ${formattedOrders.length} orders for retailer: ${shop}`);
+
+    res.json({ orders: formattedOrders });
+  } catch (error) {
+    logger.error('Error loading retailer orders:', error);
+    next(error);
+  }
+});
+
 export default router;
