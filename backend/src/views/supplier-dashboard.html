@@ -440,6 +440,37 @@
             </div>
 
             <div class="card">
+                <h2>Subscription Plan</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Manage your Cartrel subscription and unlock more features.
+                </p>
+
+                <div style="background: #F8F9FA; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">Current Plan</div>
+                            <div id="currentPlanName" style="font-size: 14px; color: #64748B;">Loading...</div>
+                        </div>
+                        <span class="badge badge-success" id="planBadge">FREE</span>
+                    </div>
+                    <div id="planLimits" style="font-size: 13px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 12px; margin-top: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div>• Connections: <span id="planConnections">-</span></div>
+                            <div>• Monthly POs: <span id="planPOs">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="planOptions" style="display: grid; gap: 16px; margin-bottom: 24px;">
+                    <!-- Plans will be loaded here -->
+                </div>
+
+                <div id="billingSuccess" style="display: none; background: #DCFCE7; border-left: 4px solid #10B981; padding: 16px; border-radius: 4px; margin-top: 16px; color: #14532D;">
+                    ✓ Subscription updated successfully!
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Default Wholesale Settings</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     These settings apply to all new retail partner connections.
@@ -1062,12 +1093,152 @@
             }
         }
 
+        // Billing functions
+        const PLAN_DETAILS = {
+            FREE: {
+                name: 'Test Flight',
+                price: 0,
+                maxConnections: 2,
+                maxPurchaseOrdersPerMonth: 10,
+            },
+            STARTER: {
+                name: 'Starter',
+                price: 99,
+                maxConnections: 5,
+                maxPurchaseOrdersPerMonth: 100,
+            },
+            GROWTH: {
+                name: 'Growth',
+                price: 299,
+                maxConnections: 25,
+                maxPurchaseOrdersPerMonth: 1000,
+                features: ['Tier & Perks', 'Advanced Reporting'],
+            },
+            SCALE: {
+                name: 'Scale',
+                price: 799,
+                maxConnections: 'Unlimited',
+                maxPurchaseOrdersPerMonth: 'Unlimited',
+                features: ['Priority Support', 'API Access'],
+            },
+        };
+
+        async function loadBillingStatus() {
+            try {
+                const response = await fetch(`/api/billing/status?shop=${shop}`);
+                const data = await response.json();
+
+                const currentPlan = data.currentPlan || 'FREE';
+                const planDetails = PLAN_DETAILS[currentPlan];
+
+                // Update current plan display
+                document.getElementById('currentPlanName').textContent = planDetails.name;
+                document.getElementById('planBadge').textContent = currentPlan;
+                document.getElementById('planConnections').textContent = planDetails.maxConnections;
+                document.getElementById('planPOs').textContent = planDetails.maxPurchaseOrdersPerMonth;
+
+                // Load plan options
+                loadPlanOptions(currentPlan);
+
+                // Show success message if redirected from billing confirmation
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('billing') === 'success') {
+                    document.getElementById('billingSuccess').style.display = 'block';
+                    // Clear the URL parameter
+                    window.history.replaceState({}, document.title, window.location.pathname + '?shop=' + shop);
+                }
+            } catch (error) {
+                console.error('Error loading billing status:', error);
+                document.getElementById('currentPlanName').textContent = 'Error loading plan';
+            }
+        }
+
+        function loadPlanOptions(currentPlan) {
+            const planOptionsContainer = document.getElementById('planOptions');
+            const plans = ['STARTER', 'GROWTH', 'SCALE'];
+
+            planOptionsContainer.innerHTML = plans.map(plan => {
+                const details = PLAN_DETAILS[plan];
+                const isCurrent = plan === currentPlan;
+                const isDowngrade = getPlanLevel(plan) < getPlanLevel(currentPlan);
+
+                return `
+                    <div style="border: 2px solid ${isCurrent ? '#10B981' : '#E2E8F0'}; border-radius: 8px; padding: 20px; ${isCurrent ? 'background: #F0FDF4;' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 16px; color: #0F172A;">${details.name}</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #0F172A; margin-top: 4px;">
+                                    $${details.price}<span style="font-size: 14px; font-weight: 400; color: #64748B;">/month</span>
+                                </div>
+                            </div>
+                            ${isCurrent ? '<span class="badge badge-success">Current Plan</span>' : ''}
+                        </div>
+                        <div style="font-size: 13px; color: #64748B; margin-bottom: 12px;">
+                            <div>• ${details.maxConnections} retail partners</div>
+                            <div>• ${details.maxPurchaseOrdersPerMonth} purchase orders/month</div>
+                            ${details.features ? details.features.map(f => `<div>• ${f}</div>`).join('') : ''}
+                        </div>
+                        ${!isCurrent && !isDowngrade ? `
+                            <button class="btn btn-primary" onclick="upgradePlan('${plan}')" style="width: 100%; margin-top: 8px;">
+                                Upgrade to ${details.name}
+                            </button>
+                        ` : ''}
+                        ${isDowngrade ? `
+                            <button class="btn" disabled style="width: 100%; margin-top: 8px; opacity: 0.5; cursor: not-allowed;">
+                                Downgrade (contact support)
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getPlanLevel(plan) {
+            const levels = { FREE: 0, STARTER: 1, GROWTH: 2, SCALE: 3 };
+            return levels[plan] || 0;
+        }
+
+        async function upgradePlan(plan) {
+            const planDetails = PLAN_DETAILS[plan];
+
+            const confirmed = confirm(
+                `Upgrade to ${planDetails.name} for $${planDetails.price}/month?\n\n` +
+                `You'll be redirected to Shopify to confirm this subscription charge. ` +
+                `The charge will appear on your Shopify bill.`
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/billing/upgrade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, plan })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.confirmationUrl) {
+                    // Redirect to Shopify billing confirmation
+                    window.top.location.href = data.confirmationUrl;
+                } else {
+                    alert('Error upgrading plan: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error upgrading plan:', error);
+                alert('Error upgrading plan. Please try again.');
+            }
+        }
+
         // Load initial data
         if (!shop) {
             console.error('Shop parameter missing from URL');
             document.getElementById('products-list').innerHTML = '<div class="empty-state"><h3>Error</h3><p>Shop parameter missing. Please reload the app from Shopify Admin.</p></div>';
         } else {
             loadProducts();
+            loadBillingStatus();
         }
     </script>
 </body>

@@ -34,6 +34,10 @@ model Shop {
   role             ShopRole
   plan             ShopPlan @default(FREE)
 
+  // Billing - pending subscription upgrade
+  pendingPlan      ShopPlan?
+  pendingChargeId  String?
+
   // Usage tracking for plan limits
   currentPeriodStart     DateTime @default(now()) // Start of current billing period
   purchaseOrdersThisMonth Int     @default(0)     // PO count this billing period

@@ -15,6 +15,7 @@ import shopRoutes from './routes/shop';
 import webhookRoutes from './routes/webhooks';
 import supplierRoutes from './routes/supplier';
 import retailerRoutes from './routes/retailer';
+import billingRoutes from './routes/billing';
 import { errorHandler } from './middleware/errorHandler';
 import { initializeQueues } from './queues';
 
@@ -243,6 +244,8 @@ app.use('/auth', authRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/supplier', supplierRoutes);
 app.use('/api/retailer', retailerRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/billing', billingRoutes); // For /billing/confirm callback
 app.use('/webhooks', webhookRoutes);
 
 // Bull Board for queue monitoring (development only)
