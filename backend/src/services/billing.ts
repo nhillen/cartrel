@@ -18,7 +18,8 @@ interface BillingCharge {
 export async function createSubscription(
   shop: string,
   accessToken: string,
-  plan: keyof typeof PLAN_LIMITS
+  plan: keyof typeof PLAN_LIMITS,
+  interval: 'EVERY_30_DAYS' | 'ANNUAL' = 'EVERY_30_DAYS'
 ): Promise<BillingCharge> {
   const planDetails = PLAN_LIMITS[plan];
 
@@ -30,15 +31,20 @@ export async function createSubscription(
     throw new Error('Cannot create subscription for FREE plan');
   }
 
+  // Determine price based on interval
+  const price = interval === 'ANNUAL' ? planDetails.priceAnnual : planDetails.price;
+  const intervalLabel = interval === 'ANNUAL' ? 'Annual' : 'Monthly';
+
   try {
     const client = createShopifyGraphQLClient(shop, accessToken);
 
     const mutation = `
-      mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
+      mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $test: Boolean) {
         appSubscriptionCreate(
           name: $name
           lineItems: $lineItems
           returnUrl: $returnUrl
+          trialDays: $trialDays
           test: $test
         ) {
           appSubscription {
@@ -54,21 +60,22 @@ export async function createSubscription(
     `;
 
     const variables = {
-      name: planDetails.name,
+      name: `${planDetails.name} (${intervalLabel})`,
       lineItems: [
         {
           plan: {
             appRecurringPricingDetails: {
               price: {
-                amount: planDetails.price,
+                amount: price,
                 currencyCode: 'USD',
               },
-              interval: 'EVERY_30_DAYS',
+              interval,
             },
           },
         },
       ],
-      returnUrl: `${config.appUrl}/billing/confirm?shop=${shop}`,
+      returnUrl: `${config.appUrl}/billing/confirm?shop=${shop}&interval=${interval}`,
+      trialDays: 7, // 7-day free trial for all plans
       test: config.nodeEnv !== 'production',
     };
 

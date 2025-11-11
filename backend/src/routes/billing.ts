@@ -20,7 +20,7 @@ const router = express.Router();
  */
 router.post('/upgrade', async (req, res) => {
   try {
-    const { shop, plan } = req.body;
+    const { shop, plan, interval } = req.body;
 
     if (!shop || !plan) {
       res.status(400).json({ error: 'Missing shop or plan' });
@@ -32,6 +32,9 @@ router.post('/upgrade', async (req, res) => {
       res.status(400).json({ error: 'Invalid plan. Choose STARTER, GROWTH, or SCALE' });
       return;
     }
+
+    // Validate and normalize interval
+    const billingInterval = interval === 'ANNUAL' ? 'ANNUAL' : 'EVERY_30_DAYS';
 
     // Get shop from database
     const shopRecord = await prisma.shop.findUnique({
@@ -55,11 +58,12 @@ router.post('/upgrade', async (req, res) => {
       return;
     }
 
-    // Create subscription charge
+    // Create subscription charge with interval
     const charge = await createSubscription(
       shopRecord.myshopifyDomain,
       shopRecord.accessToken,
-      plan as keyof typeof PLAN_LIMITS
+      plan as keyof typeof PLAN_LIMITS,
+      billingInterval
     );
 
     // Store pending charge in database

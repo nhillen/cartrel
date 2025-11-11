@@ -10,7 +10,8 @@
 
 export interface PlanLimits {
   name: string;
-  price: number;
+  price: number; // Monthly price
+  priceAnnual: number; // Annual price (20% discount)
   maxConnections: number;
   maxPurchaseOrdersPerMonth: number;
   maxActiveInvites: number; // Max active (unredeemed) invites at once
@@ -29,6 +30,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   FREE: {
     name: 'Test Flight',
     price: 0,
+    priceAnnual: 0,
     maxConnections: 2,
     maxPurchaseOrdersPerMonth: 10,
     maxActiveInvites: 5,
@@ -45,6 +47,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   STARTER: {
     name: 'Starter',
     price: 99,
+    priceAnnual: 950, // 20% discount: $99 × 12 × 0.8 = $950
     maxConnections: 5,
     maxPurchaseOrdersPerMonth: 100,
     maxActiveInvites: 10,
@@ -61,6 +64,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   GROWTH: {
     name: 'Growth',
     price: 299,
+    priceAnnual: 2870, // 20% discount: $299 × 12 × 0.8 = $2,870
     maxConnections: 25,
     maxPurchaseOrdersPerMonth: 1000,
     maxActiveInvites: 50,
@@ -77,6 +81,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   SCALE: {
     name: 'Scale',
     price: 799,
+    priceAnnual: 7670, // 20% discount: $799 × 12 × 0.8 = $7,670
     maxConnections: 999999, // Essentially unlimited
     maxPurchaseOrdersPerMonth: 999999, // Essentially unlimited
     maxActiveInvites: 999999,

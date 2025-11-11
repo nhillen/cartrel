@@ -461,6 +461,21 @@
                     </div>
                 </div>
 
+                <!-- Billing Interval Toggle -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="background: #F8F9FA; border-radius: 8px; padding: 4px; display: inline-flex;">
+                        <button id="monthlyBtn" onclick="setBillingInterval('monthly')" style="padding: 8px 20px; border: none; border-radius: 6px; background: #1a3d2e; color: white; cursor: pointer; font-weight: 500; font-size: 14px; transition: all 0.2s;">
+                            Monthly
+                        </button>
+                        <button id="annualBtn" onclick="setBillingInterval('annual')" style="padding: 8px 20px; border: none; border-radius: 6px; background: transparent; color: #64748B; cursor: pointer; font-weight: 500; font-size: 14px; transition: all 0.2s;">
+                            Annual
+                        </button>
+                    </div>
+                    <div style="background: #DCFCE7; color: #065F46; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">
+                        🎉 7-day free trial on all plans
+                    </div>
+                </div>
+
                 <div id="planOptions" style="display: grid; gap: 16px; margin-bottom: 24px;">
                     <!-- Plans will be loaded here -->
                 </div>
@@ -1098,18 +1113,21 @@
             FREE: {
                 name: 'Test Flight',
                 price: 0,
+                priceAnnual: 0,
                 maxConnections: 2,
                 maxPurchaseOrdersPerMonth: 10,
             },
             STARTER: {
                 name: 'Starter',
                 price: 99,
+                priceAnnual: 950,
                 maxConnections: 5,
                 maxPurchaseOrdersPerMonth: 100,
             },
             GROWTH: {
                 name: 'Growth',
                 price: 299,
+                priceAnnual: 2870,
                 maxConnections: 25,
                 maxPurchaseOrdersPerMonth: 1000,
                 features: ['Tier & Perks', 'Advanced Reporting'],
@@ -1117,11 +1135,39 @@
             SCALE: {
                 name: 'Scale',
                 price: 799,
+                priceAnnual: 7670,
                 maxConnections: 'Unlimited',
                 maxPurchaseOrdersPerMonth: 'Unlimited',
                 features: ['Priority Support', 'API Access'],
             },
         };
+
+        // Billing interval state
+        let billingInterval = 'monthly'; // 'monthly' or 'annual'
+        let currentPlanGlobal = 'FREE'; // Store current plan globally
+
+        function setBillingInterval(interval) {
+            billingInterval = interval;
+
+            // Update button styles
+            const monthlyBtn = document.getElementById('monthlyBtn');
+            const annualBtn = document.getElementById('annualBtn');
+
+            if (interval === 'monthly') {
+                monthlyBtn.style.background = '#1a3d2e';
+                monthlyBtn.style.color = 'white';
+                annualBtn.style.background = 'transparent';
+                annualBtn.style.color = '#64748B';
+            } else {
+                monthlyBtn.style.background = 'transparent';
+                monthlyBtn.style.color = '#64748B';
+                annualBtn.style.background = '#1a3d2e';
+                annualBtn.style.color = 'white';
+            }
+
+            // Reload plan options with new pricing
+            loadPlanOptions(currentPlanGlobal);
+        }
 
         async function loadBillingStatus() {
             try {
@@ -1129,6 +1175,7 @@
                 const data = await response.json();
 
                 const currentPlan = data.currentPlan || 'FREE';
+                currentPlanGlobal = currentPlan; // Store globally
                 const planDetails = PLAN_DETAILS[currentPlan];
 
                 // Update current plan display
@@ -1162,14 +1209,21 @@
                 const isCurrent = plan === currentPlan;
                 const isDowngrade = getPlanLevel(plan) < getPlanLevel(currentPlan);
 
+                // Determine price and interval label
+                const price = billingInterval === 'annual' ? details.priceAnnual : details.price;
+                const intervalLabel = billingInterval === 'annual' ? '/year' : '/month';
+                const monthlyEquivalent = billingInterval === 'annual' ? ` (~$${Math.round(price / 12)}/mo)` : '';
+                const savingsLabel = billingInterval === 'annual' && price > 0 ? '<div style="color: #10B981; font-size: 12px; font-weight: 600; margin-top: 4px;">Save 20% with annual billing</div>' : '';
+
                 return `
                     <div style="border: 2px solid ${isCurrent ? '#10B981' : '#E2E8F0'}; border-radius: 8px; padding: 20px; ${isCurrent ? 'background: #F0FDF4;' : ''}">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
                             <div>
                                 <div style="font-weight: 600; font-size: 16px; color: #0F172A;">${details.name}</div>
                                 <div style="font-size: 24px; font-weight: 700; color: #0F172A; margin-top: 4px;">
-                                    $${details.price}<span style="font-size: 14px; font-weight: 400; color: #64748B;">/month</span>
+                                    $${price.toLocaleString()}<span style="font-size: 14px; font-weight: 400; color: #64748B;">${intervalLabel}</span><span style="font-size: 13px; color: #64748B;">${monthlyEquivalent}</span>
                                 </div>
+                                ${savingsLabel}
                             </div>
                             ${isCurrent ? '<span class="badge badge-success">Current Plan</span>' : ''}
                         </div>
@@ -1200,9 +1254,12 @@
 
         async function upgradePlan(plan) {
             const planDetails = PLAN_DETAILS[plan];
+            const price = billingInterval === 'annual' ? planDetails.priceAnnual : planDetails.price;
+            const intervalLabel = billingInterval === 'annual' ? 'year' : 'month';
 
             const confirmed = confirm(
-                `Upgrade to ${planDetails.name} for $${planDetails.price}/month?\n\n` +
+                `Upgrade to ${planDetails.name} for $${price}/${intervalLabel}?\n\n` +
+                `Includes 7-day free trial!\n\n` +
                 `You'll be redirected to Shopify to confirm this subscription charge. ` +
                 `The charge will appear on your Shopify bill.`
             );
@@ -1215,7 +1272,11 @@
                 const response = await fetch('/api/billing/upgrade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shop, plan })
+                    body: JSON.stringify({
+                        shop,
+                        plan,
+                        interval: billingInterval === 'annual' ? 'ANNUAL' : 'EVERY_30_DAYS'
+                    })
                 });
 
                 const data = await response.json();
