@@ -366,19 +366,20 @@
             </div>
 
             <div class="card">
-                <h2>Connect Retail Partners</h2>
-                <p style="color: #64748B; margin-bottom: 16px;">
-                    Generate a 6-digit code for retailers to connect to your wholesale catalog.
-                </p>
-                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
-                    <button class="btn btn-primary" onclick="generateConnectionCode()">Generate Code</button>
-                    <div id="connectionCodeDisplay" style="display: none; padding: 12px 20px; background: #F0FDF4; border: 2px solid #214937; border-radius: 8px; font-size: 28px; font-weight: 700; letter-spacing: 4px; color: #214937;">
-                        ------
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h2 style="margin-bottom: 4px;">Connection Invites</h2>
+                        <p style="color: #64748B; font-size: 14px;">
+                            Create secure invites for retailers to connect to your wholesale catalog.
+                        </p>
                     </div>
-                    <button id="copyCodeBtn" class="btn btn-secondary" onclick="copyConnectionCode()" style="display: none;">Copy Code</button>
+                    <button class="btn btn-primary" onclick="openCreateInviteModal()">+ Create Invite</button>
                 </div>
-                <div id="codeExpiry" style="display: none; color: #64748B; font-size: 13px; margin-top: 8px;">
-                    Code expires in 24 hours
+
+                <div id="invites-list">
+                    <div class="loading" style="text-align: center; padding: 20px; color: #64748B;">
+                        Loading invites...
+                    </div>
                 </div>
             </div>
 
@@ -463,6 +464,35 @@
         </div>
     </div>
 
+    <!-- Create Invite Modal -->
+    <div id="createInviteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="margin: 0; color: #214937;">Create Connection Invite</h2>
+                <button onclick="closeCreateInviteModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748B;">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Nickname / Label</label>
+                <input
+                    type="text"
+                    id="inviteNickname"
+                    placeholder="e.g., NYC Retailer, Store #5"
+                    maxlength="50"
+                    style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;"
+                >
+                <p style="font-size: 13px; color: #64748B; margin-top: 4px;">
+                    Give this invite a memorable name to help you track who it's for.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="closeCreateInviteModal()" style="flex: 1;">Cancel</button>
+                <button class="btn btn-primary" onclick="createInvite()" style="flex: 1;">Create Invite</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const host = urlParams.get('host');
@@ -491,7 +521,10 @@
 
                 // Load data for tab
                 if (tabName === 'products') loadProducts();
-                if (tabName === 'partners') loadPartners();
+                if (tabName === 'partners') {
+                    loadInvites();
+                    loadPartners();
+                }
                 if (tabName === 'orders') loadOrders();
                 if (tabName === 'settings') loadCurrentRole();
             });
@@ -738,49 +771,145 @@
             }
         }
 
-        // Generate connection code
-        let currentCode = null;
-        async function generateConnectionCode() {
+        // Invite management functions
+        function openCreateInviteModal() {
+            document.getElementById('createInviteModal').style.display = 'flex';
+            document.getElementById('inviteNickname').value = '';
+            document.getElementById('inviteNickname').focus();
+        }
+
+        function closeCreateInviteModal() {
+            document.getElementById('createInviteModal').style.display = 'none';
+        }
+
+        async function createInvite() {
+            const nickname = document.getElementById('inviteNickname').value.trim();
+
+            if (!nickname) {
+                alert('Please enter a nickname for this invite');
+                return;
+            }
+
             try {
-                const response = await fetch('/api/supplier/connection-code', {
+                const response = await fetch('/api/supplier/connection-invite', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ shop })
+                    body: JSON.stringify({ shop, nickname })
                 });
 
                 const result = await response.json();
 
                 if (result.success) {
-                    currentCode = result.code;
-                    document.getElementById('connectionCodeDisplay').textContent = result.code;
-                    document.getElementById('connectionCodeDisplay').style.display = 'block';
-                    document.getElementById('copyCodeBtn').style.display = 'block';
-                    document.getElementById('codeExpiry').style.display = 'block';
+                    alert(`Invite created successfully!\n\nCode: ${formatCode(result.invite.code)}\n\nShare this code with ${nickname} to connect.`);
+                    closeCreateInviteModal();
+                    loadInvites(); // Reload invites list
                 } else {
-                    alert('Error generating code. Please try again.');
+                    alert(`Error: ${result.error || 'Unable to create invite'}`);
                 }
             } catch (error) {
-                console.error('Error generating code:', error);
-                alert('Error generating code. Please try again.');
+                console.error('Error creating invite:', error);
+                alert('Error creating invite. Please try again.');
             }
         }
 
-        // Copy connection code
-        function copyConnectionCode() {
-            if (currentCode) {
-                navigator.clipboard.writeText(currentCode).then(() => {
-                    alert('Code copied to clipboard!');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const tempInput = document.createElement('input');
-                    tempInput.value = currentCode;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempInput);
-                    alert('Code copied to clipboard!');
-                });
+        async function loadInvites() {
+            const container = document.getElementById('invites-list');
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748B;">Loading invites...</div>';
+
+            try {
+                const response = await fetch(`/api/supplier/connection-invites?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.invites && data.invites.length > 0) {
+                    const invitesHTML = data.invites.map(invite => {
+                        const status = invite.status;
+                        const statusColors = {
+                            'ACTIVE': 'background: #D1FAE5; color: #065F46',
+                            'REDEEMED': 'background: #DBEAFE; color: #1E40AF',
+                            'EXPIRED': 'background: #FEE2E2; color: #991B1B',
+                            'REVOKED': 'background: #E5E7EB; color: #374151'
+                        };
+
+                        const isActive = status === 'ACTIVE' && new Date(invite.expiresAt) > new Date();
+                        const formattedCode = formatCode(invite.code);
+
+                        return `
+                            <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #0F172A; margin-bottom: 4px;">${invite.nickname}</div>
+                                        <div style="font-family: monospace; font-size: 18px; font-weight: 700; color: #214937; margin-bottom: 4px; letter-spacing: 1px;">
+                                            ${formattedCode}
+                                            ${isActive ? `<button onclick="copyCode('${invite.code}')" style="padding: 4px 8px; background: #E2E8F0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 8px;">Copy</button>` : ''}
+                                        </div>
+                                        <div style="font-size: 13px; color: #64748B;">
+                                            Created: ${new Date(invite.createdAt).toLocaleDateString()}
+                                            ${status === 'REDEEMED' ? ` • Redeemed: ${new Date(invite.redeemedAt).toLocaleDateString()}` : ''}
+                                            ${status === 'ACTIVE' ? ` • Expires: ${new Date(invite.expiresAt).toLocaleDateString()}` : ''}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <span style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${statusColors[status]}">${status}</span>
+                                        ${isActive ? `<button onclick="revokeInvite('${invite.id}')" style="padding: 6px 12px; background: #EF4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">Revoke</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    container.innerHTML = invitesHTML;
+                } else {
+                    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748B;">No invites yet. Create one to get started!</div>';
+                }
+            } catch (error) {
+                console.error('Error loading invites:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #EF4444;">Error loading invites. Please try again.</div>';
             }
+        }
+
+        async function revokeInvite(inviteId) {
+            if (!confirm('Are you sure you want to revoke this invite? The code will no longer work.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/supplier/connection-invite/${inviteId}?shop=${shop}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Invite revoked successfully');
+                    loadInvites(); // Reload list
+                } else {
+                    alert(`Error: ${result.error || 'Unable to revoke invite'}`);
+                }
+            } catch (error) {
+                console.error('Error revoking invite:', error);
+                alert('Error revoking invite. Please try again.');
+            }
+        }
+
+        function formatCode(code) {
+            // Format as XXXX-XXXX-XXXX
+            return code.match(/.{1,4}/g)?.join('-') || code;
+        }
+
+        function copyCode(code) {
+            const formattedCode = formatCode(code);
+            navigator.clipboard.writeText(formattedCode).then(() => {
+                alert('Code copied to clipboard!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const tempInput = document.createElement('input');
+                tempInput.value = formattedCode;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                alert('Code copied to clipboard!');
+            });
         }
 
         // Save settings

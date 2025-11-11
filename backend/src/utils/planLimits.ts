@@ -13,6 +13,8 @@ export interface PlanLimits {
   price: number;
   maxConnections: number;
   maxPurchaseOrdersPerMonth: number;
+  maxActiveInvites: number; // Max active (unredeemed) invites at once
+  maxInvitesPerHour: number; // Rate limit for invite creation
   features: {
     catalogSync: 'basic' | 'selected' | 'full';
     multipleTermProfiles: boolean;
@@ -29,6 +31,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     price: 0,
     maxConnections: 2,
     maxPurchaseOrdersPerMonth: 10,
+    maxActiveInvites: 5,
+    maxInvitesPerHour: 5,
     features: {
       catalogSync: 'basic',
       multipleTermProfiles: false,
@@ -43,6 +47,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     price: 99,
     maxConnections: 5,
     maxPurchaseOrdersPerMonth: 100,
+    maxActiveInvites: 10,
+    maxInvitesPerHour: 10,
     features: {
       catalogSync: 'selected',
       multipleTermProfiles: false,
@@ -57,6 +63,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     price: 299,
     maxConnections: 25,
     maxPurchaseOrdersPerMonth: 1000,
+    maxActiveInvites: 50,
+    maxInvitesPerHour: 25,
     features: {
       catalogSync: 'full',
       multipleTermProfiles: true,
@@ -71,6 +79,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     price: 799,
     maxConnections: 999999, // Essentially unlimited
     maxPurchaseOrdersPerMonth: 999999, // Essentially unlimited
+    maxActiveInvites: 999999,
+    maxInvitesPerHour: 999999,
     features: {
       catalogSync: 'full',
       multipleTermProfiles: true,
@@ -185,4 +195,33 @@ export function shouldResetMonthlyUsage(currentPeriodStart: Date): boolean {
 
   // Reset if it's been 30+ days
   return daysSinceStart >= 30;
+}
+
+/**
+ * Check if a shop can create a new invite
+ */
+export function canCreateInvite(
+  activeInvitesCount: number,
+  recentInvitesCount: number,
+  plan: string
+): { allowed: boolean; reason?: string } {
+  const limits = getPlanLimits(plan);
+
+  // Check active invites limit
+  if (activeInvitesCount >= limits.maxActiveInvites) {
+    return {
+      allowed: false,
+      reason: `You've reached your plan limit of ${limits.maxActiveInvites} active invites. Revoke or wait for some to expire before creating more.`,
+    };
+  }
+
+  // Check rate limit (invites created in last hour)
+  if (recentInvitesCount >= limits.maxInvitesPerHour) {
+    return {
+      allowed: false,
+      reason: `You've reached your hourly limit of ${limits.maxInvitesPerHour} invites. Please wait before creating more.`,
+    };
+  }
+
+  return { allowed: true };
 }

@@ -487,6 +487,9 @@ router.post('/redeem-code', async (req, res, next) => {
       return;
     }
 
+    // Normalize code (remove hyphens, uppercase)
+    const normalizedCode = code.replace(/-/g, '').toUpperCase();
+
     // Get retailer shop
     const retailerShop = await prisma.shop.findUnique({
       where: { myshopifyDomain: shop },
@@ -497,17 +500,19 @@ router.post('/redeem-code', async (req, res, next) => {
       return;
     }
 
-    // Find supplier by connection code
-    const supplierShop = await prisma.shop.findFirst({
+    // Find invite by code
+    const invite = await prisma.connectionInvite.findFirst({
       where: {
-        connectionCode: code,
-        connectionCodeExpiry: {
-          gte: new Date(), // Code must not be expired
-        },
+        code: normalizedCode,
+        status: 'ACTIVE',
+        expiresAt: { gte: new Date() },
+      },
+      include: {
+        supplierShop: true,
       },
     });
 
-    if (!supplierShop) {
+    if (!invite) {
       res.status(404).json({ error: 'Invalid or expired code' });
       return;
     }
@@ -515,19 +520,51 @@ router.post('/redeem-code', async (req, res, next) => {
     // Check if connection already exists
     const existingConnection = await prisma.connection.findFirst({
       where: {
-        supplierShopId: supplierShop.id,
+        supplierShopId: invite.supplierShopId,
         retailerShopId: retailerShop.id,
       },
     });
 
     if (existingConnection) {
+      // If terminated, reactivate it
+      if (existingConnection.status === 'TERMINATED') {
+        await prisma.connection.update({
+          where: { id: existingConnection.id },
+          data: { status: 'ACTIVE' },
+        });
+
+        // Mark invite as redeemed
+        await prisma.connectionInvite.update({
+          where: { id: invite.id },
+          data: {
+            status: 'REDEEMED',
+            redeemedBy: retailerShop.id,
+            redeemedAt: new Date(),
+            connectionId: existingConnection.id,
+          },
+        });
+
+        logger.info(
+          `Connection reactivated via invite: ${invite.supplierShop.myshopifyDomain} → ${shop}`
+        );
+
+        res.json({
+          success: true,
+          supplierName: invite.supplierShop.myshopifyDomain,
+          connectionId: existingConnection.id,
+          reactivated: true,
+        });
+        return;
+      }
+
+      // Already active
       res.status(400).json({ error: 'Already connected to this supplier' });
       return;
     }
 
     // Check supplier's plan limits
     const supplierWithConnections = await prisma.shop.findUnique({
-      where: { id: supplierShop.id },
+      where: { id: invite.supplierShopId },
       include: {
         supplierConnections: {
           where: {
@@ -541,7 +578,7 @@ router.post('/redeem-code', async (req, res, next) => {
 
     const currentConnections = supplierWithConnections?.supplierConnections.length || 0;
     const { canCreateConnection } = await import('../utils/planLimits');
-    const limitCheck = canCreateConnection(currentConnections, supplierShop.plan);
+    const limitCheck = canCreateConnection(currentConnections, invite.supplierShop.plan);
 
     if (!limitCheck.allowed) {
       res.status(400).json({ error: 'Supplier has reached their connection limit' });
@@ -551,7 +588,7 @@ router.post('/redeem-code', async (req, res, next) => {
     // Create connection
     const connection = await prisma.connection.create({
       data: {
-        supplierShopId: supplierShop.id,
+        supplierShopId: invite.supplierShopId,
         retailerShopId: retailerShop.id,
         status: 'ACTIVE',
         paymentTermsType: 'PREPAY',
@@ -559,8 +596,19 @@ router.post('/redeem-code', async (req, res, next) => {
       },
     });
 
+    // Mark invite as redeemed
+    await prisma.connectionInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: 'REDEEMED',
+        redeemedBy: retailerShop.id,
+        redeemedAt: new Date(),
+        connectionId: connection.id,
+      },
+    });
+
     logger.info(
-      `Connection created via code: ${supplierShop.myshopifyDomain} → ${shop}`
+      `Connection created via invite ${invite.nickname}: ${invite.supplierShop.myshopifyDomain} → ${shop}`
     );
 
     // Log audit event
@@ -570,13 +618,13 @@ router.post('/redeem-code', async (req, res, next) => {
         action: 'CONNECTION_CREATED',
         resourceType: 'Connection',
         resourceId: connection.id,
-        metadata: { via: 'code' },
+        metadata: { via: 'invite', inviteId: invite.id, nickname: invite.nickname },
       },
     });
 
     res.json({
       success: true,
-      supplierName: supplierShop.myshopifyDomain,
+      supplierName: invite.supplierShop.myshopifyDomain,
       connectionId: connection.id,
     });
   } catch (error) {

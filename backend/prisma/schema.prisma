@@ -43,7 +43,7 @@ model Shop {
   email            String?
   timezone         String   @default("America/New_York")
 
-  // Connection code for retailers to join
+  // Connection code for retailers to join (DEPRECATED - use ConnectionInvite table)
   connectionCode        String?
   connectionCodeExpiry  DateTime?
 
@@ -53,6 +53,7 @@ model Shop {
   supplierProducts      SupplierProduct[]
   supplierPurchaseOrders PurchaseOrder[] @relation("SupplierPurchaseOrders")
   retailerPurchaseOrders PurchaseOrder[] @relation("RetailerPurchaseOrders")
+  connectionInvites     ConnectionInvite[]
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -126,6 +127,46 @@ model Connection {
   @@index([retailerShopId])
   @@index([inviteToken])
   @@index([status])
+}
+
+// ============================================================================
+// CONNECTION INVITES
+// ============================================================================
+
+enum InviteStatus {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+  REVOKED
+}
+
+model ConnectionInvite {
+  id              String       @id @default(cuid())
+
+  // Supplier who created the invite
+  supplierShopId  String
+  supplierShop    Shop         @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
+
+  // Invite details
+  code            String       @unique // 12-char alphanumeric GUID-style
+  nickname        String       // User-friendly name for tracking (e.g., "NYC Retailer", "Store #5")
+  status          InviteStatus @default(ACTIVE)
+
+  // Redemption tracking
+  redeemedBy      String?      // Shop ID of retailer who redeemed
+  redeemedAt      DateTime?
+  connectionId    String?      // Connection created when redeemed
+
+  // Expiry
+  expiresAt       DateTime     // 24 hours from creation
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([supplierShopId])
+  @@index([code])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 // ============================================================================

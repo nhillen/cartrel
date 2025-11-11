@@ -373,11 +373,108 @@ router.post('/settings', async (req, res, next) => {
 });
 
 /**
- * Generate a connection code for retailers to use
+ * Create a connection invite with nickname
  */
-router.post('/connection-code', async (req, res, next) => {
+router.post('/connection-invite', async (req, res, next) => {
   try {
-    const { shop } = req.body;
+    const { shop, nickname } = req.body;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    if (!nickname || nickname.trim().length === 0) {
+      res.status(400).json({ error: 'Nickname is required' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Check rate limits
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    const [activeInvites, recentInvites] = await Promise.all([
+      prisma.connectionInvite.count({
+        where: {
+          supplierShopId: shopRecord.id,
+          status: 'ACTIVE',
+          expiresAt: { gte: new Date() },
+        },
+      }),
+      prisma.connectionInvite.count({
+        where: {
+          supplierShopId: shopRecord.id,
+          createdAt: { gte: oneHourAgo },
+        },
+      }),
+    ]);
+
+    const { canCreateInvite } = await import('../utils/planLimits');
+    const limitCheck = canCreateInvite(activeInvites, recentInvites, shopRecord.plan);
+
+    if (!limitCheck.allowed) {
+      res.status(429).json({ error: limitCheck.reason });
+      return;
+    }
+
+    // Generate unique code
+    const { generateConnectionCode } = await import('../utils/codeGenerator');
+    let code = generateConnectionCode();
+
+    // Ensure code is unique (extremely unlikely to collide, but safety check)
+    let attempts = 0;
+    while (attempts < 5) {
+      const existing = await prisma.connectionInvite.findUnique({
+        where: { code },
+      });
+
+      if (!existing) break;
+
+      code = generateConnectionCode();
+      attempts++;
+    }
+
+    // Create invite
+    const invite = await prisma.connectionInvite.create({
+      data: {
+        supplierShopId: shopRecord.id,
+        code,
+        nickname: nickname.trim(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      },
+    });
+
+    logger.info(`Created connection invite for ${shop}: ${code} (${nickname})`);
+
+    res.json({
+      success: true,
+      invite: {
+        id: invite.id,
+        code: invite.code,
+        nickname: invite.nickname,
+        expiresAt: invite.expiresAt,
+      },
+    });
+  } catch (error) {
+    logger.error('Error creating connection invite:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get all connection invites for a supplier
+ */
+router.get('/connection-invites', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
 
     if (!shop || typeof shop !== 'string') {
       res.status(400).json({ error: 'Missing shop parameter' });
@@ -393,23 +490,85 @@ router.post('/connection-code', async (req, res, next) => {
       return;
     }
 
-    // Generate a simple 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const invites = await prisma.connectionInvite.findMany({
+      where: { supplierShopId: shopRecord.id },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    // Store code in shop record (expires in 24 hours)
-    await prisma.shop.update({
-      where: { id: shopRecord.id },
-      data: {
-        connectionCode: code,
-        connectionCodeExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    // Auto-expire old invites
+    const now = new Date();
+    const expiredInvites = invites.filter(
+      (inv) => inv.status === 'ACTIVE' && inv.expiresAt < now
+    );
+
+    if (expiredInvites.length > 0) {
+      await prisma.connectionInvite.updateMany({
+        where: {
+          id: { in: expiredInvites.map((inv) => inv.id) },
+        },
+        data: { status: 'EXPIRED' },
+      });
+    }
+
+    // Fetch updated invites
+    const updatedInvites = await prisma.connectionInvite.findMany({
+      where: { supplierShopId: shopRecord.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ invites: updatedInvites });
+  } catch (error) {
+    logger.error('Error loading connection invites:', error);
+    next(error);
+  }
+});
+
+/**
+ * Revoke a connection invite
+ */
+router.delete('/connection-invite/:inviteId', async (req, res, next) => {
+  try {
+    const { inviteId } = req.params;
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Verify invite belongs to this supplier
+    const invite = await prisma.connectionInvite.findFirst({
+      where: {
+        id: inviteId,
+        supplierShopId: shopRecord.id,
       },
     });
 
-    logger.info(`Generated connection code for ${shop}: ${code}`);
+    if (!invite) {
+      res.status(404).json({ error: 'Invite not found' });
+      return;
+    }
 
-    res.json({ success: true, code });
+    // Revoke invite
+    await prisma.connectionInvite.update({
+      where: { id: inviteId },
+      data: { status: 'REVOKED' },
+    });
+
+    logger.info(`Revoked connection invite ${inviteId} for ${shop}`);
+
+    res.json({ success: true });
   } catch (error) {
-    logger.error('Error generating connection code:', error);
+    logger.error('Error revoking connection invite:', error);
     next(error);
   }
 });
