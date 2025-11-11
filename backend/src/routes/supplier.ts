@@ -67,9 +67,12 @@ router.get('/products', async (req, res, next) => {
 
     const shopifyProducts = (response.body as any).products || [];
 
-    // Get wholesale products from database
+    // Get wholesale products from database (only those marked as wholesale eligible)
     const wholesaleProducts = await prisma.supplierProduct.findMany({
-      where: { supplierShopId: shopRecord.id },
+      where: {
+        supplierShopId: shopRecord.id,
+        isWholesaleEligible: true,
+      },
     });
 
     const wholesaleProductIds = new Set(
