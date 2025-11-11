@@ -24,6 +24,9 @@ const envSchema = z.object({
   // Session
   SESSION_SECRET: z.string().min(32),
 
+  // Encryption
+  ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be exactly 64 characters (32 bytes hex)'),
+
   // Optional: Email
   EMAIL_FROM: z.string().email().optional(),
   SMTP_HOST: z.string().optional(),

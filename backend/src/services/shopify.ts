@@ -3,6 +3,7 @@ import '@shopify/shopify-api/adapters/node';
 import { config } from '../config';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+import { encryptAccessToken, decryptAccessToken } from '../utils/crypto';
 
 // Session storage interface for Shopify OAuth
 interface ISessionStorage {
@@ -64,6 +65,9 @@ export const shopify = shopifyApi({
  */
 export async function saveShop(shop: string, accessToken: string, role: 'SUPPLIER' | 'RETAILER' | 'BOTH' = 'BOTH') {
   try {
+    // Encrypt access token before storing
+    const encryptedToken = encryptAccessToken(accessToken);
+
     const existingShop = await prisma.shop.findUnique({
       where: { myshopifyDomain: shop },
     });
@@ -73,7 +77,7 @@ export async function saveShop(shop: string, accessToken: string, role: 'SUPPLIE
       await prisma.shop.update({
         where: { myshopifyDomain: shop },
         data: {
-          accessToken,
+          accessToken: encryptedToken,
           updatedAt: new Date(),
         },
       });
@@ -83,7 +87,7 @@ export async function saveShop(shop: string, accessToken: string, role: 'SUPPLIE
       await prisma.shop.create({
         data: {
           myshopifyDomain: shop,
-          accessToken,
+          accessToken: encryptedToken,
           role,
         },
       });
@@ -123,9 +127,21 @@ export async function getShop(shopDomain: string) {
 }
 
 /**
- * Create Shopify REST API client for a specific shop
+ * Get decrypted access token for a shop
+ * Use this instead of directly accessing shop.accessToken
  */
-export function createShopifyClient(shop: string, accessToken: string) {
+export function getDecryptedAccessToken(encryptedToken: string): string {
+  return decryptAccessToken(encryptedToken);
+}
+
+/**
+ * Create Shopify REST API client for a specific shop
+ * Note: Pass the ENCRYPTED token from database - this function will decrypt it
+ */
+export function createShopifyClient(shop: string, encryptedAccessToken: string) {
+  // Decrypt the access token before using it
+  const accessToken = decryptAccessToken(encryptedAccessToken);
+
   const session = new Session({
     id: `offline_${shop}`,
     shop,
@@ -139,8 +155,12 @@ export function createShopifyClient(shop: string, accessToken: string) {
 
 /**
  * Create Shopify GraphQL API client for a specific shop
+ * Note: Pass the ENCRYPTED token from database - this function will decrypt it
  */
-export function createShopifyGraphQLClient(shop: string, accessToken: string) {
+export function createShopifyGraphQLClient(shop: string, encryptedAccessToken: string) {
+  // Decrypt the access token before using it
+  const accessToken = decryptAccessToken(encryptedAccessToken);
+
   const session = new Session({
     id: `offline_${shop}`,
     shop,
