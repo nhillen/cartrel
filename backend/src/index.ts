@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
+import RedisStore from 'connect-redis';
+import Redis from 'ioredis';
 import helmet from 'helmet';
 import { PrismaClient } from '@prisma/client';
 import { createBullBoard } from '@bull-board/api';
@@ -29,6 +31,20 @@ export const prisma = new PrismaClient({
 
 // Initialize Express app
 const app = express();
+
+// Initialize Redis client for sessions
+const redisClient = new Redis(config.redisUrl, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
+
+redisClient.on('error', (err) => {
+  logger.error('Redis session store error:', err);
+});
+
+redisClient.on('connect', () => {
+  logger.info('✓ Redis session store connected');
+});
 
 // Security: Helmet - sets various HTTP security headers
 app.use(helmet({
@@ -71,8 +87,13 @@ app.use(sanitizeInputs);
 app.use('/api', generalApiLimiter);
 app.use('/auth', generalApiLimiter);
 
-// Security: Secure session configuration
+// Security: Secure session configuration with Redis store
 app.use(session({
+  store: new RedisStore({
+    client: redisClient,
+    prefix: 'cartrel:sess:',
+    ttl: 24 * 60 * 60, // 24 hours in seconds
+  }),
   secret: config.sessionSecret,
   name: 'cartrel.sid', // Custom session name (don't use default 'connect.sid')
   resave: false,
