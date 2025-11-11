@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { prisma } from '../db';
+import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import {
   createSubscription,
@@ -18,7 +18,7 @@ const router = express.Router();
  * POST /api/billing/upgrade
  * Initiate a subscription upgrade
  */
-router.post('/upgrade', async (req, res) => {
+router.post('/upgrade', async (req, res): Promise<void> => {
   try {
     const { shop, plan } = req.body;
 
@@ -82,7 +82,7 @@ router.post('/upgrade', async (req, res) => {
  * GET /billing/confirm
  * Handle Shopify billing confirmation callback
  */
-router.get('/confirm', async (req, res) => {
+router.get('/confirm', async (req, res): Promise<void> => {
   try {
     const { shop, charge_id } = req.query;
 
@@ -140,7 +140,7 @@ router.get('/confirm', async (req, res) => {
  * POST /api/billing/cancel
  * Cancel subscription and downgrade to FREE
  */
-router.post('/cancel', async (req, res) => {
+router.post('/cancel', async (req, res): Promise<void> => {
   try {
     const { shop } = req.body;
 
@@ -191,7 +191,7 @@ router.post('/cancel', async (req, res) => {
  * GET /api/billing/status
  * Get current subscription status
  */
-router.get('/status', async (req, res) => {
+router.get('/status', async (req, res): Promise<void> => {
   try {
     const { shop } = req.query;
 

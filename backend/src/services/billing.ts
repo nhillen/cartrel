@@ -2,9 +2,10 @@
  * Shopify Billing API integration for Cartrel subscriptions
  */
 
-import { shopify } from './shopify';
+import { createShopifyGraphQLClient } from './shopify';
 import { logger } from '../utils/logger';
 import { PLAN_LIMITS } from '../utils/planLimits';
+import { config } from '../config';
 
 interface BillingCharge {
   confirmationUrl: string;
@@ -30,27 +31,63 @@ export async function createSubscription(
   }
 
   try {
-    const session = {
-      shop,
-      accessToken,
+    const client = createShopifyGraphQLClient(shop, accessToken);
+
+    const mutation = `
+      mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
+        appSubscriptionCreate(
+          name: $name
+          lineItems: $lineItems
+          returnUrl: $returnUrl
+          test: $test
+        ) {
+          appSubscription {
+            id
+          }
+          confirmationUrl
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      name: planDetails.name,
+      lineItems: [
+        {
+          plan: {
+            appRecurringPricingDetails: {
+              price: {
+                amount: planDetails.price,
+                currencyCode: 'USD',
+              },
+              interval: 'EVERY_30_DAYS',
+            },
+          },
+        },
+      ],
+      returnUrl: `${config.appUrl}/billing/confirm?shop=${shop}`,
+      test: config.nodeEnv !== 'production',
     };
 
-    const billing = shopify.billing.request({
-      session,
-      plan: {
-        name: planDetails.name,
-        price: { amount: planDetails.price, currencyCode: 'USD' },
-        interval: 'EVERY_30_DAYS',
-      },
-      isTest: process.env.NODE_ENV !== 'production', // Test charges in dev
-      returnUrl: `${process.env.APP_URL}/billing/confirm`,
-    });
+    const response: any = await client.request(mutation, { variables });
+
+    if (response.data.appSubscriptionCreate.userErrors.length > 0) {
+      const errors = response.data.appSubscriptionCreate.userErrors;
+      logger.error(`Billing errors for ${shop}:`, errors);
+      throw new Error(`Billing error: ${errors[0].message}`);
+    }
+
+    const confirmationUrl = response.data.appSubscriptionCreate.confirmationUrl;
+    const chargeId = response.data.appSubscriptionCreate.appSubscription.id;
 
     logger.info(`Created billing charge for ${shop} - Plan: ${plan}`);
 
     return {
-      confirmationUrl: billing.confirmationUrl,
-      chargeId: billing.id,
+      confirmationUrl,
+      chargeId,
     };
   } catch (error) {
     logger.error(`Error creating subscription for ${shop}:`, error);
@@ -66,17 +103,25 @@ export async function hasActiveSubscription(
   accessToken: string
 ): Promise<boolean> {
   try {
-    const session = {
-      shop,
-      accessToken,
-    };
+    const client = createShopifyGraphQLClient(shop, accessToken);
 
-    const charges = await shopify.billing.check({
-      session,
-    });
+    const query = `
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            status
+          }
+        }
+      }
+    `;
 
-    // Check if there's an active recurring charge
-    return charges.hasActivePayment;
+    const response: any = await client.request(query);
+
+    const subscriptions = response.data?.currentAppInstallation?.activeSubscriptions || [];
+
+    // Check if there's at least one active subscription
+    return subscriptions.some((sub: any) => sub.status === 'ACTIVE');
   } catch (error) {
     logger.error(`Error checking subscription for ${shop}:`, error);
     return false;
@@ -91,14 +136,57 @@ export async function cancelSubscription(
   accessToken: string
 ): Promise<void> {
   try {
-    const session = {
-      shop,
-      accessToken,
-    };
+    const client = createShopifyGraphQLClient(shop, accessToken);
 
-    await shopify.billing.cancel({
-      session,
-    });
+    // First, get the active subscription ID
+    const query = `
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            status
+          }
+        }
+      }
+    `;
+
+    const queryResponse: any = await client.request(query);
+    const subscriptions = queryResponse.data?.currentAppInstallation?.activeSubscriptions || [];
+
+    if (subscriptions.length === 0) {
+      logger.warn(`No active subscriptions found for ${shop}`);
+      return;
+    }
+
+    // Cancel all active subscriptions
+    for (const subscription of subscriptions) {
+      const mutation = `
+        mutation AppSubscriptionCancel($id: ID!) {
+          appSubscriptionCancel(id: $id) {
+            appSubscription {
+              id
+              status
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        id: subscription.id,
+      };
+
+      const response: any = await client.request(mutation, { variables });
+
+      if (response.data.appSubscriptionCancel.userErrors.length > 0) {
+        const errors = response.data.appSubscriptionCancel.userErrors;
+        logger.error(`Error cancelling subscription ${subscription.id} for ${shop}:`, errors);
+        throw new Error(`Cancel error: ${errors[0].message}`);
+      }
+    }
 
     logger.info(`Cancelled subscription for ${shop}`);
   } catch (error) {
