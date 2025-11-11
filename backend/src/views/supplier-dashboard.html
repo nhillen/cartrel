@@ -366,13 +366,19 @@
             </div>
 
             <div class="card">
-                <h2>Invite Retail Partners</h2>
+                <h2>Connect Retail Partners</h2>
                 <p style="color: #64748B; margin-bottom: 16px;">
-                    Share this link with retailers to connect them to your wholesale catalog.
+                    Generate a 6-digit code for retailers to connect to your wholesale catalog.
                 </p>
-                <div class="invite-link">
-                    <input type="text" id="inviteLink" readonly value="Loading...">
-                    <button class="btn btn-secondary" onclick="copyInviteLink()">Copy Link</button>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <button class="btn btn-primary" onclick="generateConnectionCode()">Generate Code</button>
+                    <div id="connectionCodeDisplay" style="display: none; padding: 12px 20px; background: #F0FDF4; border: 2px solid #214937; border-radius: 8px; font-size: 28px; font-weight: 700; letter-spacing: 4px; color: #214937;">
+                        ------
+                    </div>
+                    <button id="copyCodeBtn" class="btn btn-secondary" onclick="copyConnectionCode()" style="display: none;">Copy Code</button>
+                </div>
+                <div id="codeExpiry" style="display: none; color: #64748B; font-size: 13px; margin-top: 8px;">
+                    Code expires in 24 hours
                 </div>
             </div>
 
@@ -600,8 +606,6 @@
         // Load partners
         async function loadPartners() {
             loadUsage(); // Load usage when partners tab opens
-            // Generate invite link
-            document.getElementById('inviteLink').value = `https://cartrel.com/invite/${shop}`;
 
             const container = document.getElementById('partners-list');
             container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading partners...</p></div>';
@@ -734,12 +738,49 @@
             }
         }
 
-        // Copy invite link
-        function copyInviteLink() {
-            const input = document.getElementById('inviteLink');
-            input.select();
-            document.execCommand('copy');
-            alert('Invite link copied to clipboard!');
+        // Generate connection code
+        let currentCode = null;
+        async function generateConnectionCode() {
+            try {
+                const response = await fetch('/api/supplier/connection-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentCode = result.code;
+                    document.getElementById('connectionCodeDisplay').textContent = result.code;
+                    document.getElementById('connectionCodeDisplay').style.display = 'block';
+                    document.getElementById('copyCodeBtn').style.display = 'block';
+                    document.getElementById('codeExpiry').style.display = 'block';
+                } else {
+                    alert('Error generating code. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error generating code:', error);
+                alert('Error generating code. Please try again.');
+            }
+        }
+
+        // Copy connection code
+        function copyConnectionCode() {
+            if (currentCode) {
+                navigator.clipboard.writeText(currentCode).then(() => {
+                    alert('Code copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const tempInput = document.createElement('input');
+                    tempInput.value = currentCode;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    alert('Code copied to clipboard!');
+                });
+            }
         }
 
         // Save settings

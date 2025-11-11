@@ -408,6 +408,23 @@
         <!-- Suppliers Tab -->
         <div class="tab-content active" id="suppliers-tab">
             <div class="card">
+                <h2>Connect to a Supplier</h2>
+                <p style="color: #64748B; margin-bottom: 16px;">
+                    Enter the 6-digit code provided by your supplier to connect to their wholesale catalog.
+                </p>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 24px;">
+                    <input
+                        type="text"
+                        id="connectionCodeInput"
+                        placeholder="Enter 6-digit code"
+                        maxlength="6"
+                        style="flex: 1; padding: 12px 16px; border: 2px solid #E2E8F0; border-radius: 8px; font-size: 16px; font-weight: 600; letter-spacing: 2px; text-align: center;"
+                    >
+                    <button class="btn btn-primary" onclick="redeemConnectionCode()">Connect</button>
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Connected Suppliers</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Your connected wholesale suppliers. Click to browse their catalogs.
@@ -591,7 +608,7 @@
                         </div>
                     `).join('');
                 } else {
-                    container.innerHTML = '<div class="empty-state"><h3>No suppliers yet</h3><p>Ask your supplier for an invite link to get started.</p></div>';
+                    container.innerHTML = '<div class="empty-state"><h3>No suppliers yet</h3><p>Enter a connection code above to connect to a supplier.</p></div>';
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -914,6 +931,50 @@
                 alert('Error importing product. Please try again.');
             }
         }
+
+        // Redeem connection code
+        async function redeemConnectionCode() {
+            const codeInput = document.getElementById('connectionCodeInput');
+            const code = codeInput.value.trim();
+
+            if (!code || code.length !== 6) {
+                alert('Please enter a valid 6-digit code');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/retailer/redeem-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shop, code })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Successfully connected to ${result.supplierName}!`);
+                    codeInput.value = '';
+                    loadSuppliers(); // Reload suppliers list
+                } else {
+                    alert(`Error: ${result.error || 'Unable to connect. Please check the code and try again.'}`);
+                }
+            } catch (error) {
+                console.error('Error redeeming code:', error);
+                alert('Error connecting. Please try again.');
+            }
+        }
+
+        // Allow Enter key to redeem code
+        document.addEventListener('DOMContentLoaded', () => {
+            const codeInput = document.getElementById('connectionCodeInput');
+            if (codeInput) {
+                codeInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        redeemConnectionCode();
+                    }
+                });
+            }
+        });
 
         // Initialize
         if (!shop) {
