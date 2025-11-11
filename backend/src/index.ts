@@ -52,7 +52,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'cdn.shopify.com'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com', 'unpkg.com'],
       imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
       connectSrc: ["'self'", 'https://cartrel.com'],
       frameSrc: ["'self'", 'https://*.myshopify.com'],
