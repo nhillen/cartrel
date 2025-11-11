@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
-import { createShopifyClient, createShopifyGraphQLClient } from '../services/shopify';
+import { createShopifyClient } from '../services/shopify';
 
 const router = Router();
 
