@@ -188,6 +188,36 @@ router.post('/order', async (req, res, next) => {
       return;
     }
 
+    // Check supplier's PO capacity
+    const { canCreatePurchaseOrder, shouldResetMonthlyUsage } = await import('../utils/planLimits');
+
+    // Reset counter if needed
+    if (shouldResetMonthlyUsage(supplierShop.currentPeriodStart)) {
+      await prisma.shop.update({
+        where: { id: supplierShop.id },
+        data: {
+          purchaseOrdersThisMonth: 0,
+          currentPeriodStart: new Date(),
+        },
+      });
+      supplierShop.purchaseOrdersThisMonth = 0;
+    }
+
+    // Check if supplier can accept more POs
+    const limitCheck = canCreatePurchaseOrder(
+      supplierShop.purchaseOrdersThisMonth,
+      supplierShop.plan
+    );
+
+    if (!limitCheck.allowed) {
+      res.status(400).json({
+        error: 'Supplier at capacity',
+        message: `This supplier has reached their monthly order limit. Please try again later or contact the supplier to upgrade their plan.`,
+        supplierAtCapacity: true,
+      });
+      return;
+    }
+
     // Calculate total
     const subtotal = items.reduce(
       (sum: number, item: any) => sum + item.price * item.quantity,
@@ -291,16 +321,28 @@ router.post('/order', async (req, res, next) => {
 
       const draftOrder = response.body.draft_order;
 
-      // Update PO with Shopify draft order ID
+      // Update PO with Shopify draft order ID and status to SUBMITTED
       await prisma.purchaseOrder.update({
         where: { id: po.id },
         data: {
           supplierShopifyDraftOrderId: draftOrder.id.toString(),
+          status: 'SUBMITTED',
+          submittedAt: new Date(),
+        },
+      });
+
+      // Increment supplier's PO count for this month
+      await prisma.shop.update({
+        where: { id: supplierShop.id },
+        data: {
+          purchaseOrdersThisMonth: {
+            increment: 1,
+          },
         },
       });
 
       logger.info(
-        `Created draft order ${draftOrder.id} in supplier Shopify for PO ${po.id}`
+        `Created draft order ${draftOrder.id} in supplier Shopify for PO ${po.id}. Supplier PO count: ${supplierShop.purchaseOrdersThisMonth + 1}`
       );
 
       // Log audit event

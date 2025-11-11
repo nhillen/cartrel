@@ -841,6 +841,8 @@
                     cart = [];
                     updateCart();
                     closeCart();
+                } else if (data.supplierAtCapacity) {
+                    alert('⚠️ Supplier at Capacity\n\n' + (data.message || 'This supplier has reached their monthly order limit. Please try again later or contact the supplier.'));
                 } else {
                     alert('Error placing order: ' + (data.error || 'Unknown error'));
                 }
