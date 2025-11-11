@@ -372,4 +372,46 @@ router.post('/settings', async (req, res, next) => {
   }
 });
 
+/**
+ * Generate a connection code for retailers to use
+ */
+router.post('/connection-code', async (req, res, next) => {
+  try {
+    const { shop } = req.body;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Generate a simple 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in shop record (expires in 24 hours)
+    await prisma.shop.update({
+      where: { id: shopRecord.id },
+      data: {
+        connectionCode: code,
+        connectionCodeExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    logger.info(`Generated connection code for ${shop}: ${code}`);
+
+    res.json({ success: true, code });
+  } catch (error) {
+    logger.error('Error generating connection code:', error);
+    next(error);
+  }
+});
+
 export default router;

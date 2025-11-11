@@ -475,4 +475,114 @@ router.post('/import', async (req, res, next) => {
   }
 });
 
+/**
+ * Redeem a connection code from a supplier
+ */
+router.post('/redeem-code', async (req, res, next) => {
+  try {
+    const { shop, code } = req.body;
+
+    if (!shop || !code) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Get retailer shop
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Retailer shop not found' });
+      return;
+    }
+
+    // Find supplier by connection code
+    const supplierShop = await prisma.shop.findFirst({
+      where: {
+        connectionCode: code,
+        connectionCodeExpiry: {
+          gte: new Date(), // Code must not be expired
+        },
+      },
+    });
+
+    if (!supplierShop) {
+      res.status(404).json({ error: 'Invalid or expired code' });
+      return;
+    }
+
+    // Check if connection already exists
+    const existingConnection = await prisma.connection.findFirst({
+      where: {
+        supplierShopId: supplierShop.id,
+        retailerShopId: retailerShop.id,
+      },
+    });
+
+    if (existingConnection) {
+      res.status(400).json({ error: 'Already connected to this supplier' });
+      return;
+    }
+
+    // Check supplier's plan limits
+    const supplierWithConnections = await prisma.shop.findUnique({
+      where: { id: supplierShop.id },
+      include: {
+        supplierConnections: {
+          where: {
+            status: {
+              in: ['ACTIVE', 'PENDING_INVITE'],
+            },
+          },
+        },
+      },
+    });
+
+    const currentConnections = supplierWithConnections?.supplierConnections.length || 0;
+    const { canCreateConnection } = await import('../utils/planLimits');
+    const limitCheck = canCreateConnection(currentConnections, supplierShop.plan);
+
+    if (!limitCheck.allowed) {
+      res.status(400).json({ error: 'Supplier has reached their connection limit' });
+      return;
+    }
+
+    // Create connection
+    const connection = await prisma.connection.create({
+      data: {
+        supplierShopId: supplierShop.id,
+        retailerShopId: retailerShop.id,
+        status: 'ACTIVE',
+        paymentTermsType: 'PREPAY',
+        tier: 'STANDARD',
+      },
+    });
+
+    logger.info(
+      `Connection created via code: ${supplierShop.myshopifyDomain} → ${shop}`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: retailerShop.id,
+        action: 'CONNECTION_CREATED',
+        resourceType: 'Connection',
+        resourceId: connection.id,
+        metadata: { via: 'code' },
+      },
+    });
+
+    res.json({
+      success: true,
+      supplierName: supplierShop.myshopifyDomain,
+      connectionId: connection.id,
+    });
+  } catch (error) {
+    logger.error('Error redeeming connection code:', error);
+    next(error);
+  }
+});
+
 export default router;

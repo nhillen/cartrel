@@ -43,6 +43,10 @@ model Shop {
   email            String?
   timezone         String   @default("America/New_York")
 
+  // Connection code for retailers to join
+  connectionCode        String?
+  connectionCodeExpiry  DateTime?
+
   // Relationships
   supplierConnections   Connection[]     @relation("SupplierConnections")
   retailerConnections   Connection[]     @relation("RetailerConnections")
