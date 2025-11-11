@@ -959,7 +959,9 @@
                 if (response.status === 401) {
                     console.log('Invalid access token, redirecting to OAuth...');
                     alert('Your session has expired. Redirecting to re-authenticate...');
-                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
                     return;
                 }
 
