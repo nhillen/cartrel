@@ -243,6 +243,7 @@ router.get('/partners', async (req, res, next) => {
     const partners = connections.map((conn) => ({
       id: conn.id,
       retailerShop: conn.retailerShop.myshopifyDomain,
+      nickname: conn.nickname,
       paymentTerms: conn.paymentTermsType,
       minOrderAmount: conn.minOrderAmount.toString(),
       tier: conn.tier,
@@ -510,9 +511,12 @@ router.get('/connection-invites', async (req, res, next) => {
       });
     }
 
-    // Fetch updated invites
+    // Fetch updated invites (exclude REDEEMED - those show up as connections)
     const updatedInvites = await prisma.connectionInvite.findMany({
-      where: { supplierShopId: shopRecord.id },
+      where: {
+        supplierShopId: shopRecord.id,
+        status: { not: 'REDEEMED' }, // Only show ACTIVE, EXPIRED, REVOKED
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -569,6 +573,101 @@ router.delete('/connection-invite/:inviteId', async (req, res, next) => {
     res.json({ success: true });
   } catch (error) {
     logger.error('Error revoking connection invite:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get active connections
+ */
+router.get('/connections', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connections = await prisma.connection.findMany({
+      where: {
+        supplierShopId: shopRecord.id,
+        status: 'ACTIVE',
+      },
+      include: {
+        retailerShop: {
+          select: {
+            id: true,
+            myshopifyDomain: true,
+            companyName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ connections });
+  } catch (error) {
+    logger.error('Error loading connections:', error);
+    next(error);
+  }
+});
+
+/**
+ * Update connection nickname
+ */
+router.patch('/connection/:connectionId/nickname', async (req, res, next) => {
+  try {
+    const { connectionId } = req.params;
+    const { shop, nickname } = req.body;
+
+    if (!shop || !nickname) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Verify this connection belongs to this supplier
+    const connection = await prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        supplierShopId: shopRecord.id,
+      },
+    });
+
+    if (!connection) {
+      res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+
+    // Update nickname
+    await prisma.connection.update({
+      where: { id: connectionId },
+      data: { nickname },
+    });
+
+    logger.info(`Updated connection ${connectionId} nickname to "${nickname}" for ${shop}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error updating connection nickname:', error);
     next(error);
   }
 });

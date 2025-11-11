@@ -120,6 +120,7 @@ model Connection {
   acceptedAt       DateTime?
 
   // Metadata
+  nickname         String?          // User-friendly name for this connection (e.g., "NYC Retailer", "Store #5")
   notes            String?          @db.Text
 
   // Relationships

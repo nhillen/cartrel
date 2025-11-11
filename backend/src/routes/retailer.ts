@@ -695,7 +695,10 @@ router.post('/redeem-code', async (req, res, next) => {
       if (existingConnection.status === 'TERMINATED') {
         await prisma.connection.update({
           where: { id: existingConnection.id },
-          data: { status: 'ACTIVE' },
+          data: {
+            status: 'ACTIVE',
+            nickname: invite.nickname, // Copy nickname from invite
+          },
         });
 
         // Mark invite as redeemed
@@ -756,6 +759,7 @@ router.post('/redeem-code', async (req, res, next) => {
         supplierShopId: invite.supplierShopId,
         retailerShopId: retailerShop.id,
         status: 'ACTIVE',
+        nickname: invite.nickname, // Copy nickname from invite
         paymentTermsType: 'PREPAY',
         tier: 'STANDARD',
       },
