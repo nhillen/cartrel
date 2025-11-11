@@ -573,4 +573,57 @@ router.delete('/connection-invite/:inviteId', async (req, res, next) => {
   }
 });
 
+/**
+ * Get purchase orders for a supplier
+ */
+router.get('/orders', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get purchase orders where this shop is the supplier
+    const orders = await prisma.purchaseOrder.findMany({
+      where: { supplierShopId: shopRecord.id },
+      include: {
+        retailerShop: true,
+        connection: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const formattedOrders = orders.map((order) => ({
+      id: order.id,
+      poNumber: order.poNumber,
+      retailerShop: order.retailerShop.myshopifyDomain,
+      status: order.status,
+      subtotal: order.subtotal.toString(),
+      total: order.total.toString(),
+      currency: order.currency,
+      paymentTerms: order.paymentTermsType,
+      items: order.items,
+      createdAt: order.createdAt,
+    }));
+
+    logger.info(`Loaded ${formattedOrders.length} orders for supplier: ${shop}`);
+
+    res.json({ orders: formattedOrders });
+  } catch (error) {
+    logger.error('Error loading supplier orders:', error);
+    next(error);
+  }
+});
+
 export default router;

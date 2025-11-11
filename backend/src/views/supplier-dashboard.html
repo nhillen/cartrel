@@ -737,8 +737,75 @@
         // Load orders
         async function loadOrders() {
             const container = document.getElementById('orders-list');
-            // TODO: Implement orders loading
-            container.innerHTML = '<div class="empty-state"><h3>No orders yet</h3><p>Purchase orders from your retail partners will appear here.</p></div>';
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading orders...</p></div>';
+
+            try {
+                const response = await fetch(`/api/supplier/orders?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.orders && data.orders.length > 0) {
+                    container.innerHTML = data.orders.map(order => {
+                        const statusClass = order.status === 'DRAFT' ? 'badge-warning' :
+                                           order.status === 'CONFIRMED' ? 'badge-success' :
+                                           order.status === 'FULFILLED' ? 'badge-secondary' : 'badge-secondary';
+
+                        const itemCount = order.items.length;
+                        const itemsText = itemCount === 1 ? '1 item' : `${itemCount} items`;
+
+                        return `
+                        <div class="connection-item" style="display: block; padding: 20px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                                <div>
+                                    <div class="connection-name">${order.poNumber}</div>
+                                    <div class="connection-details">
+                                        From: ${order.retailerShop} • ${new Date(order.createdAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <span class="badge ${statusClass}">${order.status}</span>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #64748B;">Total</label>
+                                    <div style="font-size: 16px; font-weight: 600; color: #0F172A;">$${parseFloat(order.total).toFixed(2)} ${order.currency}</div>
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #64748B;">Payment Terms</label>
+                                    <div style="font-size: 14px; color: #475569;">${order.paymentTerms.replace('_', ' ')}</div>
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #64748B;">Items</label>
+                                    <div style="font-size: 14px; color: #475569;">${itemsText}</div>
+                                </div>
+                            </div>
+
+                            <details style="margin-top: 12px;">
+                                <summary style="cursor: pointer; font-size: 14px; color: #3B82F6; padding: 8px 0;">View Items</summary>
+                                <div style="margin-top: 12px; padding: 12px; background: #F8FAFC; border-radius: 4px;">
+                                    ${order.items.map((item, idx) => `
+                                        <div style="padding: 8px 0; ${idx > 0 ? 'border-top: 1px solid #E2E8F0;' : ''}">
+                                            <div style="font-size: 14px; color: #0F172A; font-weight: 500;">${item.title || 'Product'}</div>
+                                            <div style="font-size: 13px; color: #64748B; margin-top: 2px;">
+                                                Qty: ${item.quantity} × $${parseFloat(item.price).toFixed(2)} = $${(item.quantity * parseFloat(item.price)).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+
+                            <div style="margin-top: 12px; padding: 12px; background: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px; font-size: 13px; color: #92400E;">
+                                <strong>Note:</strong> Orders are tracked in Cartrel. You'll need to manually create and fulfill this order in your Shopify admin until we receive protected customer data approval from Shopify.
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div class="empty-state"><h3>No orders yet</h3><p>Purchase orders from your retail partners will appear here.</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                container.innerHTML = '<div class="empty-state"><h3>Error loading orders</h3><p>Please try again.</p></div>';
+            }
         }
 
         // Update connection settings
