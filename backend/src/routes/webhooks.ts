@@ -1,23 +1,77 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
+import { config } from '../config';
 
 const router = Router();
 
-// Shopify webhook handler
-// POST /webhooks/shopify/:topic
-router.post('/shopify/:topic', async (req, res): Promise<void> => {
+/**
+ * Verify Shopify webhook HMAC signature
+ * This prevents unauthorized parties from sending fake webhooks
+ */
+function verifyShopifyWebhook(req: Request, res: Response, next: NextFunction): void {
   try {
-    const { topic } = req.params;
-    const shopDomain = req.get('X-Shopify-Shop-Domain');
-    const hmac = req.get('X-Shopify-Hmac-Sha256');
+    const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
 
-    if (!shopDomain || !hmac) {
-      res.status(401).json({ error: 'Missing Shopify headers' });
+    if (!hmacHeader) {
+      logger.warn('Webhook rejected: Missing HMAC header');
+      res.status(401).json({ error: 'Missing HMAC signature' });
       return;
     }
 
-    // TODO: Verify webhook HMAC
+    // Get raw body (configured in index.ts with express.raw())
+    const rawBody = req.body;
+
+    if (!Buffer.isBuffer(rawBody)) {
+      logger.error('Webhook rejected: Body is not a Buffer', { bodyType: typeof rawBody });
+      res.status(400).json({ error: 'Invalid request body format' });
+      return;
+    }
+
+    // Compute HMAC-SHA256 of the raw body using Shopify API secret
+    const computedHmac = crypto
+      .createHmac('sha256', config.shopify.apiSecret)
+      .update(rawBody)
+      .digest('base64');
+
+    // Compare with the header value using timing-safe comparison
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(hmacHeader, 'base64'),
+      Buffer.from(computedHmac, 'base64')
+    );
+
+    if (!isValid) {
+      logger.warn('Webhook rejected: Invalid HMAC signature', {
+        shopDomain: req.get('X-Shopify-Shop-Domain'),
+        topic: req.params.topic,
+      });
+      res.status(401).json({ error: 'Invalid HMAC signature' });
+      return;
+    }
+
+    // HMAC verified successfully
+    logger.debug('Webhook HMAC verified successfully');
+    next();
+  } catch (error) {
+    logger.error('Error verifying webhook HMAC:', error);
+    res.status(401).json({ error: 'HMAC verification failed' });
+  }
+}
+
+// Shopify webhook handler
+// POST /webhooks/shopify/:topic
+// HMAC verification middleware applied to ensure webhook authenticity
+router.post('/shopify/:topic', verifyShopifyWebhook, async (req, res): Promise<void> => {
+  try {
+    const { topic } = req.params;
+    const shopDomain = req.get('X-Shopify-Shop-Domain');
+
+    if (!shopDomain) {
+      res.status(401).json({ error: 'Missing shop domain header' });
+      return;
+    }
+
     // TODO: Queue webhook for processing
 
     logger.info(`Webhook received: ${topic} from ${shopDomain}`);
