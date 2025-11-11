@@ -51,6 +51,14 @@ async function handleAppUninstall(shopDomain: string) {
       return;
     }
 
+    // Clear access token so reinstall triggers OAuth
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: {
+        accessToken: '',
+      },
+    });
+
     // Pause all connections where this shop is the retailer
     // This frees up supplier connection slots
     const pausedRetailerConnections = await prisma.connection.updateMany({
@@ -75,7 +83,7 @@ async function handleAppUninstall(shopDomain: string) {
     });
 
     logger.info(
-      `App uninstalled: ${shopDomain} - Paused ${pausedRetailerConnections.count} retailer connections and ${pausedSupplierConnections.count} supplier connections`
+      `App uninstalled: ${shopDomain} - Cleared token, paused ${pausedRetailerConnections.count} retailer connections and ${pausedSupplierConnections.count} supplier connections`
     );
 
     // Log audit event
