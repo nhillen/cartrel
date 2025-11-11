@@ -219,61 +219,44 @@ router.post('/order', async (req, res, next) => {
       `Created PO ${po.id} from ${shop} to ${supplierShop.myshopifyDomain}`
     );
 
-    // Create draft order in supplier's Shopify using GraphQL
+    // Create draft order in supplier's Shopify using REST API
     try {
-      const client = createShopifyGraphQLClient(
+      const client = createShopifyClient(
         supplierShop.myshopifyDomain,
         supplierShop.accessToken
       );
 
-      // Build line items for GraphQL
+      // Build line items for REST API
       const lineItems = items.map((item: any) => ({
-        variantId: `gid://shopify/ProductVariant/${item.variantId || item.id}`,
+        variant_id: parseInt(item.variantId || item.id),
         quantity: item.quantity,
       }));
 
-      const mutation = `
-        mutation draftOrderCreate($input: DraftOrderInput!) {
-          draftOrderCreate(input: $input) {
-            draftOrder {
-              id
-              legacyResourceId
-              invoiceUrl
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-
-      const variables = {
-        input: {
-          lineItems: lineItems,
+      const draftOrderData = {
+        draft_order: {
+          line_items: lineItems,
           note: `Wholesale order from ${shop} via Cartrel\nPO Number: ${poNumber}\nPO ID: ${po.id}`,
-          tags: ['cartrel', 'wholesale'],
+          tags: 'cartrel,wholesale',
         },
       };
 
-      const response: any = await client.query({ data: { query: mutation, variables } });
+      const response: any = await client.post({
+        path: 'draft_orders',
+        data: draftOrderData,
+      });
 
-      if (response.body.data.draftOrderCreate.userErrors?.length > 0) {
-        throw new Error(response.body.data.draftOrderCreate.userErrors[0].message);
-      }
-
-      const draftOrder = response.body.data.draftOrderCreate.draftOrder;
+      const draftOrder = response.body.draft_order;
 
       // Update PO with Shopify draft order ID
       await prisma.purchaseOrder.update({
         where: { id: po.id },
         data: {
-          supplierShopifyDraftOrderId: draftOrder.legacyResourceId,
+          supplierShopifyDraftOrderId: draftOrder.id.toString(),
         },
       });
 
       logger.info(
-        `Created draft order ${draftOrder.legacyResourceId} in supplier Shopify for PO ${po.id}`
+        `Created draft order ${draftOrder.id} in supplier Shopify for PO ${po.id}`
       );
 
       // Log audit event
@@ -289,8 +272,8 @@ router.post('/order', async (req, res, next) => {
       res.json({
         success: true,
         orderId: po.id,
-        draftOrderId: draftOrder.legacyResourceId,
-        invoiceUrl: draftOrder.invoiceUrl,
+        draftOrderId: draftOrder.id.toString(),
+        invoiceUrl: draftOrder.invoice_url,
       });
     } catch (shopifyError) {
       logger.error('Error creating draft order in Shopify:', shopifyError);
@@ -388,7 +371,7 @@ router.post('/import', async (req, res, next) => {
     const productData = {
       product: {
         title: supplierProduct.title,
-        body_html: supplierProduct.description || `Wholesale product from ${supplierShop.myshopifyDomain}`,
+        body_html: supplierProduct.description || '',
         vendor: supplierProduct.vendor || supplierShop.myshopifyDomain,
         product_type: supplierProduct.productType || 'Wholesale',
         tags: `cartrel,wholesale,supplier:${supplierId}`,
