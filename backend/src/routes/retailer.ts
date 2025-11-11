@@ -2,8 +2,14 @@ import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
 import { createShopifyClient } from '../services/shopify';
+import { requireAuth, requireRole } from '../middleware/auth';
+import { orderLimiter } from '../middleware/rateLimits';
 
 const router = Router();
+
+// Apply authentication to all retailer routes
+router.use(requireAuth);
+router.use(requireRole('RETAILER', 'BOTH'));
 
 /**
  * Get connected suppliers
@@ -144,8 +150,9 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
 
 /**
  * Place order (create draft order in supplier's Shopify)
+ * Rate limited to prevent order spam
  */
-router.post('/order', async (req, res, next) => {
+router.post('/order', orderLimiter, async (req, res, next) => {
   try {
     const { shop, supplierId, items } = req.body;
 

@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
+import helmet from 'helmet';
 import { PrismaClient } from '@prisma/client';
 import { createBullBoard } from '@bull-board/api';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
@@ -17,6 +18,8 @@ import supplierRoutes from './routes/supplier';
 import retailerRoutes from './routes/retailer';
 import billingRoutes from './routes/billing';
 import { errorHandler } from './middleware/errorHandler';
+import { sanitizeInputs } from './middleware/validation';
+import { generalApiLimiter, authLimiter, webhookLimiter } from './middleware/rateLimits';
 import { initializeQueues } from './queues';
 
 // Initialize Prisma
@@ -27,7 +30,24 @@ export const prisma = new PrismaClient({
 // Initialize Express app
 const app = express();
 
-// Middleware
+// Security: Helmet - sets various HTTP security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'cdn.shopify.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com'],
+      imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
+      connectSrc: ["'self'", 'https://cartrel.com'],
+      frameSrc: ["'self'", 'https://*.myshopify.com'],
+      frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow resources from different origins
+}));
+
+// Security: CORS configuration
 app.use(cors({
   origin: config.appUrl,
   credentials: true,
@@ -40,19 +60,30 @@ app.use(cookieParser());
 app.use('/webhooks', express.raw({ type: 'application/json' }));
 
 // JSON parsing for other routes
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Limit payload size
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session configuration
+// Security: Input sanitization - protects against XSS
+app.use(sanitizeInputs);
+
+// Security: Rate limiting - protects against DoS attacks
+// Applied globally to all routes except webhooks (they have their own limiter)
+app.use('/api', generalApiLimiter);
+app.use('/auth', generalApiLimiter);
+
+// Security: Secure session configuration
 app.use(session({
   secret: config.sessionSecret,
+  name: 'cartrel.sid', // Custom session name (don't use default 'connect.sid')
   resave: false,
-  saveUninitialized: true, // Need to save for OAuth flow
+  saveUninitialized: false, // Don't create session until something stored (better security)
+  rolling: true, // Reset maxAge on every request (keep session alive while active)
   cookie: {
-    secure: config.isProduction,
-    httpOnly: true,
+    secure: config.isProduction, // HTTPS only in production
+    httpOnly: true, // Prevent JavaScript access (XSS protection)
     sameSite: config.isProduction ? 'none' : 'lax', // Required for embedded apps
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    domain: config.isProduction ? '.cartrel.com' : undefined, // Restrict to domain
   },
 }));
 
@@ -245,13 +276,14 @@ app.get('/health', (_req, res) => {
 });
 
 // API Routes
-app.use('/auth', authRoutes);
+// Note: Auth routes have stricter rate limiting applied in the route definitions
+app.use('/auth', authLimiter, authRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/supplier', supplierRoutes);
 app.use('/api/retailer', retailerRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/billing', billingRoutes); // For /billing/confirm callback
-app.use('/webhooks', webhookRoutes);
+app.use('/webhooks', webhookLimiter, webhookRoutes);
 
 // Bull Board for queue monitoring (development only)
 if (config.isDevelopment) {

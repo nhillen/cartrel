@@ -2,8 +2,14 @@ import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
 import { createShopifyClient } from '../services/shopify';
+import { requireAuth, requireRole } from '../middleware/auth';
+import { inviteLimiter, syncLimiter } from '../middleware/rateLimits';
 
 const router = Router();
+
+// Apply authentication to all supplier routes
+router.use(requireAuth);
+router.use(requireRole('SUPPLIER', 'BOTH'));
 
 /**
  * Get products from Shopify and mark which are wholesale
@@ -375,8 +381,9 @@ router.post('/settings', async (req, res, next) => {
 
 /**
  * Create a connection invite with nickname
+ * Rate limited to prevent invite spam
  */
-router.post('/connection-invite', async (req, res, next) => {
+router.post('/connection-invite', inviteLimiter, async (req, res, next) => {
   try {
     const { shop, nickname } = req.body;
 
@@ -728,8 +735,9 @@ router.get('/orders', async (req, res, next) => {
 /**
  * POST /products/sync - Full product sync from Shopify
  * Imports new products, updates existing ones, marks deleted ones as inactive
+ * Rate limited as product syncing is resource-intensive
  */
-router.post('/products/sync', async (req, res, next) => {
+router.post('/products/sync', syncLimiter, async (req, res, next) => {
   try {
     const { shop } = req.body;
 
