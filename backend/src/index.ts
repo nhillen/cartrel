@@ -135,8 +135,25 @@ app.get('/', async (req, res): Promise<void> => {
         // Check if shop has access token - if not, need to redo OAuth
         if (!shop.accessToken || shop.accessToken === '') {
           logger.warn(`Shop ${shop.myshopifyDomain} has no access token, redirecting to OAuth`);
-          const oauthUrl = `/auth/shopify?shop=${shop.myshopifyDomain}&host=${req.query.host}`;
-          res.redirect(oauthUrl);
+          const oauthUrl = `${config.appUrl}/auth/shopify?shop=${shop.myshopifyDomain}&host=${req.query.host}`;
+          // Use top-level redirect to break out of iframe
+          res.send(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Redirecting to Authentication...</title>
+              </head>
+              <body>
+                <script>
+                  window.top.location.href = "${oauthUrl}";
+                </script>
+                <noscript>
+                  <p>Redirecting to authentication...</p>
+                  <p>If you are not redirected, <a href="${oauthUrl}">click here</a>.</p>
+                </noscript>
+              </body>
+            </html>
+          `);
           return;
         }
 
