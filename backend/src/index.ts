@@ -55,6 +55,50 @@ app.use(session({
   },
 }));
 
+// Exit iframe route - breaks out of Shopify admin iframe for OAuth
+app.get('/exitiframe', (req, res): void => {
+  const redirectUri = req.query.redirectUri as string;
+
+  if (!redirectUri) {
+    res.status(400).send('Missing redirectUri parameter');
+    return;
+  }
+
+  // Validate that redirectUri is safe (same domain or Shopify domain)
+  try {
+    const url = new URL(redirectUri);
+    const isOwnDomain = url.hostname === new URL(config.appUrl).hostname;
+    const isShopifyDomain = url.hostname === 'admin.shopify.com' || url.hostname.endsWith('.myshopify.com');
+
+    if (!isOwnDomain && !isShopifyDomain) {
+      res.status(400).send('Invalid redirect URI');
+      return;
+    }
+
+    // Render page that breaks out of iframe using window.open
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Redirecting...</title>
+        </head>
+        <body>
+          <p style="text-align: center; margin-top: 50px; font-family: sans-serif;">
+            Redirecting to authentication...
+          </p>
+          <script>
+            // Shopify's recommended approach: use window.open with "_top" target
+            window.open("${redirectUri}", "_top");
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    logger.error('Invalid redirectUri:', error);
+    res.status(400).send('Invalid redirect URI');
+  }
+});
+
 // Onboarding page - role selection for new installs
 app.get('/onboarding', (_req, res): void => {
   res.sendFile(__dirname + '/views/onboarding.html');
@@ -137,48 +181,9 @@ app.get('/', async (req, res): Promise<void> => {
           logger.warn(`Shop ${shop.myshopifyDomain} has no access token, redirecting to OAuth`);
           const oauthUrl = `${config.appUrl}/auth/shopify?shop=${shop.myshopifyDomain}`;
 
-          // Use Shopify's exitIframe helper to break out and redirect
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Redirecting to Authentication...</title>
-                <script src="https://cdn.shopify.com/shopifycloud/app-bridge/actions.js"></script>
-              </head>
-              <body>
-                <p style="text-align: center; margin-top: 50px; font-family: sans-serif;">
-                  Redirecting to authentication...
-                </p>
-                <script>
-                  // Shopify's exitIframe helper
-                  function exitIframe(redirectUrl) {
-                    if (window.top === window.self) {
-                      // Not in iframe, just redirect
-                      window.location.href = redirectUrl;
-                    } else {
-                      // In iframe, use multiple methods to break out
-                      var normalizedLink = document.createElement('a');
-                      normalizedLink.href = redirectUrl;
-
-                      // Method 1: Create and click a link with target="_top"
-                      var link = document.createElement('a');
-                      link.href = normalizedLink.href;
-                      link.target = '_top';
-                      link.click();
-
-                      // Method 2: Also try parent redirect as fallback
-                      setTimeout(function() {
-                        window.parent.location.href = normalizedLink.href;
-                      }, 100);
-                    }
-                  }
-
-                  // Execute redirect
-                  exitIframe('${oauthUrl}');
-                </script>
-              </body>
-            </html>
-          `);
+          // Redirect to exitiframe route with the OAuth URL as a parameter
+          const exitUrl = `${config.appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+          res.redirect(exitUrl);
           return;
         }
 
