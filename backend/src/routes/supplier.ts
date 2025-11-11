@@ -754,10 +754,6 @@ router.post('/products/sync', async (req, res, next) => {
       },
     });
 
-    const existingProductIds = new Set(
-      existingProducts.map((p) => p.shopifyProductId)
-    );
-
     let imported = 0;
     let updated = 0;
     let removed = 0;
