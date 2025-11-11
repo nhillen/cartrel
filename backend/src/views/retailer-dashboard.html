@@ -558,6 +558,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const host = urlParams.get('host');
         const shop = urlParams.get('shop');
+        const appUrl = window.location.origin; // Get the full app URL
 
         let cart = [];
         let currentSupplier = null;
@@ -594,7 +595,9 @@
                 // If we get a 401, the token is invalid - redirect to OAuth
                 if (response.status === 401) {
                     console.log('Invalid access token detected, redirecting to OAuth...');
-                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
                     return false;
                 }
 
@@ -616,7 +619,9 @@
                 // Check for auth error
                 if (response.status === 401) {
                     console.log('Invalid access token, redirecting to OAuth...');
-                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
                     return;
                 }
 
@@ -665,7 +670,9 @@
                 // Check for auth error
                 if (response.status === 401) {
                     console.log('Invalid access token, redirecting to OAuth...');
-                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
                     return;
                 }
 
@@ -965,7 +972,9 @@
                     browseSupplier(currentSupplier, document.getElementById('catalogTitle').textContent.replace("'s Catalog", ''));
                 } else if (result.requiresReinstall) {
                     alert('Your session has expired. Redirecting to re-authenticate...');
-                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    const oauthUrl = `${appUrl}/auth/shopify?shop=${shop}`;
+                    const exitUrl = `${appUrl}/exitiframe?redirectUri=${encodeURIComponent(oauthUrl)}`;
+                    window.top.location.href = exitUrl;
                     closeImportModal();
                 } else {
                     alert(`Error importing product: ${result.error || 'Unknown error'}`);
