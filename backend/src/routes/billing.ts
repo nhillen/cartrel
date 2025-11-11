@@ -18,17 +18,19 @@ const router = express.Router();
  * POST /api/billing/upgrade
  * Initiate a subscription upgrade
  */
-router.post('/upgrade', async (req, res): Promise<void> => {
+router.post('/upgrade', async (req, res) => {
   try {
     const { shop, plan } = req.body;
 
     if (!shop || !plan) {
-      return res.status(400).json({ error: 'Missing shop or plan' });
+      res.status(400).json({ error: 'Missing shop or plan' });
+      return;
     }
 
     // Validate plan
     if (!['STARTER', 'GROWTH', 'SCALE'].includes(plan)) {
-      return res.status(400).json({ error: 'Invalid plan. Choose STARTER, GROWTH, or SCALE' });
+      res.status(400).json({ error: 'Invalid plan. Choose STARTER, GROWTH, or SCALE' });
+      return;
     }
 
     // Get shop from database
@@ -37,17 +39,20 @@ router.post('/upgrade', async (req, res): Promise<void> => {
     });
 
     if (!shopRecord) {
-      return res.status(404).json({ error: 'Shop not found' });
+      res.status(404).json({ error: 'Shop not found' });
+      return;
     }
 
-    // Can't upgrade if you're a retailer
-    if (shopRecord.isRetailer && !shopRecord.isSupplier) {
-      return res.status(403).json({ error: 'Retailers do not need a paid plan' });
+    // Can't upgrade if you're only a retailer (not a supplier)
+    if (shopRecord.role === 'RETAILER') {
+      res.status(403).json({ error: 'Retailers do not need a paid plan' });
+      return;
     }
 
     // Check if already on this plan
     if (shopRecord.plan === plan) {
-      return res.status(400).json({ error: 'Already on this plan' });
+      res.status(400).json({ error: 'Already on this plan' });
+      return;
     }
 
     // Create subscription charge
@@ -82,12 +87,13 @@ router.post('/upgrade', async (req, res): Promise<void> => {
  * GET /billing/confirm
  * Handle Shopify billing confirmation callback
  */
-router.get('/confirm', async (req, res): Promise<void> => {
+router.get('/confirm', async (req, res) => {
   try {
     const { shop, charge_id } = req.query;
 
     if (!shop || !charge_id) {
-      return res.status(400).send('Missing shop or charge_id');
+      res.status(400).send('Missing shop or charge_id');
+      return;
     }
 
     // Get shop from database
@@ -96,13 +102,15 @@ router.get('/confirm', async (req, res): Promise<void> => {
     });
 
     if (!shopRecord) {
-      return res.status(404).send('Shop not found');
+      res.status(404).send('Shop not found');
+      return;
     }
 
     // Verify charge ID matches
     if (shopRecord.pendingChargeId !== charge_id) {
       logger.error(`Charge ID mismatch for ${shop}: expected ${shopRecord.pendingChargeId}, got ${charge_id}`);
-      return res.status(400).send('Invalid charge ID');
+      res.status(400).send('Invalid charge ID');
+      return;
     }
 
     // Check if subscription is actually active
@@ -113,7 +121,8 @@ router.get('/confirm', async (req, res): Promise<void> => {
 
     if (!isActive) {
       logger.error(`Subscription not active after confirmation for ${shop}`);
-      return res.status(400).send('Subscription not confirmed');
+      res.status(400).send('Subscription not confirmed');
+      return;
     }
 
     // Update shop with new plan
@@ -140,12 +149,13 @@ router.get('/confirm', async (req, res): Promise<void> => {
  * POST /api/billing/cancel
  * Cancel subscription and downgrade to FREE
  */
-router.post('/cancel', async (req, res): Promise<void> => {
+router.post('/cancel', async (req, res) => {
   try {
     const { shop } = req.body;
 
     if (!shop) {
-      return res.status(400).json({ error: 'Missing shop' });
+      res.status(400).json({ error: 'Missing shop' });
+      return;
     }
 
     // Get shop from database
@@ -154,12 +164,14 @@ router.post('/cancel', async (req, res): Promise<void> => {
     });
 
     if (!shopRecord) {
-      return res.status(404).json({ error: 'Shop not found' });
+      res.status(404).json({ error: 'Shop not found' });
+      return;
     }
 
     // Can't cancel if already on FREE
     if (shopRecord.plan === 'FREE') {
-      return res.status(400).json({ error: 'Already on FREE plan' });
+      res.status(400).json({ error: 'Already on FREE plan' });
+      return;
     }
 
     // Cancel subscription in Shopify
@@ -191,12 +203,13 @@ router.post('/cancel', async (req, res): Promise<void> => {
  * GET /api/billing/status
  * Get current subscription status
  */
-router.get('/status', async (req, res): Promise<void> => {
+router.get('/status', async (req, res) => {
   try {
     const { shop } = req.query;
 
     if (!shop) {
-      return res.status(400).json({ error: 'Missing shop' });
+      res.status(400).json({ error: 'Missing shop' });
+      return;
     }
 
     // Get shop from database
@@ -205,7 +218,8 @@ router.get('/status', async (req, res): Promise<void> => {
     });
 
     if (!shopRecord) {
-      return res.status(404).json({ error: 'Shop not found' });
+      res.status(404).json({ error: 'Shop not found' });
+      return;
     }
 
     const currentPlan = shopRecord.plan || 'FREE';
@@ -214,8 +228,8 @@ router.get('/status', async (req, res): Promise<void> => {
     res.json({
       currentPlan,
       planDetails,
-      isSupplier: shopRecord.isSupplier,
-      isRetailer: shopRecord.isRetailer,
+      isSupplier: shopRecord.role === 'SUPPLIER' || shopRecord.role === 'BOTH',
+      isRetailer: shopRecord.role === 'RETAILER' || shopRecord.role === 'BOTH',
     });
   } catch (error) {
     logger.error('Error getting billing status:', error);
