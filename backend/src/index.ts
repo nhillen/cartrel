@@ -136,30 +136,45 @@ app.get('/', async (req, res): Promise<void> => {
         if (!shop.accessToken || shop.accessToken === '') {
           logger.warn(`Shop ${shop.myshopifyDomain} has no access token, redirecting to OAuth`);
           const oauthUrl = `${config.appUrl}/auth/shopify?shop=${shop.myshopifyDomain}`;
-          const host = req.query.host as string;
 
-          // Use Shopify App Bridge to redirect (works from within iframe)
+          // Use Shopify's exitIframe helper to break out and redirect
           res.send(`
             <!DOCTYPE html>
             <html>
               <head>
                 <title>Redirecting to Authentication...</title>
-                <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+                <script src="https://cdn.shopify.com/shopifycloud/app-bridge/actions.js"></script>
               </head>
               <body>
-                <p style="text-align: center; margin-top: 50px;">Redirecting to authentication...</p>
+                <p style="text-align: center; margin-top: 50px; font-family: sans-serif;">
+                  Redirecting to authentication...
+                </p>
                 <script>
-                  var AppBridge = window['app-bridge'];
-                  var createApp = AppBridge.createApp;
-                  var Redirect = AppBridge.actions.Redirect;
+                  // Shopify's exitIframe helper
+                  function exitIframe(redirectUrl) {
+                    if (window.top === window.self) {
+                      // Not in iframe, just redirect
+                      window.location.href = redirectUrl;
+                    } else {
+                      // In iframe, use multiple methods to break out
+                      var normalizedLink = document.createElement('a');
+                      normalizedLink.href = redirectUrl;
 
-                  var app = createApp({
-                    apiKey: '${config.shopify.apiKey}',
-                    host: '${host}'
-                  });
+                      // Method 1: Create and click a link with target="_top"
+                      var link = document.createElement('a');
+                      link.href = normalizedLink.href;
+                      link.target = '_top';
+                      link.click();
 
-                  var redirect = Redirect.create(app);
-                  redirect.dispatch(Redirect.Action.REMOTE, '${oauthUrl}');
+                      // Method 2: Also try parent redirect as fallback
+                      setTimeout(function() {
+                        window.parent.location.href = normalizedLink.href;
+                      }, 100);
+                    }
+                  }
+
+                  // Execute redirect
+                  exitIframe('${oauthUrl}');
                 </script>
               </body>
             </html>
