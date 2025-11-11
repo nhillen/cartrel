@@ -586,6 +586,25 @@
             });
         });
 
+        // Check token validity on load
+        async function checkTokenValidity() {
+            try {
+                const response = await fetch(`/api/retailer/suppliers?shop=${shop}`);
+
+                // If we get a 401, the token is invalid - redirect to OAuth
+                if (response.status === 401) {
+                    console.log('Invalid access token detected, redirecting to OAuth...');
+                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                console.error('Error checking token validity:', error);
+                return true; // Continue anyway
+            }
+        }
+
         // Load suppliers
         async function loadSuppliers() {
             const container = document.getElementById('suppliers-list');
@@ -593,6 +612,14 @@
 
             try {
                 const response = await fetch(`/api/retailer/suppliers?shop=${shop}`);
+
+                // Check for auth error
+                if (response.status === 401) {
+                    console.log('Invalid access token, redirecting to OAuth...');
+                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.suppliers && data.suppliers.length > 0) {
@@ -634,6 +661,14 @@
 
             try {
                 const response = await fetch(`/api/retailer/catalog/${supplierId}?shop=${shop}`);
+
+                // Check for auth error
+                if (response.status === 401) {
+                    console.log('Invalid access token, redirecting to OAuth...');
+                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.products && data.products.length > 0) {
@@ -913,15 +948,24 @@
                     })
                 });
 
+                // Check for auth error
+                if (response.status === 401) {
+                    console.log('Invalid access token, redirecting to OAuth...');
+                    alert('Your session has expired. Redirecting to re-authenticate...');
+                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
+                    return;
+                }
+
                 const result = await response.json();
 
                 if (result.success) {
                     alert(`Product imported successfully! Retail price: $${result.retailPrice}`);
                     closeImportModal();
                     // Reload catalog to show updated import status
-                    loadCatalog(currentSupplier);
+                    browseSupplier(currentSupplier, document.getElementById('catalogTitle').textContent.replace("'s Catalog", ''));
                 } else if (result.requiresReinstall) {
-                    alert(`${result.error}\n\nYour access token is invalid. Please uninstall and reinstall the Cartrel app to fix this.`);
+                    alert('Your session has expired. Redirecting to re-authenticate...');
+                    window.top.location.href = `/exitiframe?redirectUri=${encodeURIComponent(`/auth/shopify?shop=${shop}`)}`;
                     closeImportModal();
                 } else {
                     alert(`Error importing product: ${result.error || 'Unknown error'}`);
