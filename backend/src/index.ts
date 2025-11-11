@@ -135,22 +135,32 @@ app.get('/', async (req, res): Promise<void> => {
         // Check if shop has access token - if not, need to redo OAuth
         if (!shop.accessToken || shop.accessToken === '') {
           logger.warn(`Shop ${shop.myshopifyDomain} has no access token, redirecting to OAuth`);
-          const oauthUrl = `${config.appUrl}/auth/shopify?shop=${shop.myshopifyDomain}&host=${req.query.host}`;
-          // Use top-level redirect to break out of iframe
+          const oauthUrl = `${config.appUrl}/auth/shopify?shop=${shop.myshopifyDomain}`;
+          const host = req.query.host as string;
+
+          // Use Shopify App Bridge to redirect (works from within iframe)
           res.send(`
             <!DOCTYPE html>
             <html>
               <head>
                 <title>Redirecting to Authentication...</title>
+                <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
               </head>
               <body>
+                <p style="text-align: center; margin-top: 50px;">Redirecting to authentication...</p>
                 <script>
-                  window.top.location.href = "${oauthUrl}";
+                  var AppBridge = window['app-bridge'];
+                  var createApp = AppBridge.createApp;
+                  var Redirect = AppBridge.actions.Redirect;
+
+                  var app = createApp({
+                    apiKey: '${config.shopify.apiKey}',
+                    host: '${host}'
+                  });
+
+                  var redirect = Redirect.create(app);
+                  redirect.dispatch(Redirect.Action.REMOTE, '${oauthUrl}');
                 </script>
-                <noscript>
-                  <p>Redirecting to authentication...</p>
-                  <p>If you are not redirected, <a href="${oauthUrl}">click here</a>.</p>
-                </noscript>
               </body>
             </html>
           `);
