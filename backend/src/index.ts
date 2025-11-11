@@ -115,6 +115,11 @@ app.get('/privacy', (_req, res): void => {
   res.sendFile(__dirname + '/views/privacy.html');
 });
 
+// Terms & Conditions page
+app.get('/terms', (_req, res): void => {
+  res.sendFile(__dirname + '/views/terms.html');
+});
+
 // Invite page
 app.get('/invite/:supplierShop', (_req, res): void => {
   res.sendFile(__dirname + '/views/invite.html');
