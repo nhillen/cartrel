@@ -27,14 +27,43 @@ router.get('/products', async (req, res, next) => {
       return;
     }
 
+    // Check if access token exists
+    if (!shopRecord.accessToken || shopRecord.accessToken === '') {
+      logger.warn(`Shop ${shop} has no access token, needs OAuth`);
+      res.status(401).json({
+        error: 'Invalid access token. Please reinstall the app.',
+        requiresReauth: true
+      });
+      return;
+    }
+
     // Create Shopify client
     const client = createShopifyClient(shop, shopRecord.accessToken);
 
     // Fetch products from Shopify
-    const response = await client.get({
-      path: 'products',
-      query: { limit: '50' },
-    });
+    let response;
+    try {
+      response = await client.get({
+        path: 'products',
+        query: { limit: '50' },
+      });
+    } catch (shopifyError: any) {
+      // Handle invalid/expired token
+      if (shopifyError?.response?.code === 401) {
+        logger.error(`Invalid access token for shop ${shop}, clearing token`);
+        // Clear the invalid token
+        await prisma.shop.update({
+          where: { id: shopRecord.id },
+          data: { accessToken: '' },
+        });
+        res.status(401).json({
+          error: 'Invalid access token. Please reload the page to re-authenticate.',
+          requiresReauth: true
+        });
+        return;
+      }
+      throw shopifyError;
+    }
 
     const shopifyProducts = (response.body as any).products || [];
 
