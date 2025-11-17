@@ -13,7 +13,7 @@
 
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
-import { initializeQueues } from '../queues';
+import { getWebhookQueue, initializeQueues } from '../queues';
 import { SystemComponent } from '@prisma/client';
 
 export class HealthCheckService {
@@ -44,7 +44,12 @@ export class HealthCheckService {
    */
   private static async checkWebhookQueue(): Promise<void> {
     try {
-      const { webhookQueue } = initializeQueues();
+      let webhookQueue;
+      try {
+        webhookQueue = getWebhookQueue();
+      } catch {
+        ({ webhookQueue } = initializeQueues());
+      }
 
       // Get queue metrics
       const waitingCount = await webhookQueue.getWaitingCount();

@@ -107,28 +107,26 @@ POST /api/retailer/order
 - Variant-level inventory sync
 - Confidence scoring (exact, partial, none)
 
-### Advanced Features (Phases 6-7)
+### Roadmap (Phases 6-7, In Progress)
 
-**✅ Multi-Location Inventory**
-- Sync from specific warehouse locations
+**🛠️ Multi-Location Inventory (Beta)**
+- Sync from specific warehouse locations (schema + services ready, UI pending)
 - Safety stock reservation (e.g., keep 10 units for emergencies)
 - Channel separation (retail vs wholesale inventory)
 - Location-aware sync filtering
 
-**✅ Public Status Page**
+**🛠️ Public Status Page Enhancements**
 - Real-time platform status at `/status`
 - Component health monitoring (6 components)
 - Incident tracking with updates
-- Uptime percentages (7/30/90 days)
-- Automated health checks (every 5 minutes)
-- Auto-create/resolve incidents
+- Upcoming: uptime charts + automated incident playback
 
-**✅ Automated Health Checks**
+**🛠️ Automated Health Checks**
 - Webhook queue monitoring (alert if >500 items)
 - Error rate tracking (alert if >5%)
 - Database performance (alert if >500ms)
 - API performance (alert if >1000ms)
-- Auto-incident creation and resolution
+- Auto-incident creation and resolution (cron wiring in progress)
 
 ---
 

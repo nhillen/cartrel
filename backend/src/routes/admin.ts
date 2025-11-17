@@ -9,15 +9,16 @@
  * NOTE: These endpoints should be protected with admin authentication in production
  */
 
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { SystemComponent } from '@prisma/client';
+import { config } from '../config';
 
 const router = express.Router();
 
-// TODO: Add admin authentication middleware
-// For now, these are unprotected - add auth before production
+// Require admin authentication for all routes in this router
+router.use(requireAdminAuth);
 
 /**
  * Create a new incident (manual)
@@ -344,6 +345,27 @@ async function autoCreateIncidentIfNeeded(
   } catch (error) {
     logger.error('Error auto-creating incident:', error);
   }
+}
+
+function requireAdminAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!config.adminApiKey) {
+    logger.error('ADMIN_API_KEY is not configured. Blocking admin access.');
+    res.status(503).json({ error: 'Admin API is not configured' });
+    return;
+  }
+
+  const headerToken = req.get('x-cartrel-admin-token');
+  const bearer = req.get('authorization');
+  const bearerToken = bearer && bearer.startsWith('Bearer ') ? bearer.slice(7) : null;
+  const token = headerToken || bearerToken;
+
+  if (!token || token !== config.adminApiKey) {
+    logger.warn('Admin authentication failed', { path: req.path, ip: req.ip });
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  next();
 }
 
 export default router;

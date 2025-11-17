@@ -4,10 +4,15 @@ import { logger } from '../utils/logger';
 import { processWebhook } from './processors/webhook';
 import { processImport } from './processors/import';
 
-let webhookQueue: Queue.Queue;
-let importQueue: Queue.Queue;
+let webhookQueue: Queue.Queue | null = null;
+let importQueue: Queue.Queue | null = null;
+let queuesInitialized = false;
 
 export function initializeQueues() {
+  if (queuesInitialized && webhookQueue && importQueue) {
+    return { webhookQueue, importQueue };
+  }
+
   // Create webhook processing queue
   webhookQueue = new Queue('webhooks', config.redisUrl, {
     defaultJobOptions: {
@@ -68,6 +73,7 @@ export function initializeQueues() {
     logger.error('Import queue error:', error);
   });
 
+  queuesInitialized = true;
   logger.info('✓ Webhook queue initialized');
   logger.info('✓ Import queue initialized');
 

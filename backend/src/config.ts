@@ -41,6 +41,9 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   S3_BUCKET: z.string().optional(),
+
+  // Optional: Admin API access
+  ADMIN_API_KEY: z.string().optional(),
 });
 
 // Parse and validate environment variables
@@ -104,4 +107,7 @@ export const config = {
     secretKey: env.S3_SECRET_KEY!,
     bucket: env.S3_BUCKET!,
   } : undefined,
+
+  // Internal admin auth
+  adminApiKey: env.ADMIN_API_KEY,
 } as const;

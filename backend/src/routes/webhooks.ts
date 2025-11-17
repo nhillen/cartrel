@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
 import { config } from '../config';
+import { getWebhookQueue, initializeQueues } from '../queues';
+import { WebhookTopic } from '@prisma/client';
 
 const router = Router();
 
@@ -72,14 +74,50 @@ router.post('/shopify/:topic', verifyShopifyWebhook, async (req, res): Promise<v
       return;
     }
 
-    // TODO: Queue webhook for processing
+    const rawBody = req.body as Buffer;
+    let payload: any;
+
+    try {
+      payload = JSON.parse(rawBody.toString('utf8'));
+    } catch (parseError) {
+      logger.error('Webhook rejected: Invalid JSON payload', { topic, shopDomain, parseError });
+      res.status(200).send('OK');
+      return;
+    }
+
+    const shop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shopDomain },
+    });
+
+    if (!shop) {
+      logger.warn(`Webhook from unknown shop: ${shopDomain}`);
+      res.status(200).send('OK');
+      return;
+    }
+
+    const webhookTopic = mapShopifyTopic(topic);
+
+    if (!webhookTopic) {
+      logger.warn(`Webhook topic not supported: ${topic}`);
+      res.status(200).send('OK');
+      return;
+    }
 
     logger.info(`Webhook received: ${topic} from ${shopDomain}`);
 
-    // Handle app uninstall webhook
-    if (topic === 'app/uninstalled' || topic === 'uninstalled') {
-      await handleAppUninstall(shopDomain);
+    let webhookQueue;
+    try {
+      webhookQueue = getWebhookQueue();
+    } catch {
+      ({ webhookQueue } = initializeQueues());
     }
+
+    await webhookQueue.add({
+      topic: webhookTopic,
+      shopId: shop.id,
+      shopifyId: extractShopifyId(payload),
+      payload,
+    });
 
     res.status(200).send('OK');
   } catch (error) {
@@ -89,73 +127,53 @@ router.post('/shopify/:topic', verifyShopifyWebhook, async (req, res): Promise<v
   }
 });
 
-/**
- * Handle app uninstall - pause connections to free up supplier slots
- */
-async function handleAppUninstall(shopDomain: string) {
-  try {
-    logger.info(`Handling app uninstall for: ${shopDomain}`);
+export default router;
 
-    const shop = await prisma.shop.findUnique({
-      where: { myshopifyDomain: shopDomain },
-    });
+function mapShopifyTopic(topic: string): WebhookTopic | null {
+  const normalized = topic.toLowerCase();
 
-    if (!shop) {
-      logger.warn(`Shop not found for uninstall webhook: ${shopDomain}`);
-      return;
-    }
-
-    // Clear access token so reinstall triggers OAuth
-    await prisma.shop.update({
-      where: { id: shop.id },
-      data: {
-        accessToken: '',
-      },
-    });
-
-    // Pause all connections where this shop is the retailer
-    // This frees up supplier connection slots
-    const pausedRetailerConnections = await prisma.connection.updateMany({
-      where: {
-        retailerShopId: shop.id,
-        status: 'ACTIVE',
-      },
-      data: {
-        status: 'PAUSED',
-      },
-    });
-
-    // Pause all connections where this shop is the supplier
-    const pausedSupplierConnections = await prisma.connection.updateMany({
-      where: {
-        supplierShopId: shop.id,
-        status: 'ACTIVE',
-      },
-      data: {
-        status: 'PAUSED',
-      },
-    });
-
-    logger.info(
-      `App uninstalled: ${shopDomain} - Cleared token, paused ${pausedRetailerConnections.count} retailer connections and ${pausedSupplierConnections.count} supplier connections`
-    );
-
-    // Log audit event
-    await prisma.auditLog.create({
-      data: {
-        shopId: shop.id,
-        action: 'SHOP_UNINSTALLED',
-        resourceType: 'Shop',
-        resourceId: shop.id,
-        metadata: {
-          retailerConnectionsPaused: pausedRetailerConnections.count,
-          supplierConnectionsPaused: pausedSupplierConnections.count,
-        },
-      },
-    });
-  } catch (error) {
-    logger.error('Error handling app uninstall:', error);
+  switch (normalized) {
+    case 'products/create':
+      return 'PRODUCTS_CREATE';
+    case 'products/update':
+      return 'PRODUCTS_UPDATE';
+    case 'products/delete':
+      return 'PRODUCTS_DELETE';
+    case 'inventory_levels/update':
+      return 'INVENTORY_LEVELS_UPDATE';
+    case 'orders/create':
+      return 'ORDERS_CREATE';
+    case 'orders/updated':
+      return 'ORDERS_UPDATED';
+    case 'app/uninstalled':
+    case 'uninstalled':
+      return 'APP_UNINSTALLED';
+    default:
+      return null;
   }
 }
 
-export default router;
+function extractShopifyId(payload: any): string {
+  if (!payload) {
+    return 'unknown';
+  }
+
+  if (payload.admin_graphql_api_id) {
+    const parts = payload.admin_graphql_api_id.split('/');
+    return parts[parts.length - 1] || payload.admin_graphql_api_id;
+  }
+
+  if (payload.id) {
+    return payload.id.toString();
+  }
+
+  if (payload.inventory_item_id) {
+    return payload.inventory_item_id.toString();
+  }
+
+  if (payload.order_id) {
+    return payload.order_id.toString();
+  }
+
+  return 'unknown';
+}

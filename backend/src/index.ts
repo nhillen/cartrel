@@ -320,21 +320,6 @@ app.use('/status', statusRoutes);
 // Admin routes (TODO: add auth middleware before production)
 app.use('/api/admin', adminRoutes);
 
-// Bull Board for queue monitoring (development only)
-if (config.isDevelopment) {
-  const { webhookQueue } = initializeQueues();
-  const serverAdapter = new ExpressAdapter();
-  serverAdapter.setBasePath('/admin/queues');
-
-  createBullBoard({
-    queues: [new BullAdapter(webhookQueue)],
-    serverAdapter,
-  });
-
-  app.use('/admin/queues', serverAdapter.getRouter());
-  logger.info('Bull Board available at /admin/queues');
-}
-
 // Error handling
 app.use(errorHandler);
 
@@ -348,8 +333,22 @@ async function start() {
     logger.info('✓ Database connected');
 
     // Initialize queues
-    initializeQueues();
+    const { webhookQueue } = initializeQueues();
     logger.info('✓ Queues initialized');
+
+    // Bull Board for queue monitoring (development only)
+    if (config.isDevelopment) {
+      const serverAdapter = new ExpressAdapter();
+      serverAdapter.setBasePath('/admin/queues');
+
+      createBullBoard({
+        queues: [new BullAdapter(webhookQueue)],
+        serverAdapter,
+      });
+
+      app.use('/admin/queues', serverAdapter.getRouter());
+      logger.info('Bull Board available at /admin/queues');
+    }
 
     // Start server
     app.listen(PORT, () => {
