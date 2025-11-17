@@ -1484,6 +1484,289 @@ router.post('/shadow/promote', async (req, res, next) => {
 });
 
 /**
+ * Auto-match variants for a product
+ */
+router.post('/variants/auto-match', async (req, res, next) => {
+  try {
+    const { shop, productMappingId } = req.body;
+
+    if (!shop || !productMappingId) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this mapping
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: productMappingId },
+      include: { connection: true },
+    });
+
+    if (!mapping || mapping.connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { VariantMappingService } = await import('../services/VariantMappingService');
+    const matches = await VariantMappingService.autoMatchVariants(productMappingId);
+
+    logger.info(
+      `Auto-matched variants for mapping ${productMappingId}: ${matches.filter((m) => m.matchConfidence === 'exact').length}/${matches.length} exact matches`
+    );
+
+    res.json({ matches });
+  } catch (error) {
+    logger.error('Error auto-matching variants:', error);
+    next(error);
+  }
+});
+
+/**
+ * Manually map a variant
+ */
+router.post('/variants/manual-map', async (req, res, next) => {
+  try {
+    const { shop, productMappingId, supplierVariantId, retailerVariantId } = req.body;
+
+    if (!shop || !productMappingId || !supplierVariantId || !retailerVariantId) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this mapping
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: productMappingId },
+      include: { connection: true },
+    });
+
+    if (!mapping || mapping.connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { VariantMappingService } = await import('../services/VariantMappingService');
+    await VariantMappingService.manuallyMapVariant(
+      productMappingId,
+      supplierVariantId,
+      retailerVariantId
+    );
+
+    logger.info(`Manually mapped variant ${supplierVariantId} → ${retailerVariantId}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error manually mapping variant:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get variant mappings for a product
+ */
+router.get('/variants/mappings', async (req, res, next) => {
+  try {
+    const { shop, productMappingId } = req.query;
+
+    if (!shop || typeof shop !== 'string' || !productMappingId || typeof productMappingId !== 'string') {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this mapping
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: productMappingId },
+      include: { connection: true },
+    });
+
+    if (!mapping || mapping.connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { VariantMappingService } = await import('../services/VariantMappingService');
+    const mappings = await VariantMappingService.getVariantMappings(productMappingId);
+
+    res.json({ mappings });
+  } catch (error) {
+    logger.error('Error getting variant mappings:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get product change history (for 30-day rollback)
+ */
+router.get('/snapshots/history', async (req, res, next) => {
+  try {
+    const { shop, productId, field } = req.query;
+
+    if (!shop || typeof shop !== 'string' || !productId || typeof productId !== 'string') {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const { ProductSnapshotService } = await import('../services/ProductSnapshotService');
+    const history = await ProductSnapshotService.getProductHistory(
+      retailerShop.id,
+      productId,
+      field as string | undefined
+    );
+
+    res.json({ history });
+  } catch (error) {
+    logger.error('Error getting product history:', error);
+    next(error);
+  }
+});
+
+/**
+ * Rollback a product field to a previous state
+ */
+router.post('/snapshots/rollback-field', async (req, res, next) => {
+  try {
+    const { shop, productId, field, snapshotDate } = req.body;
+
+    if (!shop || !productId || !field || !snapshotDate) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const { ProductSnapshotService } = await import('../services/ProductSnapshotService');
+    await ProductSnapshotService.rollbackField(
+      retailerShop.id,
+      productId,
+      field,
+      new Date(snapshotDate)
+    );
+
+    logger.info(`Rolled back ${field} for product ${productId} to ${snapshotDate}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error rolling back field:', error);
+    next(error);
+  }
+});
+
+/**
+ * Rollback entire product to a point in time
+ */
+router.post('/snapshots/rollback-product', async (req, res, next) => {
+  try {
+    const { shop, productId, targetDate } = req.body;
+
+    if (!shop || !productId || !targetDate) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const { ProductSnapshotService } = await import('../services/ProductSnapshotService');
+    const result = await ProductSnapshotService.rollbackProduct(
+      retailerShop.id,
+      productId,
+      new Date(targetDate)
+    );
+
+    logger.info(
+      `Rolled back product ${productId}: ${result.rolledBack.length} fields, ${result.errors.length} errors`
+    );
+
+    res.json({
+      success: true,
+      rolledBack: result.rolledBack,
+      errors: result.errors,
+    });
+  } catch (error) {
+    logger.error('Error rolling back product:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get snapshot statistics for the shop
+ */
+router.get('/snapshots/stats', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const { ProductSnapshotService } = await import('../services/ProductSnapshotService');
+    const stats = await ProductSnapshotService.getSnapshotStats(retailerShop.id);
+
+    res.json(stats);
+  } catch (error) {
+    logger.error('Error getting snapshot stats:', error);
+    next(error);
+  }
+});
+
+/**
  * Get purchase orders for a retailer
  */
 router.get('/orders', async (req, res, next) => {
