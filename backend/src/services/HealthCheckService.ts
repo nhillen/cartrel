@@ -8,7 +8,7 @@
  * - Auto-create incidents when thresholds exceeded
  *
  * Run this as a cron job every 5 minutes:
- * */5 * * * * node -e "require('./dist/services/HealthCheckService').HealthCheckService.runHealthChecks()"
+ * Cron: every 5 minutes - node -e "require('./dist/services/HealthCheckService').HealthCheckService.runHealthChecks()"
  */
 
 import { prisma } from '../index';
