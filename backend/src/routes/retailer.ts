@@ -1257,7 +1257,7 @@ router.get('/shadow/compare-pricing', async (req, res, next) => {
 /**
  * Get Cartrel vs Syncio feature comparison
  */
-router.get('/shadow/compare-features', async (req, res, next) => {
+router.get('/shadow/compare-features', async (_req, res, next) => {
   try {
     const { ShadowModeService } = await import('../services/ShadowModeService');
     const features = ShadowModeService.getFeatureComparison();

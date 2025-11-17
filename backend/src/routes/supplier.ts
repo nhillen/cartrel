@@ -988,6 +988,7 @@ router.post('/orders/:orderId/cancel', async (req, res, next) => {
  */
 router.get('/locations', async (req, res, next) => {
   try {
+    // @ts-expect-error - Session shop property from express-session
     const shop = req.session?.shop;
 
     if (!shop) {
@@ -1048,6 +1049,7 @@ router.get('/locations', async (req, res, next) => {
  */
 router.patch('/connections/:connectionId/location', async (req, res, next) => {
   try {
+    // @ts-expect-error - Session shop property from express-session
     const shop = req.session?.shop;
     const { connectionId } = req.params;
     const { inventoryLocationId, safetyStockQuantity } = req.body;

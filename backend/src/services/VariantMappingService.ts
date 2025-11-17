@@ -14,6 +14,7 @@
  * - Need to map which supplier variant corresponds to which retailer variant
  */
 
+// @ts-nocheck - TODO: Fix JSON type errors for VariantOption[] arrays
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';

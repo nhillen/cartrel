@@ -11,7 +11,7 @@
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
-import { PurchaseOrder, PurchaseOrderStatus } from '@prisma/client';
+import { PurchaseOrderStatus } from '@prisma/client';
 
 interface LineItem {
   variantId: string;
