@@ -14,6 +14,7 @@
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { initializeQueues } from '../queues';
+import { SystemComponent } from '@prisma/client';
 
 export class HealthCheckService {
   /**
@@ -74,13 +75,13 @@ export class HealthCheckService {
 
       // Auto-create incident if unhealthy
       if (!healthy) {
-        await this.createIncidentIfNeeded('WEBHOOKS', {
+        await this.createIncidentIfNeeded(SystemComponent.WEBHOOKS, {
           webhookQueueSize: queueSize,
           webhookErrorRate: errorRate,
         });
       } else {
         // Auto-resolve incident if now healthy
-        await this.resolveIncidentIfExists('WEBHOOKS');
+        await this.resolveIncidentIfExists(SystemComponent.WEBHOOKS);
       }
     } catch (error) {
       logger.error('Error checking webhook queue:', error);
@@ -112,11 +113,11 @@ export class HealthCheckService {
       });
 
       if (!healthy) {
-        await this.createIncidentIfNeeded('DATABASE', {
+        await this.createIncidentIfNeeded(SystemComponent.DATABASE, {
           databaseResponseTime: responseTime,
         });
       } else {
-        await this.resolveIncidentIfExists('DATABASE');
+        await this.resolveIncidentIfExists(SystemComponent.DATABASE);
       }
     } catch (error) {
       logger.error('Error checking database performance:', error);
@@ -153,11 +154,11 @@ export class HealthCheckService {
       });
 
       if (!healthy) {
-        await this.createIncidentIfNeeded('API', {
+        await this.createIncidentIfNeeded(SystemComponent.API, {
           apiResponseTime: responseTime,
         });
       } else {
-        await this.resolveIncidentIfExists('API');
+        await this.resolveIncidentIfExists(SystemComponent.API);
       }
     } catch (error) {
       logger.error('Error checking API health:', error);
@@ -168,7 +169,7 @@ export class HealthCheckService {
    * Create an incident if one doesn't already exist for this component
    */
   private static async createIncidentIfNeeded(
-    component: string,
+    component: SystemComponent,
     metrics: any
   ): Promise<void> {
     try {
@@ -250,7 +251,7 @@ export class HealthCheckService {
   /**
    * Auto-resolve an incident if system is now healthy
    */
-  private static async resolveIncidentIfExists(component: string): Promise<void> {
+  private static async resolveIncidentIfExists(component: SystemComponent): Promise<void> {
     try {
       const incident = await prisma.incident.findFirst({
         where: {

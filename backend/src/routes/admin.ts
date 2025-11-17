@@ -12,6 +12,7 @@
 import express from 'express';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+import { SystemComponent } from '@prisma/client';
 
 const router = express.Router();
 
@@ -51,10 +52,10 @@ router.post('/incidents', async (req, res) => {
 
     logger.info(`Manual incident created: ${incident.id} - ${title}`);
 
-    res.json(incident);
+    return res.json(incident);
   } catch (error) {
     logger.error('Error creating incident:', error);
-    res.status(500).json({ error: 'Failed to create incident' });
+    return res.status(500).json({ error: 'Failed to create incident' });
   }
 });
 
@@ -99,10 +100,10 @@ router.post('/incidents/:incidentId/updates', async (req, res) => {
 
     logger.info(`Incident update added: ${incidentId} - ${status}`);
 
-    res.json(update);
+    return res.json(update);
   } catch (error) {
     logger.error('Error adding incident update:', error);
-    res.status(500).json({ error: 'Failed to add update' });
+    return res.status(500).json({ error: 'Failed to add update' });
   }
 });
 
@@ -268,10 +269,10 @@ router.post('/health/metrics', async (req, res) => {
       });
     }
 
-    res.json(metric);
+    return res.json(metric);
   } catch (error) {
     logger.error('Error recording health metric:', error);
-    res.status(500).json({ error: 'Failed to record metric' });
+    return res.status(500).json({ error: 'Failed to record metric' });
   }
 });
 
@@ -279,7 +280,7 @@ router.post('/health/metrics', async (req, res) => {
  * Auto-create incident if health checks detect issues
  */
 async function autoCreateIncidentIfNeeded(
-  component: string,
+  component: SystemComponent,
   metrics: any
 ): Promise<void> {
   try {

@@ -18,7 +18,7 @@ const router = express.Router();
 /**
  * Serve the public status page HTML
  */
-router.get('/', (req, res) => {
+router.get('/', (_req, res) => {
   const statusPagePath = path.join(__dirname, '../views/status.html');
   res.sendFile(statusPagePath);
 });
@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
 /**
  * Get current status data (JSON API for status page)
  */
-router.get('/api/status', async (req, res) => {
+router.get('/api/status', async (_req, res) => {
   try {
     // Get active incidents (not resolved)
     const activeIncidents = await prisma.incident.findMany({
