@@ -1230,6 +1230,260 @@ router.get('/health', async (req, res, next) => {
 });
 
 /**
+ * Compare Cartrel vs Syncio pricing
+ */
+router.get('/shadow/compare-pricing', async (req, res, next) => {
+  try {
+    const { connections, products, orders } = req.query;
+
+    const connectionsNum = parseInt(connections as string) || 1;
+    const productsNum = parseInt(products as string) || 100;
+    const ordersNum = parseInt(orders as string) || 50;
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    const comparison = await ShadowModeService.comparePricing(
+      connectionsNum,
+      productsNum,
+      ordersNum
+    );
+
+    res.json(comparison);
+  } catch (error) {
+    logger.error('Error comparing pricing:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get Cartrel vs Syncio feature comparison
+ */
+router.get('/shadow/compare-features', async (req, res, next) => {
+  try {
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    const features = ShadowModeService.getFeatureComparison();
+
+    res.json({ features });
+  } catch (error) {
+    logger.error('Error getting feature comparison:', error);
+    next(error);
+  }
+});
+
+/**
+ * Preview Syncio migration for a shop
+ */
+router.get('/shadow/migration-preview', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    const preview = await ShadowModeService.previewMigration(shopRecord.id);
+
+    res.json(preview);
+  } catch (error) {
+    logger.error('Error previewing migration:', error);
+    next(error);
+  }
+});
+
+/**
+ * Enable shadow mode for a connection
+ */
+router.post('/shadow/enable', async (req, res, next) => {
+  try {
+    const { shop, connectionId } = req.body;
+
+    if (!shop || !connectionId) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    await ShadowModeService.enableShadowMode(connectionId);
+
+    logger.info(`Shadow mode enabled for connection ${connectionId} by ${shop}`);
+
+    res.json({
+      success: true,
+      message: 'Shadow mode enabled. Imports will not create products in Shopify.',
+    });
+  } catch (error) {
+    logger.error('Error enabling shadow mode:', error);
+    next(error);
+  }
+});
+
+/**
+ * Disable shadow mode for a connection
+ */
+router.post('/shadow/disable', async (req, res, next) => {
+  try {
+    const { shop, connectionId } = req.body;
+
+    if (!shop || !connectionId) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    await ShadowModeService.disableShadowMode(connectionId);
+
+    logger.info(`Shadow mode disabled for connection ${connectionId} by ${shop}`);
+
+    res.json({
+      success: true,
+      message: 'Shadow mode disabled. New imports will create products in Shopify.',
+    });
+  } catch (error) {
+    logger.error('Error disabling shadow mode:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get shadow mode statistics
+ */
+router.get('/shadow/stats', async (req, res, next) => {
+  try {
+    const { shop, connectionId } = req.query;
+
+    if (!shop || typeof shop !== 'string' || !connectionId || typeof connectionId !== 'string') {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    const stats = await ShadowModeService.getShadowModeStats(connectionId);
+
+    res.json(stats);
+  } catch (error) {
+    logger.error('Error getting shadow mode stats:', error);
+    next(error);
+  }
+});
+
+/**
+ * Promote shadow imports to real products
+ */
+router.post('/shadow/promote', async (req, res, next) => {
+  try {
+    const { shop, connectionId, mappingIds } = req.body;
+
+    if (!shop || !connectionId || !mappingIds || !Array.isArray(mappingIds)) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ShadowModeService } = await import('../services/ShadowModeService');
+    const result = await ShadowModeService.promoteShadowImports(connectionId, mappingIds);
+
+    logger.info(
+      `Promoted ${result.success} shadow imports for ${shop} (${result.failed} failed)`
+    );
+
+    res.json({
+      success: true,
+      promoted: result.success,
+      failed: result.failed,
+      errors: result.errors,
+    });
+  } catch (error) {
+    logger.error('Error promoting shadow imports:', error);
+    next(error);
+  }
+});
+
+/**
  * Get purchase orders for a retailer
  */
 router.get('/orders', async (req, res, next) => {
