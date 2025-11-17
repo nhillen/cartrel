@@ -23,47 +23,57 @@ enum ShopRole {
 enum ShopPlan {
   FREE
   STARTER
+  CORE // NEW - $29/month tier
+  PRO // NEW - $49/month tier
   GROWTH
   SCALE
 }
 
 model Shop {
-  id               String   @id @default(cuid())
-  myshopifyDomain  String   @unique // e.g., "brandname.myshopify.com"
-  accessToken      String   // Encrypted Shopify access token
-  role             ShopRole
-  plan             ShopPlan @default(FREE)
+  id              String   @id @default(cuid())
+  myshopifyDomain String   @unique // e.g., "brandname.myshopify.com"
+  accessToken     String // Encrypted Shopify access token
+  role            ShopRole
+  plan            ShopPlan @default(FREE)
 
   // Billing - pending subscription upgrade
-  pendingPlan      ShopPlan?
-  pendingChargeId  String?
+  pendingPlan     ShopPlan?
+  pendingChargeId String?
+
+  // Pricing grandfathering
+  planVersion String? @default("v1") // NEW - locks pricing for early customers
 
   // Product sync preferences
-  syncPreferences  Json?    // { syncTitle, syncDescription, syncImages, syncPrice, syncInventory }
+  syncPreferences Json? // { syncTitle, syncDescription, syncImages, syncPrice, syncInventory }
 
   // Usage tracking for plan limits
-  currentPeriodStart     DateTime @default(now()) // Start of current billing period
-  purchaseOrdersThisMonth Int     @default(0)     // PO count this billing period
+  currentPeriodStart      DateTime @default(now()) // Start of current billing period
+  purchaseOrdersThisMonth Int      @default(0) // PO count this billing period
+  productSKUsThisMonth    Int      @default(0) // NEW - unique wholesale SKUs this period
+
+  // Add-ons
+  addOnConnections Int @default(0) // NEW - purchased connection add-ons (+10 each)
+  addOnOrders      Int @default(0) // NEW - purchased order add-ons (+1000 each)
 
   // Shop details
-  companyName      String?
-  email            String?
-  timezone         String   @default("America/New_York")
+  companyName String?
+  email       String?
+  timezone    String  @default("America/New_York")
 
   // Connection code for retailers to join (DEPRECATED - use ConnectionInvite table)
-  connectionCode        String?
-  connectionCodeExpiry  DateTime?
+  connectionCode       String?
+  connectionCodeExpiry DateTime?
 
   // Relationships
-  supplierConnections   Connection[]     @relation("SupplierConnections")
-  retailerConnections   Connection[]     @relation("RetailerConnections")
-  supplierProducts      SupplierProduct[]
-  supplierPurchaseOrders PurchaseOrder[] @relation("SupplierPurchaseOrders")
-  retailerPurchaseOrders PurchaseOrder[] @relation("RetailerPurchaseOrders")
-  connectionInvites     ConnectionInvite[]
+  supplierConnections    Connection[]       @relation("SupplierConnections")
+  retailerConnections    Connection[]       @relation("RetailerConnections")
+  supplierProducts       SupplierProduct[]
+  supplierPurchaseOrders PurchaseOrder[]    @relation("SupplierPurchaseOrders")
+  retailerPurchaseOrders PurchaseOrder[]    @relation("RetailerPurchaseOrders")
+  connectionInvites      ConnectionInvite[]
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([myshopifyDomain])
 }
@@ -94,13 +104,13 @@ enum TierLevel {
 }
 
 model Connection {
-  id              String            @id @default(cuid())
+  id String @id @default(cuid())
 
   // Relationship
-  supplierShopId  String
-  supplierShop    Shop              @relation("SupplierConnections", fields: [supplierShopId], references: [id], onDelete: Cascade)
-  retailerShopId  String
-  retailerShop    Shop              @relation("RetailerConnections", fields: [retailerShopId], references: [id], onDelete: Cascade)
+  supplierShopId String
+  supplierShop   Shop   @relation("SupplierConnections", fields: [supplierShopId], references: [id], onDelete: Cascade)
+  retailerShopId String
+  retailerShop   Shop   @relation("RetailerConnections", fields: [retailerShopId], references: [id], onDelete: Cascade)
 
   // Payment terms
   paymentTermsType PaymentTermsType @default(PREPAY)
@@ -109,26 +119,26 @@ model Connection {
   minOrderAmount   Decimal          @default(0) @db.Decimal(10, 2)
 
   // Tier & perks
-  tier             TierLevel        @default(STANDARD)
-  tierRules        Json?            // Array of TierRule objects
-  perksConfig      Json?            // Perks configuration
+  tier        TierLevel @default(STANDARD)
+  tierRules   Json? // Array of TierRule objects
+  perksConfig Json? // Perks configuration
 
   // Status
-  status           ConnectionStatus @default(PENDING_INVITE)
-  inviteToken      String?          @unique
-  invitedAt        DateTime?
-  acceptedAt       DateTime?
+  status      ConnectionStatus @default(PENDING_INVITE)
+  inviteToken String?          @unique
+  invitedAt   DateTime?
+  acceptedAt  DateTime?
 
   // Metadata
-  nickname         String?          // User-friendly name for this connection (e.g., "NYC Retailer", "Store #5")
-  notes            String?          @db.Text
+  nickname String? // User-friendly name for this connection (e.g., "NYC Retailer", "Store #5")
+  notes    String? @db.Text
 
   // Relationships
-  productMappings  ProductMapping[]
-  purchaseOrders   PurchaseOrder[]
+  productMappings ProductMapping[]
+  purchaseOrders  PurchaseOrder[]
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([supplierShopId, retailerShopId])
   @@index([supplierShopId])
@@ -149,27 +159,27 @@ enum InviteStatus {
 }
 
 model ConnectionInvite {
-  id              String       @id @default(cuid())
+  id String @id @default(cuid())
 
   // Supplier who created the invite
-  supplierShopId  String
-  supplierShop    Shop         @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
+  supplierShopId String
+  supplierShop   Shop   @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
 
   // Invite details
-  code            String       @unique // 12-char alphanumeric GUID-style
-  nickname        String       // User-friendly name for tracking (e.g., "NYC Retailer", "Store #5")
-  status          InviteStatus @default(ACTIVE)
+  code     String       @unique // 12-char alphanumeric GUID-style
+  nickname String // User-friendly name for tracking (e.g., "NYC Retailer", "Store #5")
+  status   InviteStatus @default(ACTIVE)
 
   // Redemption tracking
-  redeemedBy      String?      // Shop ID of retailer who redeemed
-  redeemedAt      DateTime?
-  connectionId    String?      // Connection created when redeemed
+  redeemedBy   String? // Shop ID of retailer who redeemed
+  redeemedAt   DateTime?
+  connectionId String? // Connection created when redeemed
 
   // Expiry
-  expiresAt       DateTime     // 24 hours from creation
+  expiresAt DateTime // 24 hours from creation
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([supplierShopId])
   @@index([code])
@@ -182,47 +192,54 @@ model ConnectionInvite {
 // ============================================================================
 
 model SupplierProduct {
-  id                   String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Supplier relationship
-  supplierShopId       String
-  supplierShop         Shop     @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
+  supplierShopId String
+  supplierShop   Shop   @relation(fields: [supplierShopId], references: [id], onDelete: Cascade)
 
   // Shopify identifiers
-  shopifyProductId     String
-  shopifyVariantId     String
+  shopifyProductId String
+  shopifyVariantId String
 
   // Product info (cached from Shopify)
-  title                String
-  description          String?  @db.Text
-  vendor               String?
-  productType          String?
-  imageUrl             String?
+  title       String
+  description String? @db.Text
+  vendor      String?
+  productType String?
+  imageUrl    String?
 
   // Variant info
-  sku                  String?
-  variantTitle         String?
-  wholesalePrice       Decimal  @db.Decimal(10, 2)
-  compareAtPrice       Decimal? @db.Decimal(10, 2)
-  inventoryQuantity    Int      @default(0)
+  sku               String?
+  variantTitle      String?
+  wholesalePrice    Decimal  @db.Decimal(10, 2)
+  compareAtPrice    Decimal? @db.Decimal(10, 2)
+  inventoryQuantity Int      @default(0)
+
+  // NEW - Matching and SEO fields
+  barcode        String? // NEW - for matching ladder (barcode -> SKU -> options)
+  seoTitle       String? // NEW - SEO title (if different from product title)
+  seoDescription String? @db.Text // NEW - SEO description
+  metafieldsData Json? // NEW - custom fields to sync
 
   // Wholesale config
-  isWholesaleEligible  Boolean  @default(false)
-  minQuantity          Int      @default(1)
+  isWholesaleEligible Boolean @default(false)
+  minQuantity         Int     @default(1)
 
   // Sync metadata
-  lastSyncedAt         DateTime @default(now())
+  lastSyncedAt DateTime @default(now())
 
   // Relationships
-  productMappings      ProductMapping[]
+  productMappings ProductMapping[]
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([supplierShopId, shopifyVariantId])
   @@index([supplierShopId, isWholesaleEligible])
   @@index([shopifyProductId])
   @@index([sku])
+  @@index([barcode]) // NEW - for matching ladder
 }
 
 // ============================================================================
@@ -241,16 +258,23 @@ enum MarkupType {
   CUSTOM
 }
 
+// NEW - Conflict resolution modes
+enum ConflictMode {
+  SUPPLIER_WINS // Auto-apply supplier changes (default)
+  RETAILER_WINS // Ignore supplier changes
+  REVIEW_QUEUE // Queue changes for manual approval
+}
+
 model ProductMapping {
-  id                       String                @id @default(cuid())
+  id String @id @default(cuid())
 
   // Connection
-  connectionId             String
-  connection               Connection            @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   // Supplier side
   supplierProductId        String
-  supplierProduct          SupplierProduct       @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  supplierProduct          SupplierProduct @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
   supplierShopifyProductId String
   supplierShopifyVariantId String
 
@@ -259,20 +283,34 @@ model ProductMapping {
   retailerShopifyVariantId String?
 
   // Sync preferences
-  syncInventory            Boolean               @default(true)
-  syncPricing              Boolean               @default(false)
-  syncDescription          Boolean               @default(false)
-  syncImages               Boolean               @default(false)
+  syncInventory   Boolean @default(true)
+  syncPricing     Boolean @default(false)
+  syncDescription Boolean @default(false)
+  syncImages      Boolean @default(false)
+
+  // NEW - Granular sync toggles
+  syncTitle      Boolean @default(true)
+  syncTags       Boolean @default(false)
+  syncSEO        Boolean @default(false) // SEO title + description
+  syncMetafields Json? // Array of metafield keys to sync
+
+  // NEW - Conflict detection and resolution
+  imageChecksum String? // SHA256 hash of image URLs (dedupe)
+  lastSyncHash  String? // Hash of synced fields (detect changes)
+  conflictMode  ConflictMode @default(SUPPLIER_WINS)
 
   // Retailer pricing
-  retailerMarkupType       MarkupType            @default(PERCENTAGE)
-  retailerMarkupValue      Decimal               @db.Decimal(10, 2)
+  retailerMarkupType  MarkupType @default(PERCENTAGE)
+  retailerMarkupValue Decimal    @db.Decimal(10, 2)
 
   // Status
-  status                   ProductMappingStatus  @default(ACTIVE)
+  status ProductMappingStatus @default(ACTIVE)
 
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
+  // Relationships
+  variantMappings VariantMapping[] // NEW - variant-level mappings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([connectionId, supplierProductId])
   @@index([connectionId])
@@ -296,55 +334,55 @@ enum PurchaseOrderStatus {
 }
 
 model PurchaseOrder {
-  id                       String               @id @default(cuid())
+  id String @id @default(cuid())
 
   // Connection
-  connectionId             String
-  connection               Connection           @relation(fields: [connectionId], references: [id])
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id])
 
   // Shop references
-  supplierShopId           String
-  supplierShop             Shop                 @relation("SupplierPurchaseOrders", fields: [supplierShopId], references: [id])
-  retailerShopId           String
-  retailerShop             Shop                 @relation("RetailerPurchaseOrders", fields: [retailerShopId], references: [id])
+  supplierShopId String
+  supplierShop   Shop   @relation("SupplierPurchaseOrders", fields: [supplierShopId], references: [id])
+  retailerShopId String
+  retailerShop   Shop   @relation("RetailerPurchaseOrders", fields: [retailerShopId], references: [id])
 
   // Order identification
-  poNumber                 String               @unique // e.g., "PO-2024-001"
+  poNumber String @unique // e.g., "PO-2024-001"
 
   // Line items (stored as JSON)
-  items                    Json                 // Array of POItem objects
+  items Json // Array of POItem objects
 
   // Financials
-  subtotal                 Decimal              @db.Decimal(10, 2)
-  shippingCost             Decimal              @default(0) @db.Decimal(10, 2)
-  taxAmount                Decimal              @default(0) @db.Decimal(10, 2)
-  total                    Decimal              @db.Decimal(10, 2)
-  currency                 String
+  subtotal     Decimal @db.Decimal(10, 2)
+  shippingCost Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount    Decimal @default(0) @db.Decimal(10, 2)
+  total        Decimal @db.Decimal(10, 2)
+  currency     String
 
   // Terms applied at time of order
-  paymentTermsType         String
-  tierAtOrder              String?
-  perksApplied             Json?                // Array of AppliedPerk objects
+  paymentTermsType String
+  tierAtOrder      String?
+  perksApplied     Json? // Array of AppliedPerk objects
 
   // Shopify integration
   supplierShopifyOrderId      String?
   supplierShopifyDraftOrderId String?
 
   // Status tracking
-  status                   PurchaseOrderStatus  @default(DRAFT)
+  status PurchaseOrderStatus @default(DRAFT)
 
   // Shipping
-  shippingAddress          Json                 // Address object
-  trackingNumber           String?
-  trackingUrl              String?
+  shippingAddress Json // Address object
+  trackingNumber  String?
+  trackingUrl     String?
 
   // Audit timestamps
-  submittedAt              DateTime?
-  paidAt                   DateTime?
-  shippedAt                DateTime?
+  submittedAt DateTime?
+  paidAt      DateTime?
+  shippedAt   DateTime?
 
-  createdAt                DateTime             @default(now())
-  updatedAt                DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([connectionId])
   @@index([supplierShopId])
@@ -368,16 +406,16 @@ enum WebhookTopic {
 }
 
 model WebhookLog {
-  id              String       @id @default(cuid())
-  shopId          String
-  topic           WebhookTopic
-  shopifyId       String       // ID of the resource (product, order, etc.)
-  payload         Json
-  processed       Boolean      @default(false)
-  processedAt     DateTime?
-  errorMessage    String?      @db.Text
+  id           String       @id @default(cuid())
+  shopId       String
+  topic        WebhookTopic
+  shopifyId    String // ID of the resource (product, order, etc.)
+  payload      Json
+  processed    Boolean      @default(false)
+  processedAt  DateTime?
+  errorMessage String?      @db.Text
 
-  createdAt       DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([shopId, topic])
   @@index([processed])
@@ -389,37 +427,37 @@ model WebhookLog {
 // ============================================================================
 
 model UsageMetric {
-  id              String   @id @default(cuid())
-  shopId          String
-  period          String   // e.g., "2024-11", "2024-Q4"
-  periodStart     DateTime
-  periodEnd       DateTime
+  id          String   @id @default(cuid())
+  shopId      String
+  period      String // e.g., "2024-11", "2024-Q4"
+  periodStart DateTime
+  periodEnd   DateTime
 
   // Connection metrics
-  activeConnections      Int      @default(0)
-  newConnections         Int      @default(0)
-  terminatedConnections  Int      @default(0)
+  activeConnections     Int @default(0)
+  newConnections        Int @default(0)
+  terminatedConnections Int @default(0)
 
   // Order metrics
-  purchaseOrdersCreated  Int      @default(0)
-  purchaseOrdersTotal    Decimal  @default(0) @db.Decimal(12, 2)
-  avgOrderValue          Decimal  @default(0) @db.Decimal(10, 2)
+  purchaseOrdersCreated Int     @default(0)
+  purchaseOrdersTotal   Decimal @default(0) @db.Decimal(12, 2)
+  avgOrderValue         Decimal @default(0) @db.Decimal(10, 2)
 
   // Product metrics
-  wholesaleProducts      Int      @default(0)
-  productMappings        Int      @default(0)
-  syncOperations         Int      @default(0)
+  wholesaleProducts Int @default(0)
+  productMappings   Int @default(0)
+  syncOperations    Int @default(0)
 
   // API usage
-  webhooksProcessed      Int      @default(0)
-  apiCallsMade           Int      @default(0)
+  webhooksProcessed Int @default(0)
+  apiCallsMade      Int @default(0)
 
   // Feature usage
-  tierUpgrades           Int      @default(0)
-  perksApplied           Int      @default(0)
+  tierUpgrades Int @default(0)
+  perksApplied Int @default(0)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([shopId, period])
   @@index([shopId])
@@ -447,15 +485,101 @@ enum AuditAction {
 }
 
 model AuditLog {
-  id              String      @id @default(cuid())
-  shopId          String
-  action          AuditAction
-  resourceType    String?     // e.g., "PurchaseOrder", "Connection"
-  resourceId      String?
-  metadata        Json?
-  createdAt       DateTime    @default(now())
+  id           String      @id @default(cuid())
+  shopId       String
+  action       AuditAction
+  resourceType String? // e.g., "PurchaseOrder", "Connection"
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
 
   @@index([shopId])
   @@index([action])
   @@index([createdAt])
+}
+
+// ============================================================================
+// NEW MODELS FOR SYNCIO COMPETITION (Phase 0)
+// ============================================================================
+
+// Variant-level mapping for multi-variant products
+model VariantMapping {
+  id String @id @default(cuid())
+
+  // Linked to ProductMapping
+  productMappingId String
+  productMapping   ProductMapping @relation(fields: [productMappingId], references: [id], onDelete: Cascade)
+
+  // Supplier variant
+  supplierVariantId String
+  supplierOptions   Json // { "Size": "Small", "Color": "Red" }
+
+  // Retailer variant
+  retailerVariantId String
+  retailerOptions   Json // { "Size": "S", "Color": "Red" }
+
+  // Manual override flag
+  manuallyMapped Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productMappingId, supplierVariantId])
+  @@index([productMappingId])
+  @@index([supplierVariantId])
+  @@index([retailerVariantId])
+}
+
+// Snapshot table for 30-day rollback capability
+model ProductSnapshot {
+  id String @id @default(cuid())
+
+  // Retailer product being tracked
+  retailerShopId    String
+  retailerProductId String // Shopify product ID
+  retailerVariantId String // Shopify variant ID
+
+  // Snapshot data
+  field String // e.g., "title", "price", "inventory_quantity"
+  value Json // Field value at snapshot time
+
+  // Metadata
+  changedBy              String // "webhook", "manual", "import"
+  sourceProductMappingId String? // If changed by sync
+
+  createdAt DateTime @default(now())
+
+  @@index([retailerShopId, retailerProductId, createdAt])
+  @@index([createdAt]) // For 30-day retention cleanup
+}
+
+// Order routing rules for multi-vendor splitting
+enum RouterRuleType {
+  VENDOR // Split by product vendor
+  TAG // Split by product tag
+  COLLECTION // Split by collection
+}
+
+model OrderRouterRule {
+  id String @id @default(cuid())
+
+  // Owner
+  retailerShopId String
+
+  // Rule definition
+  type             RouterRuleType
+  matchValue       String // Vendor name, tag, or collection ID
+  targetSupplierId String // Route to this supplier
+
+  // Priority (lower = higher priority)
+  priority Int @default(0)
+
+  // Status
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([retailerShopId, enabled])
+  @@index([priority])
 }

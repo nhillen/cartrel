@@ -28,8 +28,8 @@ router.post('/upgrade', async (req, res) => {
     }
 
     // Validate plan
-    if (!['STARTER', 'GROWTH', 'SCALE'].includes(plan)) {
-      res.status(400).json({ error: 'Invalid plan. Choose STARTER, GROWTH, or SCALE' });
+    if (!['STARTER', 'CORE', 'PRO', 'GROWTH', 'SCALE'].includes(plan)) {
+      res.status(400).json({ error: 'Invalid plan. Choose STARTER, CORE, PRO, GROWTH, or SCALE' });
       return;
     }
 

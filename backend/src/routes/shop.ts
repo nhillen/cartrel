@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
-import { getUsageSummary, shouldResetMonthlyUsage } from '../utils/planLimits';
+import { getUsageSummary, shouldResetMonthlyUsage, getPlanLimits } from '../utils/planLimits';
 
 const router = Router();
 
@@ -75,11 +75,21 @@ router.get('/usage', async (req, res, next) => {
         where: { id: shopRecord.id },
         data: {
           purchaseOrdersThisMonth: 0,
+          productSKUsThisMonth: 0, // NEW - reset product count too
           currentPeriodStart: new Date(),
         },
       });
       shopRecord.purchaseOrdersThisMonth = 0;
+      shopRecord.productSKUsThisMonth = 0;
     }
+
+    // Count wholesale-eligible products
+    const productCount = await prisma.supplierProduct.count({
+      where: {
+        supplierShopId: shopRecord.id,
+        isWholesaleEligible: true,
+      },
+    });
 
     const activeConnections = shopRecord.supplierConnections.length;
     const usage = getUsageSummary(
@@ -88,7 +98,36 @@ router.get('/usage', async (req, res, next) => {
       shopRecord.purchaseOrdersThisMonth
     );
 
-    res.json(usage);
+    // NEW - Add product count and add-on info to usage response
+    const limits = getPlanLimits(shopRecord.plan);
+    const effectiveConnectionLimit = limits.maxConnections + (shopRecord.addOnConnections || 0) * 10;
+    const effectiveOrderLimit = limits.maxPurchaseOrdersPerMonth + (shopRecord.addOnOrders || 0) * 1000;
+
+    res.json({
+      ...usage,
+      products: {
+        current: productCount,
+        max: limits.maxProducts,
+        percentage: Math.min(Math.round((productCount / limits.maxProducts) * 100), 100),
+      },
+      connections: {
+        ...usage.connections,
+        baseLimit: limits.maxConnections,
+        effectiveLimit: effectiveConnectionLimit,
+        addOnQty: shopRecord.addOnConnections || 0,
+      },
+      purchaseOrders: {
+        ...usage.purchaseOrders,
+        baseLimit: limits.maxPurchaseOrdersPerMonth,
+        effectiveLimit: effectiveOrderLimit,
+        addOnQty: shopRecord.addOnOrders || 0,
+      },
+      planVersion: shopRecord.planVersion, // Show grandfathered status
+      upgradeRecommended:
+        productCount > limits.maxProducts * 0.8 ||
+        activeConnections > effectiveConnectionLimit * 0.8 ||
+        usage.shouldUpgrade,
+    });
   } catch (error) {
     logger.error('Error getting usage stats:', error);
     next(error);

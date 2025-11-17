@@ -11,8 +11,9 @@
 export interface PlanLimits {
   name: string;
   price: number; // Monthly price
-  priceAnnual: number; // Annual price (20% discount)
+  priceAnnual: number; // Annual price (Pay 10 months, get 12)
   maxConnections: number;
+  maxProducts: number; // NEW - max wholesale products/SKUs
   maxPurchaseOrdersPerMonth: number;
   maxActiveInvites: number; // Max active (unredeemed) invites at once
   maxInvitesPerHour: number; // Rate limit for invite creation
@@ -28,10 +29,11 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<string, PlanLimits> = {
   FREE: {
-    name: 'Test Flight',
+    name: 'Free',
     price: 0,
     priceAnnual: 0,
-    maxConnections: 2,
+    maxConnections: 3,
+    maxProducts: 25,
     maxPurchaseOrdersPerMonth: 10,
     maxActiveInvites: 5,
     maxInvitesPerHour: 5,
@@ -46,9 +48,10 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   },
   STARTER: {
     name: 'Starter',
-    price: 99,
-    priceAnnual: 950, // 20% discount: $99 × 12 × 0.8 = $950
+    price: 15,
+    priceAnnual: 150, // Pay 10 months, get 12: $15 × 10 = $150
     maxConnections: 5,
+    maxProducts: 500,
     maxPurchaseOrdersPerMonth: 100,
     maxActiveInvites: 10,
     maxInvitesPerHour: 10,
@@ -61,14 +64,51 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
       apiAccess: false,
     },
   },
+  CORE: {
+    name: 'Core',
+    price: 29,
+    priceAnnual: 290, // Pay 10 months, get 12: $29 × 10 = $290
+    maxConnections: 10,
+    maxProducts: 1500,
+    maxPurchaseOrdersPerMonth: 300,
+    maxActiveInvites: 20,
+    maxInvitesPerHour: 15,
+    features: {
+      catalogSync: 'full',
+      multipleTermProfiles: false,
+      tierAndPerks: false,
+      reporting: false,
+      prioritySupport: false,
+      apiAccess: false,
+    },
+  },
+  PRO: {
+    name: 'Pro',
+    price: 49,
+    priceAnnual: 490, // Pay 10 months, get 12: $49 × 10 = $490
+    maxConnections: 20,
+    maxProducts: 5000,
+    maxPurchaseOrdersPerMonth: 800,
+    maxActiveInvites: 40,
+    maxInvitesPerHour: 25,
+    features: {
+      catalogSync: 'full',
+      multipleTermProfiles: true,
+      tierAndPerks: false,
+      reporting: false,
+      prioritySupport: false,
+      apiAccess: false,
+    },
+  },
   GROWTH: {
     name: 'Growth',
-    price: 299,
-    priceAnnual: 2870, // 20% discount: $299 × 12 × 0.8 = $2,870
-    maxConnections: 25,
-    maxPurchaseOrdersPerMonth: 1000,
-    maxActiveInvites: 50,
-    maxInvitesPerHour: 25,
+    price: 99,
+    priceAnnual: 990, // Pay 10 months, get 12: $99 × 10 = $990
+    maxConnections: 40,
+    maxProducts: 20000,
+    maxPurchaseOrdersPerMonth: 2000,
+    maxActiveInvites: 80,
+    maxInvitesPerHour: 50,
     features: {
       catalogSync: 'full',
       multipleTermProfiles: true,
@@ -80,12 +120,13 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   },
   SCALE: {
     name: 'Scale',
-    price: 799,
-    priceAnnual: 7670, // 20% discount: $799 × 12 × 0.8 = $7,670
-    maxConnections: 999999, // Essentially unlimited
-    maxPurchaseOrdersPerMonth: 999999, // Essentially unlimited
-    maxActiveInvites: 999999,
-    maxInvitesPerHour: 999999,
+    price: 199,
+    priceAnnual: 1990, // Pay 10 months, get 12: $199 × 10 = $1,990
+    maxConnections: 80,
+    maxProducts: 100000,
+    maxPurchaseOrdersPerMonth: 5000,
+    maxActiveInvites: 200,
+    maxInvitesPerHour: 100,
     features: {
       catalogSync: 'full',
       multipleTermProfiles: true,
@@ -225,6 +266,51 @@ export function canCreateInvite(
     return {
       allowed: false,
       reason: `You've reached your hourly limit of ${limits.maxInvitesPerHour} invites. Please wait before creating more.`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+// ============================================================================
+// NEW: Add-on Pricing for Syncio Competition
+// ============================================================================
+
+export const ADD_ON_PRICING = {
+  connections: { qty: 10, price: 30 }, // +10 connections for $30/month
+  orders: { qty: 1000, price: 25 },    // +1,000 orders for $25/month
+  team: { shops: 3, price: 199 },      // Team plan (3 shops, pooled caps) for $199/month
+};
+
+/**
+ * Calculate effective limits with add-ons
+ */
+export function getEffectiveLimits(shop: {
+  plan: string;
+  addOnConnections?: number;
+  addOnOrders?: number;
+}) {
+  const baseLimits = getPlanLimits(shop.plan);
+  return {
+    connections: baseLimits.maxConnections + (shop.addOnConnections || 0) * ADD_ON_PRICING.connections.qty,
+    products: baseLimits.maxProducts,
+    ordersPerMonth: baseLimits.maxPurchaseOrdersPerMonth + (shop.addOnOrders || 0) * ADD_ON_PRICING.orders.qty,
+  };
+}
+
+/**
+ * Check if a shop can mark a new product as wholesale
+ */
+export function canMarkProductWholesale(
+  currentProductCount: number,
+  plan: string
+): { allowed: boolean; reason?: string } {
+  const limits = getPlanLimits(plan);
+
+  if (currentProductCount >= limits.maxProducts) {
+    return {
+      allowed: false,
+      reason: `You've reached your plan limit of ${limits.maxProducts} wholesale products. Upgrade to add more products.`,
     };
   }
 
