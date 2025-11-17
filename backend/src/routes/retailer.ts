@@ -315,7 +315,224 @@ router.post('/order', orderLimiter, async (req, res, next) => {
 });
 
 /**
- * Import product to retailer's store
+ * Get available products from supplier for import wizard
+ */
+router.get('/import/available', async (req, res, next) => {
+  try {
+    const { shop, connectionId, includeImported } = req.query;
+
+    if (!shop || typeof shop !== 'string' || !connectionId || typeof connectionId !== 'string') {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: { retailerShop: true },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const result = await ProductImportService.getAvailableProducts(
+      connectionId,
+      includeImported === 'true'
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error getting available products:', error);
+    next(error);
+  }
+});
+
+/**
+ * Preview product import with field-level diffs
+ */
+router.post('/import/preview', async (req, res, next) => {
+  try {
+    const { shop, connectionId, productIds, preferences } = req.body;
+
+    if (!shop || !connectionId || !productIds || !Array.isArray(productIds)) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: { retailerShop: true },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const result = await ProductImportService.previewImport(
+      connectionId,
+      productIds,
+      preferences || {}
+    );
+
+    logger.info(
+      `Import preview for ${shop}: ${result.summary.newImports} new, ${result.summary.updates} updates`
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error previewing import:', error);
+    next(error);
+  }
+});
+
+/**
+ * Bulk import products with field-level preferences
+ */
+router.post('/import/bulk', async (req, res, next) => {
+  try {
+    const { shop, connectionId, productIds, preferences, createInShopify = true } = req.body;
+
+    if (!shop || !connectionId || !productIds || !Array.isArray(productIds)) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: { retailerShop: true },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const result = await ProductImportService.importProducts(
+      connectionId,
+      productIds,
+      preferences || {},
+      createInShopify
+    );
+
+    logger.info(
+      `Bulk import for ${shop}: ${result.summary.success} success, ${result.summary.errors} errors`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: retailerShop.id,
+        action: 'PRODUCTS_BULK_IMPORTED',
+        resourceType: 'ProductMapping',
+        resourceId: connectionId,
+        metadata: {
+          productCount: productIds.length,
+          successCount: result.summary.success,
+          errorCount: result.summary.errors,
+        },
+      },
+    });
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error bulk importing products:', error);
+    next(error);
+  }
+});
+
+/**
+ * Update sync preferences for existing product mappings
+ */
+router.patch('/import/preferences', async (req, res, next) => {
+  try {
+    const { shop, mappingIds, preferences } = req.body;
+
+    if (!shop || !mappingIds || !Array.isArray(mappingIds) || !preferences) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns these mappings
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Verify all mappings belong to this retailer
+    const mappings = await prisma.productMapping.findMany({
+      where: {
+        id: { in: mappingIds },
+      },
+      include: {
+        connection: true,
+      },
+    });
+
+    const unauthorized = mappings.some(
+      (m) => m.connection.retailerShopId !== retailerShop.id
+    );
+
+    if (unauthorized) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const updatedCount = await ProductImportService.updateMappingPreferences(
+      mappingIds,
+      preferences
+    );
+
+    logger.info(`Updated preferences for ${updatedCount} product mappings for ${shop}`);
+
+    res.json({ success: true, updatedCount });
+  } catch (error) {
+    logger.error('Error updating mapping preferences:', error);
+    next(error);
+  }
+});
+
+/**
+ * Import product to retailer's store (legacy single import)
  */
 router.post('/import', async (req, res, next) => {
   try {
@@ -772,6 +989,242 @@ router.post('/redeem-code', async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Error redeeming connection code:', error);
+    next(error);
+  }
+});
+
+/**
+ * Start async product import (for large catalogs 100+ products)
+ */
+router.post('/import/async', async (req, res, next) => {
+  try {
+    const { shop, connectionId, productIds, preferences, createInShopify = true } = req.body;
+
+    if (!shop || !connectionId || !productIds || !Array.isArray(productIds)) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: { retailerShop: true },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Generate batch ID
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Create batch status record
+    await prisma.importBatchStatus.create({
+      data: {
+        batchId,
+        connectionId,
+        retailerShopId: retailerShop.id,
+        totalProducts: productIds.length,
+        status: 'PENDING',
+      },
+    });
+
+    // Queue the import job
+    const { getImportQueue } = await import('../queues');
+    const importQueue = getImportQueue();
+
+    await importQueue.add({
+      connectionId,
+      retailerShopId: retailerShop.id,
+      supplierProductIds: productIds,
+      preferences: preferences || {},
+      createInShopify,
+      batchId,
+    });
+
+    logger.info(`Queued async import for ${shop}: ${productIds.length} products (batch ${batchId})`);
+
+    res.json({
+      success: true,
+      batchId,
+      totalProducts: productIds.length,
+      message: 'Import queued. Use /import/status/:batchId to track progress.',
+    });
+  } catch (error) {
+    logger.error('Error starting async import:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get import batch status
+ */
+router.get('/import/status/:batchId', async (req, res, next) => {
+  try {
+    const { batchId } = req.params;
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    // Verify retailer owns this batch
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const batchStatus = await prisma.importBatchStatus.findUnique({
+      where: { batchId },
+    });
+
+    if (!batchStatus) {
+      res.status(404).json({ error: 'Batch not found' });
+      return;
+    }
+
+    if (batchStatus.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Calculate progress percentage
+    const progress = batchStatus.totalProducts > 0
+      ? Math.round((batchStatus.completed / batchStatus.totalProducts) * 100)
+      : 0;
+
+    res.json({
+      batchId: batchStatus.batchId,
+      status: batchStatus.status,
+      totalProducts: batchStatus.totalProducts,
+      completed: batchStatus.completed,
+      successful: batchStatus.successful,
+      failed: batchStatus.failed,
+      progress,
+      startedAt: batchStatus.startedAt,
+      completedAt: batchStatus.completedAt,
+      errors: batchStatus.errors,
+    });
+  } catch (error) {
+    logger.error('Error getting import batch status:', error);
+    next(error);
+  }
+});
+
+/**
+ * Health panel - Get sync errors and warnings
+ */
+router.get('/health', async (req, res, next) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop || typeof shop !== 'string') {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get webhook errors from last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const webhookErrors = await prisma.webhookLog.findMany({
+      where: {
+        shopId: retailerShop.id,
+        processed: false,
+        errorMessage: { not: null },
+        createdAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    // Get failed import batches from last 7 days
+    const failedImports = await prisma.importBatchStatus.findMany({
+      where: {
+        retailerShopId: retailerShop.id,
+        status: 'FAILED',
+        createdAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    // Get product mappings with sync issues (DISCONTINUED or no retailer product ID)
+    const syncIssues = await prisma.productMapping.findMany({
+      where: {
+        connection: {
+          retailerShopId: retailerShop.id,
+        },
+        OR: [
+          { status: 'DISCONTINUED' },
+          { retailerShopifyProductId: null },
+        ],
+      },
+      include: {
+        supplierProduct: {
+          select: { title: true },
+        },
+      },
+      take: 20,
+    });
+
+    // Calculate overall health score
+    const totalErrors = webhookErrors.length + failedImports.length + syncIssues.length;
+    let healthScore = 100;
+    if (totalErrors > 0) {
+      healthScore = Math.max(0, 100 - totalErrors * 5);
+    }
+
+    res.json({
+      healthScore,
+      webhookErrors: webhookErrors.map((w) => ({
+        id: w.id,
+        topic: w.topic,
+        error: w.errorMessage,
+        createdAt: w.createdAt,
+      })),
+      failedImports: failedImports.map((i) => ({
+        batchId: i.batchId,
+        totalProducts: i.totalProducts,
+        completed: i.completed,
+        errors: i.errors,
+        createdAt: i.createdAt,
+      })),
+      syncIssues: syncIssues.map((m) => ({
+        id: m.id,
+        productTitle: m.supplierProduct.title,
+        status: m.status,
+        issue: m.retailerShopifyProductId ? 'Discontinued' : 'Not imported',
+      })),
+    });
+
+    logger.info(`Health check for ${shop}: score ${healthScore}, ${totalErrors} issues`);
+  } catch (error) {
+    logger.error('Error getting health status:', error);
     next(error);
   }
 });

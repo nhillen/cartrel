@@ -583,3 +583,38 @@ model OrderRouterRule {
   @@index([retailerShopId, enabled])
   @@index([priority])
 }
+
+// ============================================================================
+// ASYNC IMPORT TRACKING
+// ============================================================================
+
+// Track progress of async product imports (for large catalogs 100+ products)
+model ImportBatchStatus {
+  id        String   @id @default(cuid())
+  batchId   String   @unique // UUID for tracking
+
+  // Owner
+  connectionId    String
+  retailerShopId  String
+
+  // Progress tracking
+  totalProducts Int
+  completed     Int      @default(0)
+  successful    Int      @default(0)
+  failed        Int      @default(0)
+
+  // Status
+  status       String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  // Error tracking (limit to 100 errors)
+  errors       Json     @default("[]")
+
+  @@index([batchId])
+  @@index([retailerShopId, createdAt])
+  @@index([status, createdAt])
+}
