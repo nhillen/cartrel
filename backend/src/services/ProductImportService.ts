@@ -9,10 +9,10 @@
  * - Validate against plan limits
  */
 
-// @ts-nocheck - TODO: Fix Prisma type errors for Decimal, tags, and status fields
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
+import { ProductMappingStatus } from '@prisma/client';
 // import crypto from 'crypto'; // Unused for now
 import { canMarkProductWholesale, getEffectiveLimits } from '../utils/planLimits';
 
@@ -64,7 +64,7 @@ export class ProductImportService {
   static async getAvailableProducts(
     connectionId: string,
     includeImported: boolean = false,
-    cursor?: string
+    _cursor?: string
   ): Promise<{ products: any[]; hasNextPage: boolean; nextCursor?: string }> {
     try {
       logger.info(`Fetching available products for connection ${connectionId}`);
@@ -113,11 +113,10 @@ export class ProductImportService {
         shopifyProductId: p.shopifyProductId,
         title: p.title,
         description: p.description,
-        wholesalePrice: p.wholesalePrice,
+        wholesalePrice: p.wholesalePrice.toString(),
         imageUrl: p.imageUrl,
         sku: p.sku,
         inventoryQuantity: p.inventoryQuantity,
-        tags: p.tags,
         alreadyImported: p.productMappings.length > 0,
         mappingId: p.productMappings[0]?.id,
       }));
@@ -195,13 +194,13 @@ export class ProductImportService {
         const existingMapping = supplierProduct.productMappings[0];
 
         // Calculate retail price with markup
-        const basePrice = parseFloat(supplierProduct.wholesalePrice || '0');
+        const basePrice = parseFloat(supplierProduct.wholesalePrice.toString());
         let retailPrice = basePrice;
 
         const markupType =
           preferences.retailerMarkupType || existingMapping?.retailerMarkupType || 'PERCENTAGE';
         const markupValue =
-          preferences.retailerMarkupValue || existingMapping?.retailerMarkupValue || '50';
+          preferences.retailerMarkupValue || existingMapping?.retailerMarkupValue?.toString() || '50';
 
         if (markupType === 'PERCENTAGE') {
           retailPrice = basePrice * (1 + parseFloat(markupValue) / 100);
@@ -257,16 +256,6 @@ export class ProductImportService {
           willSync: preferences.syncInventory !== false,
         });
 
-        // Tags
-        if (supplierProduct.tags && supplierProduct.tags.length > 0) {
-          diffs.push({
-            field: 'tags',
-            supplierValue: (supplierProduct.tags as string[]).join(', '),
-            retailerValue: null,
-            willSync: preferences.syncTags === true,
-          });
-        }
-
         // SEO
         diffs.push({
           field: 'seo',
@@ -278,7 +267,7 @@ export class ProductImportService {
         // Check if would exceed limit
         const wouldExceedLimit =
           !alreadyImported &&
-          !canMarkProductWholesale(retailerShop, currentProductCount + previews.length);
+          !canMarkProductWholesale(currentProductCount + previews.length, retailerShop.plan).allowed;
 
         previews.push({
           supplierProductId: productId,
@@ -299,7 +288,7 @@ export class ProductImportService {
         newImports: previews.filter((p) => !p.alreadyImported).length,
         updates: previews.filter((p) => p.alreadyImported).length,
         wouldExceedLimit: previews.filter((p) => p.wouldExceedLimit).length,
-        planLimit: limits.maxProducts,
+        planLimit: limits.products,
         currentCount: currentProductCount,
         fieldsToSync: {
           title: preferences.syncTitle !== false,
@@ -398,10 +387,10 @@ export class ProductImportService {
           }
 
           // Check plan limit for new imports
-          if (!existingMapping && !canMarkProductWholesale(retailerShop, currentProductCount + successCount)) {
+          if (!existingMapping && !canMarkProductWholesale(currentProductCount + successCount, retailerShop.plan).allowed) {
             results.push({
               success: false,
-              error: `Plan limit reached (${limits.maxProducts} products)`,
+              error: `Plan limit reached (${limits.products} products)`,
             });
             errorCount++;
             continue;
@@ -499,9 +488,11 @@ export class ProductImportService {
       const mappingData = {
         connectionId: connection.id,
         supplierProductId: supplierProduct.id,
+        supplierShopifyProductId: supplierProduct.shopifyProductId,
+        supplierShopifyVariantId: supplierProduct.shopifyVariantId,
         retailerShopifyProductId,
         retailerShopifyVariantId,
-        status: 'ACTIVE',
+        status: ProductMappingStatus.ACTIVE,
         syncTitle: preferences.syncTitle !== false,
         syncDescription: preferences.syncDescription !== false,
         syncImages: preferences.syncImages !== false,
@@ -552,7 +543,7 @@ export class ProductImportService {
           preferences.syncDescription !== false ? supplierProduct.description : '',
         productType: 'Wholesale',
         vendor: 'Wholesale Supplier',
-        tags: preferences.syncTags ? (supplierProduct.tags as string[]) : ['wholesale'],
+        tags: ['wholesale'],
       };
 
       // Add images if syncing

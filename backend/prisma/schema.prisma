@@ -543,7 +543,7 @@ model ProductSnapshot {
   // Retailer product being tracked
   retailerShopId    String
   retailerProductId String // Shopify product ID
-  retailerVariantId String // Shopify variant ID
+  retailerVariantId String? // Shopify variant ID (optional for product-level fields)
 
   // Snapshot data
   field String // e.g., "title", "price", "inventory_quantity"

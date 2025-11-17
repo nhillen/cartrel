@@ -15,7 +15,6 @@
  * - All snapshots auto-deleted after 30 days
  */
 
-// @ts-nocheck - TODO: Fix Prisma type error - missing retailerVariantId field
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
@@ -54,7 +53,6 @@ export class ProductSnapshotService {
         return;
       }
 
-      // @ts-expect-error TODO: Add retailerVariantId field to match schema requirements
       await prisma.productSnapshot.create({
         data: {
           retailerShopId,

@@ -14,8 +14,8 @@
  * - Need to map which supplier variant corresponds to which retailer variant
  */
 
-// @ts-nocheck - TODO: Fix JSON type errors for VariantOption[] arrays
 import { prisma } from '../index';
+import { Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
 
@@ -130,16 +130,16 @@ export class VariantMappingService {
             },
             update: {
               retailerVariantId: match.retailerVariantId,
-              supplierOptions: match.supplierOptions,
-              retailerOptions: match.retailerOptions,
+              supplierOptions: match.supplierOptions as unknown as Prisma.InputJsonValue,
+              retailerOptions: match.retailerOptions as unknown as Prisma.InputJsonValue,
               manuallyMapped: false,
             },
             create: {
               productMappingId,
               supplierVariantId: match.supplierVariantId,
               retailerVariantId: match.retailerVariantId,
-              supplierOptions: match.supplierOptions,
-              retailerOptions: match.retailerOptions,
+              supplierOptions: match.supplierOptions as unknown as Prisma.InputJsonValue,
+              retailerOptions: match.retailerOptions as unknown as Prisma.InputJsonValue,
               manuallyMapped: false,
             },
           });
@@ -204,16 +204,16 @@ export class VariantMappingService {
         },
         update: {
           retailerVariantId,
-          supplierOptions: supplierVariant.options,
-          retailerOptions: retailerVariant.options,
+          supplierOptions: supplierVariant.options as unknown as Prisma.InputJsonValue,
+          retailerOptions: retailerVariant.options as unknown as Prisma.InputJsonValue,
           manuallyMapped: true,
         },
         create: {
           productMappingId,
           supplierVariantId,
           retailerVariantId,
-          supplierOptions: supplierVariant.options,
-          retailerOptions: retailerVariant.options,
+          supplierOptions: supplierVariant.options as unknown as Prisma.InputJsonValue,
+          retailerOptions: retailerVariant.options as unknown as Prisma.InputJsonValue,
           manuallyMapped: true,
         },
       });
