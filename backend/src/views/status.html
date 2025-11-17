@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartrel Status</title>
+  <meta name="description" content="Real-time status and uptime monitoring for Cartrel platform">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 32px;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .overall-status {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 20px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .status-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .status-icon.operational {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-icon.degraded {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-icon.down {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .status-text {
+      flex: 1;
+    }
+
+    .status-text h2 {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .status-text p {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .components {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .components h3 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .component {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .component:last-child {
+      border-bottom: none;
+    }
+
+    .component-name {
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .component-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .component-status .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .component-status .dot.operational {
+      background: #28a745;
+    }
+
+    .component-status .dot.degraded {
+      background: #ffc107;
+    }
+
+    .component-status .dot.down {
+      background: #dc3545;
+    }
+
+    .incidents {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .incidents h3 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .incident {
+      padding: 20px;
+      border-left: 4px solid #ffc107;
+      background: #fffbf0;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+
+    .incident.resolved {
+      border-left-color: #28a745;
+      background: #f0f8f0;
+    }
+
+    .incident.critical {
+      border-left-color: #dc3545;
+      background: #fff0f0;
+    }
+
+    .incident-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+
+    .incident-title {
+      font-weight: 600;
+      font-size: 16px;
+      color: #2c3e50;
+    }
+
+    .incident-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .incident-badge.investigating {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .incident-badge.monitoring {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .incident-badge.resolved {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .incident-meta {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .incident-update {
+      padding: 10px 0;
+      border-top: 1px solid #e9ecef;
+      font-size: 14px;
+    }
+
+    .incident-update:first-child {
+      border-top: none;
+    }
+
+    .incident-update-time {
+      color: #666;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .no-incidents {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .no-incidents-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    .uptime-section {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .uptime-section h3 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .uptime-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .uptime-stat {
+      text-align: center;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .uptime-stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #28a745;
+      margin-bottom: 5px;
+    }
+
+    .uptime-stat-label {
+      font-size: 14px;
+      color: #666;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    footer a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .refresh-info {
+      font-size: 12px;
+      color: #999;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .overall-status {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .component {
+        flex-direction: column;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .incident-header {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Cartrel Platform Status</h1>
+      <p class="refresh-info">Last updated: <span id="lastUpdated">Loading...</span> | Auto-refresh every 60 seconds</p>
+    </header>
+
+    <div class="overall-status" id="overallStatus">
+      <div class="status-icon operational">✓</div>
+      <div class="status-text">
+        <h2>All Systems Operational</h2>
+        <p>All systems are functioning normally</p>
+      </div>
+    </div>
+
+    <div class="components">
+      <h3>System Components</h3>
+      <div id="componentsList">
+        <div class="component">
+          <span class="component-name">Authentication & Login</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+        <div class="component">
+          <span class="component-name">Product Sync</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+        <div class="component">
+          <span class="component-name">Inventory Sync</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+        <div class="component">
+          <span class="component-name">Order Forwarding</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+        <div class="component">
+          <span class="component-name">Billing & Subscriptions</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+        <div class="component">
+          <span class="component-name">Webhook Processing</span>
+          <span class="component-status">
+            <span class="dot operational"></span>
+            <span>Operational</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="uptime-section">
+      <h3>Uptime</h3>
+      <div class="uptime-stats">
+        <div class="uptime-stat">
+          <div class="uptime-stat-value" id="uptime7">99.9%</div>
+          <div class="uptime-stat-label">Last 7 Days</div>
+        </div>
+        <div class="uptime-stat">
+          <div class="uptime-stat-value" id="uptime30">99.8%</div>
+          <div class="uptime-stat-label">Last 30 Days</div>
+        </div>
+        <div class="uptime-stat">
+          <div class="uptime-stat-value" id="uptime90">99.7%</div>
+          <div class="uptime-stat-label">Last 90 Days</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="incidents">
+      <h3>Recent Incidents</h3>
+      <div id="incidentsList">
+        <div class="no-incidents">
+          <div class="no-incidents-icon">✓</div>
+          <p>No incidents reported in the last 7 days</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2025 Cartrel. All rights reserved.</p>
+      <p>Questions? <a href="mailto:support@cartrel.com">Contact Support</a></p>
+    </footer>
+  </div>
+
+  <script>
+    // Fetch status data from API
+    async function fetchStatus() {
+      try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+
+        updateOverallStatus(data.overall);
+        updateComponents(data.components);
+        updateIncidents(data.incidents);
+        updateUptime(data.uptime);
+
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+      } catch (error) {
+        console.error('Failed to fetch status:', error);
+        document.getElementById('lastUpdated').textContent = 'Failed to update';
+      }
+    }
+
+    function updateOverallStatus(overall) {
+      const statusDiv = document.getElementById('overallStatus');
+      const iconDiv = statusDiv.querySelector('.status-icon');
+      const textDiv = statusDiv.querySelector('.status-text');
+
+      iconDiv.className = 'status-icon ' + overall.status.toLowerCase();
+
+      if (overall.status === 'OPERATIONAL') {
+        iconDiv.textContent = '✓';
+        textDiv.innerHTML = '<h2>All Systems Operational</h2><p>All systems are functioning normally</p>';
+      } else if (overall.status === 'DEGRADED') {
+        iconDiv.textContent = '⚠';
+        textDiv.innerHTML = '<h2>Degraded Performance</h2><p>' + overall.message + '</p>';
+      } else if (overall.status === 'DOWN') {
+        iconDiv.textContent = '✕';
+        textDiv.innerHTML = '<h2>Service Disruption</h2><p>' + overall.message + '</p>';
+      }
+    }
+
+    function updateComponents(components) {
+      const listDiv = document.getElementById('componentsList');
+      listDiv.innerHTML = components.map(comp => `
+        <div class="component">
+          <span class="component-name">${comp.name}</span>
+          <span class="component-status">
+            <span class="dot ${comp.status.toLowerCase()}"></span>
+            <span>${comp.statusText}</span>
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function updateIncidents(incidents) {
+      const listDiv = document.getElementById('incidentsList');
+
+      if (incidents.length === 0) {
+        listDiv.innerHTML = `
+          <div class="no-incidents">
+            <div class="no-incidents-icon">✓</div>
+            <p>No incidents reported in the last 7 days</p>
+          </div>
+        `;
+        return;
+      }
+
+      listDiv.innerHTML = incidents.map(incident => {
+        const updates = incident.updates.map(update => `
+          <div class="incident-update">
+            <div class="incident-update-time">${new Date(update.createdAt).toLocaleString()}</div>
+            <div>${update.message}</div>
+          </div>
+        `).join('');
+
+        return `
+          <div class="incident ${incident.impact.toLowerCase()} ${incident.status === 'RESOLVED' ? 'resolved' : ''}">
+            <div class="incident-header">
+              <div class="incident-title">${incident.title}</div>
+              <div class="incident-badge ${incident.status.toLowerCase()}">${incident.status}</div>
+            </div>
+            <div class="incident-meta">
+              ${incident.component} · Started ${new Date(incident.createdAt).toLocaleString()}
+              ${incident.resolvedAt ? ' · Resolved ' + new Date(incident.resolvedAt).toLocaleString() : ''}
+            </div>
+            ${updates}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateUptime(uptime) {
+      document.getElementById('uptime7').textContent = uptime.last7Days + '%';
+      document.getElementById('uptime30').textContent = uptime.last30Days + '%';
+      document.getElementById('uptime90').textContent = uptime.last90Days + '%';
+    }
+
+    // Initial fetch
+    fetchStatus();
+
+    // Auto-refresh every 60 seconds
+    setInterval(fetchStatus, 60000);
+  </script>
+</body>
+</html>

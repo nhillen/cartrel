@@ -978,4 +978,135 @@ router.post('/orders/:orderId/cancel', async (req, res, next) => {
   }
 });
 
+// ============================================================================
+// MULTI-LOCATION INVENTORY (Phase 6)
+// ============================================================================
+
+/**
+ * GET /api/supplier/locations
+ * List available Shopify locations for multi-location inventory
+ */
+router.get('/locations', async (req, res, next) => {
+  try {
+    const shop = req.session?.shop;
+
+    if (!shop) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Fetch locations from Shopify
+    const { createShopifyGraphQLClient } = await import('../services/shopify');
+    const client = createShopifyGraphQLClient(shopRecord.myshopifyDomain, shopRecord.accessToken);
+
+    const query = `
+      query {
+        locations(first: 50) {
+          edges {
+            node {
+              id
+              name
+              isActive
+              address {
+                city
+                province
+                country
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response: any = await client.request(query);
+    const locations = response.data?.locations?.edges?.map((edge: any) => ({
+      id: edge.node.id,
+      name: edge.node.name,
+      isActive: edge.node.isActive,
+      address: edge.node.address,
+    })) || [];
+
+    res.json({ locations });
+  } catch (error) {
+    logger.error('Error fetching locations:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/supplier/connections/:connectionId/location
+ * Update multi-location settings for a connection
+ */
+router.patch('/connections/:connectionId/location', async (req, res, next) => {
+  try {
+    const shop = req.session?.shop;
+    const { connectionId } = req.params;
+    const { inventoryLocationId, safetyStockQuantity } = req.body;
+
+    if (!shop) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Verify connection ownership
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.supplierShopId !== shopRecord.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Validate safety stock
+    if (safetyStockQuantity !== undefined && safetyStockQuantity < 0) {
+      res.status(400).json({ error: 'Safety stock must be 0 or greater' });
+      return;
+    }
+
+    // Update connection
+    const updated = await prisma.connection.update({
+      where: { id: connectionId },
+      data: {
+        inventoryLocationId: inventoryLocationId || null,
+        safetyStockQuantity: safetyStockQuantity !== undefined ? safetyStockQuantity : connection.safetyStockQuantity,
+      },
+    });
+
+    logger.info(
+      `Multi-location settings updated for connection ${connectionId}: location=${inventoryLocationId || 'all'}, safetyStock=${updated.safetyStockQuantity}`
+    );
+
+    res.json({
+      success: true,
+      connection: {
+        id: updated.id,
+        inventoryLocationId: updated.inventoryLocationId,
+        safetyStockQuantity: updated.safetyStockQuantity,
+      },
+    });
+  } catch (error) {
+    logger.error('Error updating multi-location settings:', error);
+    next(error);
+  }
+});
+
 export default router;

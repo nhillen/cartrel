@@ -21,6 +21,7 @@ interface InventoryLevel {
 export class InventorySyncService {
   /**
    * Update supplier product inventory from webhook payload
+   * Phase 6: Captures location ID for multi-location support
    */
   static async updateSupplierInventory(
     shopId: string,
@@ -29,9 +30,10 @@ export class InventorySyncService {
     try {
       const inventoryLevel = payload as InventoryLevel;
       const inventoryItemId = inventoryLevel.inventory_item_id.toString();
+      const locationId = inventoryLevel.location_id?.toString();
 
       logger.info(
-        `Updating inventory for item ${inventoryItemId} in shop ${shopId}: ${inventoryLevel.available}`
+        `Updating inventory for item ${inventoryItemId} at location ${locationId || 'unknown'} in shop ${shopId}: ${inventoryLevel.available}`
       );
 
       // Find SupplierProduct by inventory item ID
@@ -56,8 +58,8 @@ export class InventorySyncService {
 
       logger.info(`Updated ${updated.count} supplier products with new inventory`);
 
-      // Propagate to retailers
-      await this.propagateInventoryToRetailers(shopId, inventoryItemId);
+      // Propagate to retailers (with location filter)
+      await this.propagateInventoryToRetailers(shopId, inventoryItemId, locationId);
     } catch (error) {
       logger.error(`Error updating supplier inventory:`, error);
       throw error;
@@ -66,10 +68,12 @@ export class InventorySyncService {
 
   /**
    * Propagate inventory changes to connected retailers
+   * Phase 6: Supports multi-location and safety stock
    */
   static async propagateInventoryToRetailers(
     shopId: string,
-    shopifyVariantId: string
+    shopifyVariantId: string,
+    locationId?: string
   ): Promise<void> {
     try {
       // Find the supplier product
@@ -115,10 +119,34 @@ export class InventorySyncService {
       // Update each retailer's inventory
       for (const mapping of supplierProduct.productMappings) {
         try {
+          // Multi-location filter: Skip if location doesn't match
+          const connection = mapping.connection;
+          if (connection.inventoryLocationId && locationId) {
+            // Extract numeric ID from Shopify GID (e.g., "gid://shopify/Location/123" -> "123")
+            const connectionLocationNumeric = connection.inventoryLocationId.split('/').pop();
+            const webhookLocationNumeric = locationId.split('/').pop();
+
+            if (connectionLocationNumeric !== webhookLocationNumeric) {
+              logger.debug(
+                `Skipping retailer ${connection.retailerShopId} - location mismatch (${connectionLocationNumeric} != ${webhookLocationNumeric})`
+              );
+              continue;
+            }
+          }
+
+          // Apply safety stock: Subtract reserved quantity
+          let availableQuantity = supplierProduct.inventoryQuantity;
+          if (connection.safetyStockQuantity > 0) {
+            availableQuantity = Math.max(0, availableQuantity - connection.safetyStockQuantity);
+            logger.debug(
+              `Safety stock applied: ${supplierProduct.inventoryQuantity} - ${connection.safetyStockQuantity} = ${availableQuantity}`
+            );
+          }
+
           await this.updateRetailerInventory(
-            mapping.connection.retailerShop,
+            connection.retailerShop,
             mapping.retailerShopifyVariantId,
-            supplierProduct.inventoryQuantity
+            availableQuantity
           );
         } catch (error) {
           logger.error(

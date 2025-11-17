@@ -19,6 +19,8 @@ import webhookRoutes from './routes/webhooks';
 import supplierRoutes from './routes/supplier';
 import retailerRoutes from './routes/retailer';
 import billingRoutes from './routes/billing';
+import statusRoutes from './routes/status';
+import adminRoutes from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeInputs } from './middleware/validation';
 import { generalApiLimiter, authLimiter, webhookLimiter } from './middleware/rateLimits';
@@ -306,6 +308,12 @@ app.use('/api/retailer', retailerRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/billing', billingRoutes); // For /billing/confirm callback
 app.use('/webhooks', webhookLimiter, webhookRoutes);
+
+// Public status page (no auth required)
+app.use('/status', statusRoutes);
+
+// Admin routes (TODO: add auth middleware before production)
+app.use('/api/admin', adminRoutes);
 
 // Bull Board for queue monitoring (development only)
 if (config.isDevelopment) {

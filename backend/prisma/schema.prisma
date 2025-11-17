@@ -123,6 +123,10 @@ model Connection {
   tierRules   Json? // Array of TierRule objects
   perksConfig Json? // Perks configuration
 
+  // Multi-location inventory (Phase 6)
+  inventoryLocationId   String? // Shopify location ID to sync from (null = all locations)
+  safetyStockQuantity   Int     @default(0) // Reserve X units (don't sync to retailer)
+
   // Status
   status      ConnectionStatus @default(PENDING_INVITE)
   inviteToken String?          @unique
@@ -617,4 +621,95 @@ model ImportBatchStatus {
   @@index([batchId])
   @@index([retailerShopId, createdAt])
   @@index([status, createdAt])
+}
+
+// ============================================================================
+// PUBLIC STATUS PAGE
+// ============================================================================
+
+enum IncidentStatus {
+  INVESTIGATING  // Issue identified, working on it
+  IDENTIFIED     // Root cause found
+  MONITORING     // Fix applied, monitoring results
+  RESOLVED       // Fully resolved
+}
+
+enum IncidentImpact {
+  NONE           // No impact (maintenance)
+  MINOR          // Minor degradation
+  MAJOR          // Significant degradation
+  CRITICAL       // Service unavailable
+}
+
+enum SystemComponent {
+  AUTHENTICATION    // Login, OAuth
+  PRODUCT_SYNC      // Product synchronization
+  INVENTORY_SYNC    // Inventory updates
+  ORDER_FORWARDING  // Order creation and tracking
+  BILLING           // Subscriptions and payments
+  WEBHOOKS          // Webhook processing
+  API               // General API
+  DATABASE          // Database performance
+}
+
+// Track platform incidents for public status page
+model Incident {
+  id          String          @id @default(cuid())
+
+  // Incident details
+  title       String          // "Shopify API Degradation"
+  component   SystemComponent // Which system is affected
+  status      IncidentStatus  @default(INVESTIGATING)
+  impact      IncidentImpact  @default(MINOR)
+
+  // Automatic vs manual
+  autoDetected Boolean        @default(false) // Auto-detected by health checks
+
+  // Timestamps
+  createdAt   DateTime        @default(now())
+  identifiedAt DateTime?      // When root cause found
+  resolvedAt  DateTime?       // When fully resolved
+
+  // Updates
+  updates     IncidentUpdate[]
+
+  @@index([status, createdAt])
+  @@index([component, status])
+  @@index([createdAt])
+}
+
+// Status updates for an incident
+model IncidentUpdate {
+  id         String   @id @default(cuid())
+
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  message    String   @db.Text // "Shopify API now at 50% capacity"
+  status     IncidentStatus    // Status at time of update
+
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId, createdAt])
+}
+
+// System health metrics (for automated incident detection)
+model SystemHealth {
+  id              String   @id @default(cuid())
+
+  component       SystemComponent
+
+  // Metrics
+  webhookQueueSize     Int?     // Bull queue size
+  webhookErrorRate     Float?   // % of failed webhooks
+  apiResponseTime      Int?     // ms
+  databaseResponseTime Int?     // ms
+
+  // Status
+  healthy         Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+
+  @@index([component, createdAt])
+  @@index([createdAt])
 }
