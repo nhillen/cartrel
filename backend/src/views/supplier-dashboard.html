@@ -507,6 +507,40 @@
 
                 <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
             </div>
+
+            <div class="card">
+                <h2>Multi-Location Inventory</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    <strong>NEW:</strong> Manage warehouse-specific inventory sync and safety stock. Configure per-connection in the Partners tab.
+                </p>
+
+                <div style="background: #F0F9FF; padding: 20px; border-radius: 8px; border-left: 4px solid #0EA5E9;">
+                    <div style="font-weight: 600; color: #0C4A6E; margin-bottom: 12px;">✨ Advanced Inventory Management</div>
+                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                        <li style="margin-bottom: 8px;">Sync from specific warehouse locations</li>
+                        <li style="margin-bottom: 8px;">Reserve safety stock (e.g., keep 10 units for emergencies)</li>
+                        <li style="margin-bottom: 8px;">Separate retail and wholesale inventory</li>
+                        <li>Location-aware sync prevents overselling</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <a href="#" onclick="showTab('partners'); return false;" class="btn btn-secondary">
+                        Configure in Partners Tab →
+                    </a>
+                </div>
+            </div>
+
+            <div class="card" style="background: #F8F9FA; border: 2px solid #E2E8F0;">
+                <h2>Platform Status</h2>
+                <p style="color: #64748B; margin-bottom: 16px;">
+                    Check real-time platform health and uptime.
+                </p>
+                <a href="/status" target="_blank" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <span>View Status Page</span>
+                    <span style="font-size: 12px;">↗</span>
+                </a>
+            </div>
         </div>
     </div>
 
