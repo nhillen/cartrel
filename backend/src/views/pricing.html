@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pricing - Cartrel | 48-74% Cheaper Than Competitors</title>
-    <meta name="description" content="Cartrel pricing starts at $15/month with a free tier. Save 48-74% vs other sync apps. One-sided billing, order forwarding included, shadow mode for risk-free migration.">
+    <title>Pricing - Cartrel | Simple, Transparent Pricing</title>
+    <meta name="description" content="Cartrel pricing starts at $15/month with a free tier. Save 48-74% vs other sync apps. One-sided billing, order forwarding included.">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -12,72 +12,55 @@
             background: #F5F5F3;
             line-height: 1.6;
         }
-        .container { max-width: 1400px; margin: 0 auto; padding: 60px 24px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 60px 24px; }
         header { background: white; border-bottom: 1px solid #E0DED8; padding: 20px 0; margin-bottom: 60px; }
-        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
         .logo { font-size: 24px; font-weight: 700; color: #214937; text-decoration: none; }
         .nav-link { color: #475569; text-decoration: none; margin-left: 24px; font-size: 15px; }
         .nav-link:hover { color: #214937; }
+
         .hero { text-align: center; margin-bottom: 60px; }
         h1 { font-size: 48px; color: #214937; margin-bottom: 16px; }
-        .tagline { font-size: 24px; color: #475569; max-width: 800px; margin: 0 auto 40px; line-height: 1.5; }
+        .tagline { font-size: 20px; color: #475569; max-width: 700px; margin: 0 auto 40px; line-height: 1.5; }
 
-        /* Competitor Comparison Banner */
-        .syncio-banner { background: linear-gradient(135deg, #1a3d2e 0%, #214937 100%); color: white; padding: 32px; border-radius: 16px; max-width: 1000px; margin: 0 auto 60px; text-align: center; }
-        .syncio-banner h2 { font-size: 32px; margin-bottom: 16px; }
-        .syncio-banner p { font-size: 18px; opacity: 0.9; line-height: 1.6; }
-        .syncio-badge { background: #F59E0B; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; display: inline-block; margin-bottom: 16px; }
-
-        .value-prop { background: #214937; color: white; padding: 24px 40px; border-radius: 12px; max-width: 900px; margin: 0 auto; text-align: center; font-size: 18px; line-height: 1.6; }
+        .value-prop { background: #214937; color: white; padding: 24px 40px; border-radius: 12px; max-width: 800px; margin: 0 auto 40px; text-align: center; font-size: 18px; line-height: 1.6; }
         .value-prop strong { display: block; font-size: 20px; margin-bottom: 8px; }
 
         /* Pricing Grid */
-        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 60px 0; }
-        .plan-card { background: white; border-radius: 16px; padding: 40px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; border: 2px solid #E0DED8; transition: all 0.3s; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin: 60px auto; max-width: 1100px; }
+        .plan-card { background: white; border-radius: 16px; padding: 40px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 2px solid #E0DED8; transition: all 0.3s; }
         .plan-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); border-color: #214937; }
-        .plan-card.featured { border-color: #214937; transform: scale(1.02); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-        .plan-badge { background: #214937; color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; margin-bottom: 16px; }
-        .plan-badge.popular { background: #F59E0B; }
-        .plan-name { font-size: 28px; color: #214937; font-weight: 700; margin-bottom: 8px; }
-        .plan-tagline { color: #64748B; font-size: 15px; margin-bottom: 24px; min-height: 45px; }
-        .plan-price { font-size: 48px; color: #0F172A; font-weight: 700; margin-bottom: 4px; }
-        .plan-price span { font-size: 18px; color: #64748B; font-weight: 400; }
-        .plan-price .old-price { font-size: 24px; text-decoration: line-through; color: #94a3b8; margin-left: 12px; }
-        .plan-subprice { color: #64748B; font-size: 14px; margin-bottom: 32px; min-height: 40px; }
-        .savings-badge { background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; display: inline-block; margin-top: 8px; }
+        .plan-card.featured { border-color: #214937; transform: scale(1.05); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+        .plan-badge { background: #F59E0B; color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; margin-bottom: 16px; }
+        .plan-name { font-size: 32px; color: #214937; font-weight: 700; margin-bottom: 8px; }
+        .plan-tagline { color: #64748B; font-size: 15px; margin-bottom: 24px; min-height: 40px; }
+        .plan-price { font-size: 56px; color: #0F172A; font-weight: 700; margin-bottom: 8px; }
+        .plan-price span { font-size: 20px; color: #64748B; font-weight: 400; }
+        .plan-subprice { color: #64748B; font-size: 14px; margin-bottom: 32px; min-height: 60px; }
+        .savings-badge { background: #10b981; color: white; padding: 6px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; display: inline-block; margin-top: 8px; }
 
         .plan-features { list-style: none; margin-bottom: 32px; }
-        .plan-features li { padding: 12px 0; border-top: 1px solid #E2E8F0; color: #475569; font-size: 15px; display: flex; align-items: flex-start; gap: 12px; }
-        .plan-features li::before { content: '✓'; color: #214937; font-weight: 700; font-size: 18px; flex-shrink: 0; }
+        .plan-features li { padding: 14px 0; border-top: 1px solid #E2E8F0; color: #475569; font-size: 15px; display: flex; align-items: flex-start; gap: 12px; }
+        .plan-features li::before { content: '✓'; color: #214937; font-weight: 700; font-size: 20px; flex-shrink: 0; }
         .plan-features .highlight { color: #214937; font-weight: 600; }
 
-        .plan-cta { background: #214937; color: white; padding: 16px 32px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
-        .plan-cta:hover { background: #1a3829; }
+        .plan-cta { background: #214937; color: white; padding: 18px 36px; border: none; border-radius: 8px; font-size: 17px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
+        .plan-cta:hover { background: #1a3829; transform: translateY(-2px); }
         .plan-cta.secondary { background: white; color: #214937; border: 2px solid #214937; }
         .plan-cta.secondary:hover { background: #F8F9FA; }
 
-        /* Annual Pricing Toggle */
-        .pricing-toggle { text-align: center; margin: 40px 0; }
-        .toggle-label { font-size: 16px; color: #475569; margin: 0 16px; }
-        .annual-badge { background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; margin-left: 8px; }
+        .all-plans-link { text-align: center; margin: 40px 0; }
+        .all-plans-link a { color: #214937; font-size: 18px; text-decoration: underline; font-weight: 600; }
+        .all-plans-link a:hover { color: #1a3829; }
 
-        /* Feature Comparison Table */
-        .feature-comparison { background: white; border-radius: 16px; padding: 48px; margin: 60px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .feature-comparison h2 { font-size: 32px; color: #214937; margin-bottom: 32px; text-align: center; }
-        .comparison-table { width: 100%; border-collapse: collapse; }
-        .comparison-table th { background: #F8F9FA; padding: 16px; text-align: left; font-weight: 600; color: #214937; border-bottom: 2px solid #E2E8F0; }
-        .comparison-table td { padding: 16px; border-bottom: 1px solid #E2E8F0; }
-        .comparison-table tr:hover { background: #F8F9FA; }
-        .check-green { color: #10b981; font-weight: 700; font-size: 20px; }
-        .check-red { color: #ef4444; font-weight: 700; font-size: 20px; }
-        .advantage-cartrel { background: #d1fae5; }
-
-        .retailer-callout { background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 40px; border-radius: 16px; text-align: center; margin: 60px 0; border: 2px solid #0EA5E9; }
-        .retailer-callout h2 { color: #0C4A6E; font-size: 32px; margin-bottom: 16px; }
-        .retailer-callout p { color: #075985; font-size: 18px; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+        .retailer-callout { background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%); padding: 48px; border-radius: 16px; text-align: center; margin: 60px 0; border: 2px solid #0EA5E9; }
+        .retailer-callout h2 { color: #0C4A6E; font-size: 36px; margin-bottom: 16px; }
+        .retailer-callout p { color: #075985; font-size: 19px; max-width: 700px; margin: 0 auto; line-height: 1.7; }
 
         .add-ons { background: white; border-radius: 16px; padding: 48px; margin: 60px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .add-ons h2 { font-size: 32px; color: #214937; margin-bottom: 32px; text-align: center; }
+        .add-ons h2 { font-size: 32px; color: #214937; margin-bottom: 16px; text-align: center; }
+        .add-ons p { text-align: center; color: #64748B; margin-bottom: 32px; }
         .add-on-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
         .add-on-card { background: #F8F9FA; padding: 32px; border-radius: 12px; text-align: center; }
         .add-on-card h3 { font-size: 20px; color: #214937; margin-bottom: 12px; }
@@ -86,16 +69,14 @@
 
         footer { text-align: center; padding: 40px 20px; color: #64748B; border-top: 1px solid #E0DED8; background: white; margin-top: 60px; }
 
-        @media (max-width: 1200px) {
-            .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1024px) {
+            .pricing-grid { grid-template-columns: 1fr; max-width: 500px; }
+            .plan-card.featured { transform: scale(1); }
         }
         @media (max-width: 768px) {
             h1 { font-size: 36px; }
             .tagline { font-size: 18px; }
-            .pricing-grid { grid-template-columns: 1fr; }
             .add-on-grid { grid-template-columns: 1fr; }
-            .comparison-table { font-size: 14px; }
-            .comparison-table th, .comparison-table td { padding: 12px 8px; }
         }
     </style>
 </head>
@@ -105,117 +86,67 @@
             <a href="/" class="logo">Cartrel</a>
             <nav>
                 <a href="/" class="nav-link">Home</a>
+                <a href="/features" class="nav-link">Features</a>
                 <a href="/pricing" class="nav-link">Pricing</a>
-                <a href="https://github.com/nhillen/cartrel" class="nav-link">Docs</a>
             </nav>
         </div>
     </header>
 
     <div class="container">
         <div class="hero">
-            <h1>Simple Pricing That Beats the Competition</h1>
+            <h1>Simple, Transparent Pricing</h1>
             <p class="tagline">
-                Save 48-74% vs other sync apps. One-sided billing. Order forwarding included. Shadow Mode for risk-free migration.
+                Start free, scale as you grow. No GMV fees, no commission on reorders. One flat price, all features included.
             </p>
-        </div>
-
-        <!-- Competitor Comparison Banner -->
-        <div class="syncio-banner">
-            <div class="syncio-badge">🚀 BETTER ALTERNATIVE</div>
-            <h2>Migrate from Other Apps & Save $528/Year</h2>
-            <p>Same features, better pricing, zero-downtime migration with Shadow Mode. Test Cartrel alongside your current app before switching.</p>
         </div>
 
         <div class="value-prop">
             <strong>Retailers are always free. Only suppliers pay.</strong>
-            No GMV cut. No commission on reorders. As your wholesale grows, your margins stay yours.
-        </div>
-
-        <!-- Annual Pricing Savings -->
-        <div class="pricing-toggle">
-            <span class="toggle-label">💰 Pay annually and get 2 months free <span class="annual-badge">16.7% OFF</span></span>
+            No contracts, cancel anytime. Pay annually and save 16.7% (2 months free).
         </div>
 
         <div class="pricing-grid">
             <!-- FREE -->
             <div class="plan-card">
                 <div class="plan-name">Free</div>
-                <div class="plan-tagline">Test Cartrel with zero risk</div>
-                <div class="plan-price">$0<span>/month</span></div>
-                <div class="plan-subprice">Perfect for testing before you commit</div>
+                <div class="plan-tagline">Perfect for testing</div>
+                <div class="plan-price">$0<span>/mo</span></div>
+                <div class="plan-subprice">
+                    Forever free<br>
+                    No credit card required
+                </div>
                 <ul class="plan-features">
                     <li>3 supplier connections</li>
                     <li>25 products</li>
                     <li>10 orders/month</li>
-                    <li>Basic sync (products, inventory)</li>
+                    <li>Basic product sync</li>
+                    <li>Inventory sync</li>
                     <li>Shadow Mode testing</li>
                 </ul>
                 <a href="https://apps.shopify.com/cartrel" class="plan-cta secondary">Get Started Free</a>
             </div>
 
-            <!-- STARTER -->
-            <div class="plan-card">
-                <div class="plan-name">Starter</div>
-                <div class="plan-tagline">For small brands leaving marketplaces</div>
-                <div class="plan-price">$15<span>/month</span></div>
+            <!-- PRO (Most Popular) -->
+            <div class="plan-card featured">
+                <div class="plan-badge">Most Popular</div>
+                <div class="plan-name">Pro</div>
+                <div class="plan-tagline">For established wholesale</div>
+                <div class="plan-price">$49<span>/mo</span></div>
                 <div class="plan-subprice">
-                    Annual: $150/year (save $30)<br>
-                    <span class="old-price">Competitors: $29/mo</span>
-                    <div class="savings-badge">Save 48%</div>
+                    $490/year (save $98)<br>
+                    <span class="savings-badge">Save 62% vs competitors</span>
                 </div>
                 <ul class="plan-features">
-                    <li>5 connections</li>
-                    <li>500 products</li>
-                    <li>100 orders/month</li>
+                    <li class="highlight">20 connections</li>
+                    <li class="highlight">5,000 products</li>
+                    <li class="highlight">800 orders/month</li>
                     <li>Field-level sync control</li>
                     <li>Order forwarding included</li>
                     <li>30-day rollback</li>
-                    <li>Import preview</li>
-                </ul>
-                <a href="https://apps.shopify.com/cartrel" class="plan-cta">Start Free Trial</a>
-            </div>
-
-            <!-- CORE -->
-            <div class="plan-card">
-                <div class="plan-name">Core</div>
-                <div class="plan-tagline">Growing wholesale network</div>
-                <div class="plan-price">$29<span>/month</span></div>
-                <div class="plan-subprice">
-                    Annual: $290/year (save $58)<br>
-                    <span class="old-price">Competitors: $59/mo</span>
-                    <div class="savings-badge">Save 51%</div>
-                </div>
-                <ul class="plan-features">
-                    <li>10 connections</li>
-                    <li>1,500 products</li>
-                    <li>300 orders/month</li>
-                    <li class="highlight">Variant mapping</li>
-                    <li class="highlight">Conflict resolution</li>
-                    <li class="highlight">Health monitoring</li>
-                    <li>All Starter features</li>
-                </ul>
-                <a href="https://apps.shopify.com/cartrel" class="plan-cta">Start Free Trial</a>
-            </div>
-
-            <!-- PRO -->
-            <div class="plan-card featured">
-                <div class="plan-badge popular">Most Popular</div>
-                <div class="plan-name">Pro</div>
-                <div class="plan-tagline">Established wholesale business</div>
-                <div class="plan-price">$49<span>/month</span></div>
-                <div class="plan-subprice">
-                    Annual: $490/year (save $98)<br>
-                    <span class="old-price">Competitors: $129/mo</span>
-                    <div class="savings-badge">Save 62%</div>
-                </div>
-                <ul class="plan-features">
-                    <li>20 connections</li>
-                    <li>5,000 products</li>
-                    <li>800 orders/month</li>
-                    <li class="highlight">Async imports (1000+ products)</li>
-                    <li class="highlight">Multi-location support</li>
-                    <li class="highlight">Advanced reporting</li>
-                    <li>All Core features</li>
+                    <li>Import preview & diffs</li>
+                    <li>Variant mapping</li>
+                    <li>Conflict resolution</li>
+                    <li>Health monitoring</li>
                 </ul>
                 <a href="https://apps.shopify.com/cartrel" class="plan-cta">Start Free Trial</a>
             </div>
@@ -223,66 +154,50 @@
             <!-- GROWTH -->
             <div class="plan-card">
                 <div class="plan-name">Growth</div>
-                <div class="plan-tagline">Large wholesale operations</div>
-                <div class="plan-price">$99<span>/month</span></div>
+                <div class="plan-tagline">For large operations</div>
+                <div class="plan-price">$99<span>/mo</span></div>
                 <div class="plan-subprice">
-                    Annual: $990/year (save $198)<br>
-                    <span class="old-price">Competitors: $299/mo</span>
-                    <div class="savings-badge">Save 67%</div>
+                    $990/year (save $198)<br>
+                    <span class="savings-badge">Save 67% vs competitors</span>
                 </div>
                 <ul class="plan-features">
-                    <li>40 connections</li>
-                    <li>20,000 products</li>
-                    <li>2,000 orders/month</li>
-                    <li class="highlight">Priority support</li>
-                    <li class="highlight">Custom integrations</li>
-                    <li class="highlight">Dedicated onboarding</li>
-                    <li>All Pro features</li>
+                    <li class="highlight">40 connections</li>
+                    <li class="highlight">20,000 products</li>
+                    <li class="highlight">2,000 orders/month</li>
+                    <li>Everything in Pro, plus:</li>
+                    <li>Priority support</li>
+                    <li>Custom integrations</li>
+                    <li>Dedicated onboarding</li>
+                    <li>Multi-location inventory</li>
+                    <li>Order routing rules</li>
                 </ul>
                 <a href="https://apps.shopify.com/cartrel" class="plan-cta">Start Free Trial</a>
             </div>
+        </div>
 
-            <!-- SCALE -->
-            <div class="plan-card">
-                <div class="plan-name">Scale</div>
-                <div class="plan-tagline">Enterprise wholesale networks</div>
-                <div class="plan-price">$199<span>/month</span></div>
-                <div class="plan-subprice">
-                    Annual: $1,990/year (save $398)<br>
-                    <span class="old-price">Competitors: Custom</span>
-                    <div class="savings-badge">Save 74%+</div>
-                </div>
-                <ul class="plan-features">
-                    <li>80 connections</li>
-                    <li>100,000 products</li>
-                    <li>5,000 orders/month</li>
-                    <li class="highlight">White-label options</li>
-                    <li class="highlight">Custom SLAs</li>
-                    <li class="highlight">API access</li>
-                    <li>All Growth features</li>
-                </ul>
-                <a href="mailto:hello@cartrel.com" class="plan-cta secondary">Contact Sales</a>
-            </div>
+        <div class="all-plans-link">
+            <a href="/features">See all 6 plans & detailed feature comparison →</a>
         </div>
 
         <!-- Add-ons -->
         <div class="add-ons">
-            <h2>Add-Ons (Available on All Paid Plans)</h2>
+            <h2>Add-Ons</h2>
+            <p>Need more capacity? Add-ons available on all paid plans</p>
             <div class="add-on-grid">
                 <div class="add-on-card">
                     <h3>Extra Connections</h3>
                     <div class="add-on-price">$30<span style="font-size: 18px; font-weight: 400;">/mo</span></div>
-                    <p class="add-on-description">Add 10 more supplier connections to any plan</p>
+                    <p class="add-on-description">+10 more supplier connections</p>
                 </div>
                 <div class="add-on-card">
                     <h3>Extra Orders</h3>
                     <div class="add-on-price">$25<span style="font-size: 18px; font-weight: 400;">/mo</span></div>
-                    <p class="add-on-description">Add 1,000 more orders/month to any plan</p>
+                    <p class="add-on-description">+1,000 more orders/month</p>
                 </div>
                 <div class="add-on-card">
                     <h3>Team Plan</h3>
                     <div class="add-on-price">$199<span style="font-size: 18px; font-weight: 400;">/mo</span></div>
-                    <p class="add-on-description">Manage 3+ shops under one account</p>
+                    <p class="add-on-description">Manage 3+ shops, pooled limits</p>
                 </div>
             </div>
         </div>
@@ -295,154 +210,14 @@
                 We only charge suppliers. Never pay to buy wholesale.
             </p>
         </div>
-
-        <!-- Feature Comparison -->
-        <div class="feature-comparison">
-            <h2>Cartrel vs Other Sync Apps: Complete Comparison</h2>
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th>Feature</th>
-                        <th>Cartrel</th>
-                        <th>Other Apps</th>
-                        <th>Advantage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="advantage-cartrel">
-                        <td>Base Price</td>
-                        <td><strong>$15/month</strong></td>
-                        <td>$29/month</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Free Tier</td>
-                        <td><span class="check-green">✓</span> Yes (3 conn, 25 prod, 10 orders)</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>One-sided Billing</td>
-                        <td><span class="check-green">✓</span> Only supplier pays</td>
-                        <td><span class="check-red">✗</span> Both sides pay</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Order Forwarding</td>
-                        <td><span class="check-green">✓</span> Included</td>
-                        <td><span class="check-red">✗</span> Extra cost</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr>
-                        <td>Automatic Inventory Sync</td>
-                        <td><span class="check-green">✓</span> Real-time</td>
-                        <td><span class="check-green">✓</span> Yes</td>
-                        <td>Tie</td>
-                    </tr>
-                    <tr>
-                        <td>Price Sync</td>
-                        <td><span class="check-green">✓</span> With markup control</td>
-                        <td><span class="check-green">✓</span> Yes</td>
-                        <td>Tie</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Field-level Sync Control</td>
-                        <td><span class="check-green">✓</span> Title, desc, images, price, inventory, tags, SEO</td>
-                        <td><span class="check-green">~</span> Limited</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Conflict Resolution</td>
-                        <td><span class="check-green">✓</span> 3 modes (SUPPLIER_WINS, RETAILER_WINS, REVIEW_QUEUE)</td>
-                        <td><span class="check-green">~</span> Limited</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>30-day Rollback</td>
-                        <td><span class="check-green">✓</span> Time-travel to any change</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Import Preview</td>
-                        <td><span class="check-green">✓</span> See diffs before importing</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Async Imports</td>
-                        <td><span class="check-green">✓</span> 1000+ products with progress tracking</td>
-                        <td><span class="check-green">~</span> Limited</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Shadow Mode (Test Migration)</td>
-                        <td><span class="check-green">✓</span> Test without disrupting current app</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Health Panel</td>
-                        <td><span class="check-green">✓</span> Webhook errors, sync issues, health score</td>
-                        <td><span class="check-green">~</span> Limited</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Public Status Page</td>
-                        <td><span class="check-green">✓</span> Transparency, uptime tracking, incident history</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Multi-Location Inventory</td>
-                        <td><span class="check-green">✓</span> Sync from specific warehouses + safety stock</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Multi-vendor Order Routing</td>
-                        <td><span class="check-green">✓</span> Auto-split orders by vendor/tag/collection</td>
-                        <td><span class="check-red">✗</span> No</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr>
-                        <td>Variant Mapping</td>
-                        <td><span class="check-green">✓</span> Auto + manual</td>
-                        <td><span class="check-green">✓</span> Yes</td>
-                        <td>Tie</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Payment Terms</td>
-                        <td><span class="check-green">✓</span> PREPAY, NET_15, NET_30, NET_60</td>
-                        <td><span class="check-green">~</span> Limited</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Annual Discount</td>
-                        <td><strong>16.7%</strong> (pay 10, get 12)</td>
-                        <td>~15%</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                    <tr class="advantage-cartrel">
-                        <td>Grandfathered Pricing</td>
-                        <td><span class="check-green">✓</span> Early customers locked in</td>
-                        <td>Unknown</td>
-                        <td><span class="check-green">✓</span> Cartrel</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div style="margin-top: 32px; text-align: center; font-size: 18px; color: #214937; font-weight: 600;">
-                <strong>Cartrel wins 16 out of 20 comparisons</strong> 🏆
-            </div>
-        </div>
     </div>
 
     <footer>
         <p>&copy; 2025 Cartrel. Direct wholesale infrastructure for Shopify.</p>
         <p style="margin-top: 12px;">
             <a href="/" style="color: #214937; margin: 0 12px;">Home</a>
+            <a href="/features" style="color: #214937; margin: 0 12px;">Features</a>
             <a href="/pricing" style="color: #214937; margin: 0 12px;">Pricing</a>
-            <a href="https://github.com/nhillen/cartrel" style="color: #214937; margin: 0 12px;">Docs</a>
             <a href="mailto:hello@cartrel.com" style="color: #214937; margin: 0 12px;">Contact</a>
         </p>
     </footer>

@@ -165,6 +165,11 @@ app.get('/pricing', (_req, res): void => {
   res.sendFile(__dirname + '/views/pricing.html');
 });
 
+// Features page
+app.get('/features', (_req, res): void => {
+  res.sendFile(__dirname + '/views/features.html');
+});
+
 // Privacy policy page
 app.get('/privacy', (_req, res): void => {
   res.sendFile(__dirname + '/views/privacy.html');

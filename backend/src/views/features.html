@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Features - Cartrel | Complete Product Sync & Order Management</title>
+    <meta name="description" content="See how Cartrel compares to other sync apps. More features, better pricing, and tools built specifically for wholesale operations.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #F5F5F3;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 60px 24px; }
+        header { background: white; border-bottom: 1px solid #E0DED8; padding: 20px 0; margin-bottom: 60px; }
+        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: 700; color: #214937; text-decoration: none; }
+        .nav-link { color: #475569; text-decoration: none; margin-left: 24px; font-size: 15px; }
+        .nav-link:hover { color: #214937; }
+
+        .hero { text-align: center; margin-bottom: 60px; }
+        h1 { font-size: 48px; color: #214937; margin-bottom: 16px; }
+        .tagline { font-size: 24px; color: #475569; max-width: 800px; margin: 0 auto 40px; line-height: 1.5; }
+
+        /* Feature Highlights */
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin: 60px 0; }
+        .feature-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .feature-icon { font-size: 48px; margin-bottom: 16px; }
+        .feature-card h3 { font-size: 24px; color: #214937; margin-bottom: 12px; }
+        .feature-card p { color: #64748B; font-size: 16px; line-height: 1.6; }
+        .feature-badge { background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; display: inline-block; margin-top: 12px; }
+
+        /* Comparison Table */
+        .comparison-section { background: white; border-radius: 16px; padding: 48px; margin: 60px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .comparison-section h2 { font-size: 36px; color: #214937; margin-bottom: 32px; text-align: center; }
+        .comparison-table { width: 100%; border-collapse: collapse; }
+        .comparison-table th { background: #F8F9FA; padding: 16px; text-align: left; font-weight: 600; color: #214937; border-bottom: 2px solid #E2E8F0; }
+        .comparison-table td { padding: 16px; border-bottom: 1px solid #E2E8F0; }
+        .comparison-table tr:hover { background: #F8F9FA; }
+        .check-green { color: #10b981; font-weight: 700; font-size: 20px; }
+        .check-red { color: #ef4444; font-weight: 700; font-size: 20px; }
+        .advantage-cartrel { background: #d1fae5; }
+
+        .cta-section { background: linear-gradient(135deg, #1a3d2e 0%, #214937 100%); color: white; padding: 60px; border-radius: 16px; text-align: center; margin: 60px 0; }
+        .cta-section h2 { font-size: 36px; margin-bottom: 16px; }
+        .cta-section p { font-size: 20px; opacity: 0.9; margin-bottom: 32px; }
+        .cta-button { background: white; color: #214937; padding: 16px 40px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+        .cta-button:hover { background: #F8F9FA; }
+
+        footer { text-align: center; padding: 40px 20px; color: #64748B; border-top: 1px solid #E0DED8; background: white; margin-top: 60px; }
+
+        @media (max-width: 1200px) {
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 36px; }
+            .tagline { font-size: 18px; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .comparison-table { font-size: 14px; }
+            .comparison-table th, .comparison-table td { padding: 12px 8px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo">Cartrel</a>
+            <nav>
+                <a href="/" class="nav-link">Home</a>
+                <a href="/features" class="nav-link">Features</a>
+                <a href="/pricing" class="nav-link">Pricing</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Built for Wholesale, Not Just Sync</h1>
+            <p class="tagline">
+                Everything you need to run wholesale operations on Shopify. Product sync, order forwarding,
+                inventory management, and tools specifically designed for B2B relationships.
+            </p>
+        </div>
+
+        <!-- Key Features Grid -->
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>Field-Level Sync Control</h3>
+                <p>Choose exactly what syncs: title, description, images, price, inventory, tags, SEO, and metafields. Mix and match for each connection.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">⏱️</div>
+                <h3>30-Day Rollback</h3>
+                <p>Accidentally sync bad data? Time-travel to any previous state within 30 days. Rollback individual fields or entire products.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">👁️</div>
+                <h3>Import Preview</h3>
+                <p>See exactly what will change before importing. Field-by-field diffs with conflict detection. No surprises.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3>Async Imports</h3>
+                <p>Import 1000+ products with real-time progress tracking. No timeouts, no browser tabs left open for hours.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🌙</div>
+                <h3>Shadow Mode</h3>
+                <p>Test Cartrel alongside your current app without disrupting operations. Zero-downtime migration when you're ready.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🏥</div>
+                <h3>Health Monitoring</h3>
+                <p>Webhook errors, sync failures, and API issues surfaced automatically. Public status page with uptime tracking and incident history.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Order Forwarding</h3>
+                <p>Orders automatically forwarded to suppliers as draft orders. Track payment terms (PREPAY, NET_15/30/60). Sync tracking back to retailer.</p>
+                <span class="feature-badge">Included Free</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🏢</div>
+                <h3>Multi-Location Inventory</h3>
+                <p>Sync from specific warehouses. Set safety stock levels. Perfect for suppliers with multiple fulfillment centers.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔀</div>
+                <h3>Multi-Vendor Order Routing</h3>
+                <p>Automatically split orders by vendor, tag, or collection. Perfect for retailers sourcing from multiple suppliers.</p>
+                <span class="feature-badge">Cartrel Advantage</span>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="comparison-section">
+            <h2>Cartrel vs Other Sync Apps</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Cartrel</th>
+                        <th>Other Apps</th>
+                        <th>Winner</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Base Price</strong></td>
+                        <td><strong>$15/month</strong></td>
+                        <td>$29/month</td>
+                        <td><span class="check-green">✓</span> Cartrel (48% cheaper)</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Free Tier</strong></td>
+                        <td><span class="check-green">✓</span> Yes (3 conn, 25 prod, 10 orders)</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>One-sided Billing</strong></td>
+                        <td><span class="check-green">✓</span> Only supplier pays</td>
+                        <td><span class="check-red">✗</span> Both sides pay</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Order Forwarding</strong></td>
+                        <td><span class="check-green">✓</span> Included</td>
+                        <td><span class="check-red">✗</span> Extra cost</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Automatic Inventory Sync</strong></td>
+                        <td><span class="check-green">✓</span> Real-time</td>
+                        <td><span class="check-green">✓</span> Yes</td>
+                        <td>Tie</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Price Sync</strong></td>
+                        <td><span class="check-green">✓</span> With markup control</td>
+                        <td><span class="check-green">✓</span> Yes</td>
+                        <td>Tie</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Field-level Sync Control</strong></td>
+                        <td><span class="check-green">✓</span> 8 toggles (title, desc, images, price, inventory, tags, SEO, metafields)</td>
+                        <td><span class="check-green">~</span> Limited</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Conflict Resolution</strong></td>
+                        <td><span class="check-green">✓</span> 3 modes (SUPPLIER_WINS, RETAILER_WINS, REVIEW_QUEUE)</td>
+                        <td><span class="check-green">~</span> Limited</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>30-day Rollback</strong></td>
+                        <td><span class="check-green">✓</span> Time-travel to any change</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Import Preview</strong></td>
+                        <td><span class="check-green">✓</span> See diffs before importing</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Async Imports</strong></td>
+                        <td><span class="check-green">✓</span> 1000+ products with progress tracking</td>
+                        <td><span class="check-green">~</span> Limited</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Shadow Mode (Test Migration)</strong></td>
+                        <td><span class="check-green">✓</span> Test without disrupting current app</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Health Monitoring</strong></td>
+                        <td><span class="check-green">✓</span> Dashboard + public status page</td>
+                        <td><span class="check-green">~</span> Limited</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Multi-Location Inventory</strong></td>
+                        <td><span class="check-green">✓</span> Sync from specific warehouses + safety stock</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Multi-vendor Order Routing</strong></td>
+                        <td><span class="check-green">✓</span> Auto-split orders by vendor/tag/collection</td>
+                        <td><span class="check-red">✗</span> No</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Variant Mapping</strong></td>
+                        <td><span class="check-green">✓</span> Auto + manual</td>
+                        <td><span class="check-green">✓</span> Yes</td>
+                        <td>Tie</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Payment Terms</strong></td>
+                        <td><span class="check-green">✓</span> PREPAY, NET_15, NET_30, NET_60</td>
+                        <td><span class="check-green">~</span> Limited</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                    <tr class="advantage-cartrel">
+                        <td><strong>Annual Discount</strong></td>
+                        <td><strong>16.7%</strong> (pay 10, get 12)</td>
+                        <td>~15%</td>
+                        <td><span class="check-green">✓</span> Cartrel</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top: 32px; text-align: center; font-size: 20px; color: #214937; font-weight: 600;">
+                <strong>Cartrel wins 14 out of 18 comparisons</strong> 🏆
+            </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta-section">
+            <h2>Ready to upgrade your wholesale operations?</h2>
+            <p>Start free, migrate risk-free with Shadow Mode, and save 48-74% vs competitors.</p>
+            <a href="https://apps.shopify.com/cartrel" class="cta-button">Get Started Free</a>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Cartrel. Direct wholesale infrastructure for Shopify.</p>
+        <p style="margin-top: 12px;">
+            <a href="/" style="color: #214937; margin: 0 12px;">Home</a>
+            <a href="/features" style="color: #214937; margin: 0 12px;">Features</a>
+            <a href="/pricing" style="color: #214937; margin: 0 12px;">Pricing</a>
+            <a href="mailto:hello@cartrel.com" style="color: #214937; margin: 0 12px;">Contact</a>
+        </p>
+    </footer>
+</body>
+</html>
