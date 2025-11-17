@@ -256,87 +256,12 @@ router.post('/order', orderLimiter, async (req, res, next) => {
       `Created PO ${po.id} from ${shop} to ${supplierShop.myshopifyDomain}`
     );
 
-    // Create draft order in supplier's Shopify with customer association
+    // Forward order to supplier's Shopify using OrderForwardingService
     try {
-      const client = createShopifyClient(
-        supplierShop.myshopifyDomain,
-        supplierShop.accessToken
-      );
+      const { OrderForwardingService } = await import('../services/OrderForwardingService');
 
-      // First, find or create a customer record for this retailer
-      let customerId: string | null = null;
-
-      try {
-        // Search for existing customer by company name
-        const searchResponse: any = await client.get({
-          path: 'customers/search',
-          query: { query: `company:${shop}` },
-        });
-
-        const existingCustomers = searchResponse.body.customers || [];
-
-        if (existingCustomers.length > 0) {
-          customerId = existingCustomers[0].id.toString();
-          logger.info(`Found existing customer ${customerId} for retailer ${shop}`);
-        } else {
-          // Create new customer record for this retailer
-          const customerData = {
-            customer: {
-              email: `orders@${shop}`,
-              first_name: shop.split('.')[0],
-              last_name: '(Retailer)',
-              note: `B2B Wholesale Customer - Retailer Shop: ${shop}`,
-              tags: 'wholesale,b2b,cartrel',
-              tax_exempt: false,
-            },
-          };
-
-          const customerResponse: any = await client.post({
-            path: 'customers',
-            data: customerData,
-          });
-
-          customerId = customerResponse.body.customer.id.toString();
-          logger.info(`Created new customer ${customerId} for retailer ${shop}`);
-        }
-      } catch (customerError) {
-        logger.warn('Could not create/find customer, creating draft order without customer:', customerError);
-        // Continue without customer if there's an error
-      }
-
-      // Build line items for REST API
-      const lineItems = items.map((item: any) => ({
-        variant_id: parseInt(item.variantId || item.id),
-        quantity: item.quantity,
-      }));
-
-      // Create draft order
-      const draftOrderData: any = {
-        draft_order: {
-          line_items: lineItems,
-          customer: customerId ? { id: parseInt(customerId) } : undefined,
-          note: `Wholesale order from ${shop} via Cartrel\nPO Number: ${poNumber}\nPO ID: ${po.id}`,
-          tags: 'cartrel,wholesale,b2b',
-          email: `orders@${shop}`,
-        },
-      };
-
-      const response: any = await client.post({
-        path: 'draft_orders',
-        data: draftOrderData,
-      });
-
-      const draftOrder = response.body.draft_order;
-
-      // Update PO with Shopify draft order ID and status to SUBMITTED
-      await prisma.purchaseOrder.update({
-        where: { id: po.id },
-        data: {
-          supplierShopifyDraftOrderId: draftOrder.id.toString(),
-          status: 'SUBMITTED',
-          submittedAt: new Date(),
-        },
-      });
+      // Create draft order in supplier's Shopify
+      const draftOrderId = await OrderForwardingService.createDraftOrderInSupplierShop(po.id);
 
       // Increment supplier's PO count for this month
       await prisma.shop.update({
@@ -349,7 +274,7 @@ router.post('/order', orderLimiter, async (req, res, next) => {
       });
 
       logger.info(
-        `Created draft order ${draftOrder.id} in supplier Shopify for PO ${po.id}. Supplier PO count: ${supplierShop.purchaseOrdersThisMonth + 1}`
+        `Draft order ${draftOrderId} created in supplier Shopify for PO ${po.id}. Supplier PO count: ${supplierShop.purchaseOrdersThisMonth + 1}`
       );
 
       // Log audit event
@@ -365,9 +290,9 @@ router.post('/order', orderLimiter, async (req, res, next) => {
       res.json({
         success: true,
         orderId: po.id,
-        draftOrderId: draftOrder.id.toString(),
-        invoiceUrl: draftOrder.invoice_url,
+        draftOrderId,
         poNumber: poNumber,
+        message: 'Order submitted successfully. Draft order created in supplier Shopify.',
       });
     } catch (shopifyError) {
       logger.error('Error creating draft order in Shopify:', shopifyError);

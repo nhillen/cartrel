@@ -4,6 +4,7 @@ import { prisma } from '../../index';
 import { WebhookTopic } from '@prisma/client';
 import { ProductSyncService } from '../../services/ProductSyncService';
 import { InventorySyncService } from '../../services/InventorySyncService';
+import { OrderForwardingService } from '../../services/OrderForwardingService';
 
 export interface WebhookJob {
   topic: WebhookTopic;
@@ -142,11 +143,78 @@ async function handleInventoryUpdate(shopId: string, payload: any) {
   logger.info(`Inventory update handled for item ${payload.inventory_item_id}`);
 }
 
-async function handleOrderUpdate(_shopId: string, _payload: any) {
-  logger.info('Order update - TO BE IMPLEMENTED IN PHASE 2');
-  // TODO Phase 2: Update PurchaseOrder status if this is a wholesale order
-  // TODO Phase 2: Sync fulfillment status
-  // TODO Phase 2: Update tracking information
+async function handleOrderUpdate(shopId: string, payload: any) {
+  logger.info(`Handling order update for shop ${shopId}`);
+
+  try {
+    const orderId = payload.id?.toString() || payload.admin_graphql_api_id;
+
+    if (!orderId) {
+      logger.error('No order ID in webhook payload');
+      return;
+    }
+
+    // Check if this is a wholesale order (has our custom attributes or tags)
+    const tags = payload.tags || '';
+    const isWholesaleOrder = tags.includes('cartrel') || tags.includes('wholesale');
+
+    if (!isWholesaleOrder) {
+      logger.info(`Order ${orderId} is not a wholesale order, skipping`);
+      return;
+    }
+
+    // Check for fulfillment updates
+    const fulfillments = payload.fulfillments || [];
+
+    if (fulfillments.length > 0) {
+      // Get the latest fulfillment
+      const latestFulfillment = fulfillments[fulfillments.length - 1];
+
+      logger.info(
+        `Order ${orderId} has fulfillment: ${latestFulfillment.status}, tracking: ${latestFulfillment.tracking_number || 'none'}`
+      );
+
+      // Sync fulfillment status to PurchaseOrder
+      await OrderForwardingService.syncFulfillmentStatus(
+        shopId,
+        orderId.split('/').pop() || orderId, // Extract numeric ID
+        latestFulfillment
+      );
+
+      logger.info(`Fulfillment synced for order ${orderId}`);
+    } else {
+      logger.info(`Order ${orderId} has no fulfillments yet`);
+    }
+
+    // Check for payment/financial status changes
+    const financialStatus = payload.financial_status;
+    if (financialStatus === 'paid') {
+      // Find the purchase order by supplier order ID
+      const po = await prisma.purchaseOrder.findFirst({
+        where: {
+          supplierShopId: shopId,
+          supplierShopifyOrderId: orderId.split('/').pop() || orderId,
+        },
+      });
+
+      if (po && po.status === 'AWAITING_PAYMENT') {
+        await prisma.purchaseOrder.update({
+          where: { id: po.id },
+          data: {
+            status: 'PAID',
+            paidAt: new Date(),
+          },
+        });
+
+        logger.info(`PurchaseOrder ${po.id} marked as PAID`);
+      }
+    }
+
+    logger.info(`Order update handled for ${orderId}`);
+  } catch (error) {
+    logger.error(`Error handling order update:`, error);
+    throw error;
+  }
 }
 
 async function handleAppUninstall(shopId: string) {

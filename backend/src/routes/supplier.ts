@@ -867,4 +867,115 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /orders/:orderId/complete - Mark order as paid and complete draft order
+ * Converts draft order to real order in supplier Shopify
+ */
+router.post('/orders/:orderId/complete', async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { shop } = req.body;
+
+    if (!shop) {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get the purchase order
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!po) {
+      res.status(404).json({ error: 'Purchase order not found' });
+      return;
+    }
+
+    // Verify this shop is the supplier
+    if (po.supplierShopId !== shopRecord.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Complete the draft order using OrderForwardingService
+    const { OrderForwardingService } = await import('../services/OrderForwardingService');
+    const realOrderId = await OrderForwardingService.completeDraftOrder(orderId);
+
+    logger.info(`Order ${orderId} completed, real order ${realOrderId} created`);
+
+    res.json({
+      success: true,
+      orderId: realOrderId,
+      message: 'Order completed successfully',
+    });
+  } catch (error) {
+    logger.error('Error completing order:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /orders/:orderId/cancel - Cancel a purchase order
+ * Cancels the draft/real order in supplier Shopify
+ */
+router.post('/orders/:orderId/cancel', async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { shop, reason } = req.body;
+
+    if (!shop) {
+      res.status(400).json({ error: 'Missing shop parameter' });
+      return;
+    }
+
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get the purchase order
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!po) {
+      res.status(404).json({ error: 'Purchase order not found' });
+      return;
+    }
+
+    // Verify this shop is the supplier
+    if (po.supplierShopId !== shopRecord.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Cancel the order using OrderForwardingService
+    const { OrderForwardingService } = await import('../services/OrderForwardingService');
+    await OrderForwardingService.cancelOrder(orderId, reason);
+
+    logger.info(`Order ${orderId} cancelled`);
+
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully',
+    });
+  } catch (error) {
+    logger.error('Error cancelling order:', error);
+    next(error);
+  }
+});
+
 export default router;
