@@ -346,7 +346,7 @@ export class ProductSnapshotService {
     value: any
   ): Promise<void> {
     // Build update based on field
-    let input: any = {};
+    const input: Record<string, any> = {};
 
     switch (field) {
       case 'title':

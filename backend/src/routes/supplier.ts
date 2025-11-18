@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
-import { createShopifyClient } from '../services/shopify';
+import { createShopifyGraphQLClient, fromShopifyGid, toShopifyGid } from '../services/shopify';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { inviteLimiter, syncLimiter } from '../middleware/rateLimits';
 
@@ -44,34 +44,50 @@ router.get('/products', async (req, res, next) => {
     }
 
     // Create Shopify client
-    const client = createShopifyClient(shop, shopRecord.accessToken);
+    const client = createShopifyGraphQLClient(shopRecord.myshopifyDomain, shopRecord.accessToken);
 
-    // Fetch products from Shopify
+    const query = `
+      query SupplierProducts($first: Int!) {
+        products(first: $first, sortKey: TITLE) {
+          edges {
+            node {
+              id
+              title
+              descriptionHtml
+              vendor
+              productType
+              images(first: 1) {
+                nodes {
+                  url
+                }
+              }
+              variants(first: 1) {
+                nodes {
+                  id
+                  price
+                  compareAtPrice
+                  inventoryQuantity
+                  sku
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
     let response;
     try {
-      response = await client.get({
-        path: 'products',
-        query: { limit: '50' },
+      response = await client.request(query, {
+        variables: { first: 50 },
       });
-    } catch (shopifyError: any) {
-      // Handle invalid/expired token
-      if (shopifyError?.response?.code === 401) {
-        logger.error(`Invalid access token for shop ${shop}, clearing token`);
-        // Clear the invalid token
-        await prisma.shop.update({
-          where: { id: shopRecord.id },
-          data: { accessToken: '' },
-        });
-        res.status(401).json({
-          error: 'Invalid access token. Please reload the page to re-authenticate.',
-          requiresReauth: true
-        });
-        return;
-      }
-      throw shopifyError;
+    } catch (error) {
+      logger.error('Error fetching products via GraphQL:', error);
+      throw error;
     }
 
-    const shopifyProducts = (response.body as any).products || [];
+    const shopifyProducts = response.data?.products?.edges?.map((edge: any) => edge.node) || [];
 
     // Get wholesale products from database (only those marked as wholesale eligible)
     const wholesaleProducts = await prisma.supplierProduct.findMany({
@@ -86,13 +102,18 @@ router.get('/products', async (req, res, next) => {
     );
 
     // Combine data
-    const products = shopifyProducts.map((p: any) => ({
-      id: p.id.toString(),
-      title: p.title,
-      price: p.variants[0]?.price || '0.00',
-      image: p.images[0]?.src || null,
-      isWholesale: wholesaleProductIds.has(p.id.toString()),
-    }));
+    const products = shopifyProducts.map((p: any) => {
+      const variant = p.variants?.nodes?.[0];
+      const image = p.images?.nodes?.[0];
+      const numericId = fromShopifyGid(p.id);
+      return {
+        id: numericId,
+        title: p.title,
+        price: variant?.price || '0.00',
+        image: image?.url || null,
+        isWholesale: wholesaleProductIds.has(numericId),
+      };
+    });
 
     logger.info(`Loaded ${products.length} products for shop: ${shop}`);
 
@@ -126,12 +147,39 @@ router.post('/products/wholesale', async (req, res, next) => {
     }
 
     // Fetch product details from Shopify
-    const client = createShopifyClient(shop, shopRecord.accessToken);
-    const response = await client.get({
-      path: `products/${productId}`,
+    const client = createShopifyGraphQLClient(shopRecord.myshopifyDomain, shopRecord.accessToken);
+    const query = `
+      query ProductDetails($id: ID!) {
+        product(id: $id) {
+          id
+          title
+          descriptionHtml
+          vendor
+          productType
+          images(first: 1) {
+            nodes {
+              url
+            }
+          }
+          variants(first: 250) {
+            nodes {
+              id
+              title
+              price
+              compareAtPrice
+              inventoryQuantity
+              sku
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await client.request(query, {
+      variables: { id: toShopifyGid('Product', productId) },
     });
 
-    const product = (response.body as any).product;
+    const product = response.data?.product;
 
     if (!product) {
       res.status(404).json({ error: 'Product not found in Shopify' });
@@ -144,37 +192,45 @@ router.post('/products/wholesale', async (req, res, next) => {
         where: {
           supplierShopId_shopifyVariantId: {
             supplierShopId: shopRecord.id,
-            shopifyVariantId: product.variants[0]?.id?.toString() || productId,
+            shopifyVariantId: product.variants?.nodes?.[0]?.id
+              ? fromShopifyGid(product.variants.nodes[0].id)
+              : productId,
           },
         },
         create: {
           supplierShopId: shopRecord.id,
           shopifyProductId: productId,
-          shopifyVariantId: product.variants[0]?.id?.toString() || productId,
+            shopifyVariantId: product.variants?.nodes?.[0]?.id
+              ? fromShopifyGid(product.variants.nodes[0].id)
+              : productId,
           title: product.title,
-          description: product.body_html || null,
+          description: product.descriptionHtml || null,
           vendor: product.vendor || null,
-          productType: product.product_type || null,
-          imageUrl: product.images?.[0]?.src || null,
-          sku: product.variants[0]?.sku || null,
-          variantTitle: product.variants[0]?.title || null,
-          wholesalePrice: parseFloat(product.variants[0]?.price || '0'),
-          compareAtPrice: product.variants[0]?.compare_at_price ? parseFloat(product.variants[0].compare_at_price) : null,
-          inventoryQuantity: product.variants[0]?.inventory_quantity || 0,
+          productType: product.productType || null,
+          imageUrl: product.images?.nodes?.[0]?.url || null,
+          sku: product.variants?.nodes?.[0]?.sku || null,
+          variantTitle: product.variants?.nodes?.[0]?.title || null,
+          wholesalePrice: parseFloat(product.variants?.nodes?.[0]?.price || '0'),
+          compareAtPrice: product.variants?.nodes?.[0]?.compareAtPrice
+            ? parseFloat(product.variants.nodes[0].compareAtPrice)
+            : null,
+          inventoryQuantity: product.variants?.nodes?.[0]?.inventoryQuantity || 0,
           isWholesaleEligible: true,
         },
         update: {
           isWholesaleEligible: true,
           title: product.title,
-          description: product.body_html || null,
+          description: product.descriptionHtml || null,
           vendor: product.vendor || null,
-          productType: product.product_type || null,
-          imageUrl: product.images?.[0]?.src || null,
-          sku: product.variants[0]?.sku || null,
-          variantTitle: product.variants[0]?.title || null,
-          wholesalePrice: parseFloat(product.variants[0]?.price || '0'),
-          compareAtPrice: product.variants[0]?.compare_at_price ? parseFloat(product.variants[0].compare_at_price) : null,
-          inventoryQuantity: product.variants[0]?.inventory_quantity || 0,
+          productType: product.productType || null,
+          imageUrl: product.images?.nodes?.[0]?.url || null,
+          sku: product.variants?.nodes?.[0]?.sku || null,
+          variantTitle: product.variants?.nodes?.[0]?.title || null,
+          wholesalePrice: parseFloat(product.variants?.nodes?.[0]?.price || '0'),
+          compareAtPrice: product.variants?.nodes?.[0]?.compareAtPrice
+            ? parseFloat(product.variants.nodes[0].compareAtPrice)
+            : null,
+          inventoryQuantity: product.variants?.nodes?.[0]?.inventoryQuantity || 0,
           lastSyncedAt: new Date(),
         },
       });
@@ -765,15 +821,41 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
     };
 
     // Fetch all products from Shopify
-    const client = createShopifyClient(shop, shopRecord.accessToken);
-    const response = await client.get({
-      path: 'products',
-      query: { limit: '250' }, // Max limit
+    const client = createShopifyGraphQLClient(shopRecord.myshopifyDomain, shopRecord.accessToken);
+    const query = `
+      query SupplierProductSync($first: Int!) {
+        products(first: $first) {
+          edges {
+            node {
+              id
+              title
+              descriptionHtml
+              vendor
+              productType
+              images(first: 1) { nodes { url } }
+              variants(first: 50) {
+                nodes {
+                  id
+                  title
+                  sku
+                  price
+                  compareAtPrice
+                  inventoryQuantity
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await client.request(query, {
+      variables: { first: 250 },
     });
 
-    const shopifyProducts = (response.body as any).products || [];
+    const shopifyProducts = response.data?.products?.edges?.map((edge: any) => edge.node) || [];
     const shopifyProductIds = new Set(
-      shopifyProducts.map((p: any) => p.id.toString())
+      shopifyProducts.map((p: any) => fromShopifyGid(p.id))
     );
 
     // Get all existing wholesale products from database
@@ -784,7 +866,7 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
       },
     });
 
-    let imported = 0;
+    const imported = 0;
     let updated = 0;
     let removed = 0;
 
@@ -793,7 +875,7 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
       if (shopifyProductIds.has(existing.shopifyProductId)) {
         // Product still exists in Shopify, update it
         const shopifyProduct = shopifyProducts.find(
-          (p: any) => p.id.toString() === existing.shopifyProductId
+          (p: any) => fromShopifyGid(p.id) === existing.shopifyProductId
         );
 
         if (shopifyProduct) {
@@ -805,30 +887,30 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
             updateData.title = shopifyProduct.title;
           }
           if (syncPrefs.syncDescription) {
-            updateData.description = shopifyProduct.body_html || null;
+            updateData.description = shopifyProduct.descriptionHtml || null;
           }
           if (syncPrefs.syncImages) {
-            updateData.imageUrl = shopifyProduct.images?.[0]?.src || null;
+            updateData.imageUrl = shopifyProduct.images?.nodes?.[0]?.url || null;
           }
           if (syncPrefs.syncPrice) {
             updateData.wholesalePrice = parseFloat(
-              shopifyProduct.variants[0]?.price || '0'
+              shopifyProduct.variants.nodes?.[0]?.price || '0'
             );
-            updateData.compareAtPrice = shopifyProduct.variants[0]
-              ?.compare_at_price
-              ? parseFloat(shopifyProduct.variants[0].compare_at_price)
+            updateData.compareAtPrice = shopifyProduct.variants.nodes?.[0]
+              ?.compareAtPrice
+              ? parseFloat(shopifyProduct.variants.nodes[0].compareAtPrice)
               : null;
           }
           if (syncPrefs.syncInventory) {
             updateData.inventoryQuantity =
-              shopifyProduct.variants[0]?.inventory_quantity || 0;
+              shopifyProduct.variants.nodes?.[0]?.inventoryQuantity || 0;
           }
 
           // Always update these metadata fields
           updateData.vendor = shopifyProduct.vendor || null;
-          updateData.productType = shopifyProduct.product_type || null;
-          updateData.sku = shopifyProduct.variants[0]?.sku || null;
-          updateData.variantTitle = shopifyProduct.variants[0]?.title || null;
+          updateData.productType = shopifyProduct.productType || null;
+          updateData.sku = shopifyProduct.variants.nodes?.[0]?.sku || null;
+          updateData.variantTitle = shopifyProduct.variants.nodes?.[0]?.title || null;
 
           await prisma.supplierProduct.updateMany({
             where: {

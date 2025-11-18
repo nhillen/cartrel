@@ -15,6 +15,7 @@ import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { getWebhookQueue, initializeQueues } from '../queues';
 import { SystemComponent } from '@prisma/client';
+import { AlertService } from './AlertService';
 
 export class HealthCheckService {
   /**
@@ -247,6 +248,11 @@ export class HealthCheckService {
         });
 
         logger.warn(`Auto-created incident: ${title}`);
+        await AlertService.notify(`🚨 ${title}`, {
+          component,
+          impact,
+          message,
+        });
       }
     } catch (error) {
       logger.error('Error creating incident:', error);
@@ -284,6 +290,9 @@ export class HealthCheckService {
         });
 
         logger.info(`Auto-resolved incident: ${incident.title}`);
+        await AlertService.notify(`✅ Incident resolved: ${incident.title}`, {
+          component: incident.component,
+        });
       }
     } catch (error) {
       logger.error('Error resolving incident:', error);

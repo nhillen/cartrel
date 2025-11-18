@@ -138,25 +138,6 @@ export function getDecryptedAccessToken(encryptedToken: string): string {
  * Create Shopify REST API client for a specific shop
  * Note: Pass the ENCRYPTED token from database - this function will decrypt it
  */
-export function createShopifyClient(shop: string, encryptedAccessToken: string) {
-  // Decrypt the access token before using it
-  const accessToken = decryptAccessToken(encryptedAccessToken);
-
-  const session = new Session({
-    id: `offline_${shop}`,
-    shop,
-    state: '',
-    isOnline: false,
-    accessToken,
-  });
-
-  return new shopify.clients.Rest({ session });
-}
-
-/**
- * Create Shopify GraphQL API client for a specific shop
- * Note: Pass the ENCRYPTED token from database - this function will decrypt it
- */
 export function createShopifyGraphQLClient(shop: string, encryptedAccessToken: string) {
   // Decrypt the access token before using it
   const accessToken = decryptAccessToken(encryptedAccessToken);
@@ -170,4 +151,14 @@ export function createShopifyGraphQLClient(shop: string, encryptedAccessToken: s
   });
 
   return new shopify.clients.Graphql({ session });
+}
+
+export function toShopifyGid(resource: 'Product' | 'ProductVariant', id: string): string {
+  return id.startsWith('gid://') ? id : `gid://shopify/${resource}/${id}`;
+}
+
+export function fromShopifyGid(gid: string | undefined | null): string {
+  if (!gid) return '';
+  const parts = gid.split('/');
+  return parts[parts.length - 1] || gid;
 }

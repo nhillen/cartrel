@@ -44,6 +44,9 @@ const envSchema = z.object({
 
   // Optional: Admin API access
   ADMIN_API_KEY: z.string().optional(),
+
+  // Optional: Alerts
+  ALERT_WEBHOOK_URL: z.string().url().optional(),
 });
 
 // Parse and validate environment variables
@@ -110,4 +113,8 @@ export const config = {
 
   // Internal admin auth
   adminApiKey: env.ADMIN_API_KEY,
+
+  alerts: env.ALERT_WEBHOOK_URL ? {
+    webhookUrl: env.ALERT_WEBHOOK_URL,
+  } : undefined,
 } as const;

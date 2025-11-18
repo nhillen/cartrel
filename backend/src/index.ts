@@ -10,6 +10,8 @@ import { PrismaClient } from '@prisma/client';
 import { createBullBoard } from '@bull-board/api';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { ExpressAdapter } from '@bull-board/express';
+import path from 'path';
+import fs from 'fs';
 
 import { config } from './config';
 import { logger } from './utils/logger';
@@ -34,6 +36,20 @@ export const prisma = new PrismaClient({
 // Initialize Express app
 const app = express();
 
+const embeddedAppBuildPath = path.join(__dirname, '../public/app');
+const embeddedAppIndexPath = path.join(embeddedAppBuildPath, 'index.html');
+const hasEmbeddedAppBundle = fs.existsSync(embeddedAppIndexPath);
+
+if (hasEmbeddedAppBundle) {
+  app.use('/app/assets', express.static(path.join(embeddedAppBuildPath, 'assets')));
+  app.get('/app', (_req, res) => {
+    res.sendFile(embeddedAppIndexPath);
+  });
+  app.get('/app/*', (_req, res) => {
+    res.sendFile(embeddedAppIndexPath);
+  });
+}
+
 // Initialize Redis client for sessions
 const redisClient = new Redis(config.redisUrl, {
   maxRetriesPerRequest: null,
@@ -57,7 +73,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com', 'unpkg.com'],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
       imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
-      connectSrc: ["'self'", 'https://cartrel.com', 'https://*.shopify.com'],
+      connectSrc: ["'self'", 'https://cartrel.com', 'https://*.shopify.com', 'https://monorail-edge.shopifysvc.com'],
       frameSrc: ["'self'", 'https://*.myshopify.com'],
       frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
     },
@@ -242,8 +258,9 @@ app.get('/', async (req, res): Promise<void> => {
   if (req.query.host && req.query.shop) {
     try {
       // Get shop from database to check role
+      const shopDomain = req.query.shop as string;
       const shop = await prisma.shop.findUnique({
-        where: { myshopifyDomain: req.query.shop as string },
+        where: { myshopifyDomain: shopDomain },
       });
 
       if (shop) {
@@ -258,12 +275,17 @@ app.get('/', async (req, res): Promise<void> => {
           return;
         }
 
-        // Serve role-specific dashboard
+        if (hasEmbeddedAppBundle) {
+          res.sendFile(embeddedAppIndexPath);
+          return;
+        }
+
+        // Fallback to legacy dashboards if bundle not built
         if (shop.role === 'SUPPLIER' || shop.role === 'BOTH') {
-          res.sendFile(__dirname + '/views/supplier-dashboard.html');
+          res.sendFile(path.join(__dirname, '/views/supplier-dashboard.html'));
           return;
         } else if (shop.role === 'RETAILER') {
-          res.sendFile(__dirname + '/views/retailer-dashboard.html');
+          res.sendFile(path.join(__dirname, '/views/retailer-dashboard.html'));
           return;
         }
       }
@@ -272,7 +294,7 @@ app.get('/', async (req, res): Promise<void> => {
     }
 
     // Fallback to generic app view
-    res.sendFile(__dirname + '/views/app.html');
+    res.sendFile(path.join(__dirname, '/views/app.html'));
     return;
   }
 

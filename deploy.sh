@@ -24,6 +24,12 @@ cd /opt/cartrel
 echo "📥 Pulling latest code..."
 git pull origin main
 
+echo "🎨 Building embedded frontend..."
+cd /opt/cartrel/frontend
+npm install
+npm run build
+cd /opt/cartrel
+
 echo "🏗️  Building Docker image..."
 docker compose -f docker-compose.prod.yml build app
 

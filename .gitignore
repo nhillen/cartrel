@@ -11,6 +11,8 @@ dist/
 build/
 .next/
 out/
+backend/public/
+!backend/public/.gitkeep
 
 # Environment variables
 .env

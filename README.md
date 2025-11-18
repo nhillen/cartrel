@@ -236,6 +236,8 @@ SHOPIFY_API_KEY=your-api-key
 SHOPIFY_API_SECRET=your-api-secret
 SHOPIFY_SCOPES=read_products,write_products,read_orders,write_orders
 APP_URL=https://your-app-url.com
+ADMIN_API_KEY=internal-admin-token
+ALERT_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
 ```
 
 ### Testing

@@ -131,6 +131,18 @@ services:
 - Instant rollback (switch nginx back)
 - Test new version before switching traffic
 
+### Embedded Frontend Build
+
+The Shopify embedded dashboard now lives in `frontend/` (Vite + Polaris). Build it before restarting the backend so Express can serve `/app`:
+
+```bash
+cd frontend
+npm install        # installs dev deps (only needed the first time)
+npm run build      # outputs to backend/public/app
+```
+
+The deploy script already runs these commands on the server. Run them locally whenever you want to preview the embedded UI via `npm run dev` on the backend.
+
 ---
 
 ## 5. Rollback Strategy

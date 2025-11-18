@@ -5,6 +5,8 @@
 
 This document provides a comprehensive overview of all Cartrel features organized by category.
 
+> **Status Legend**: ✅ GA & fully supported · 🛠️ Beta (limited partners) · 🔜 Coming Soon / scoped work
+
 ---
 
 ## 🎯 Core Value Proposition
@@ -58,10 +60,11 @@ This document provides a comprehensive overview of all Cartrel features organize
 - **Credit Limits**: Per-connection credit limits
 - **Tier System**: STANDARD, GOLD, PLATINUM with custom perks
 
-### Multi-Location Support (Phase 6)
-- **Location-Specific Sync**: Choose which warehouse syncs to which retailer
+### Multi-Location Support (Phase 6, 🛠️ Beta)
+- **Location-Specific Sync**: Choose which warehouse syncs to which retailer (beta partners only)
 - **Safety Stock**: Reserve X units (e.g., keep 10 for retail, sync rest to wholesale)
 - **Example**: NYC warehouse (100 units) - 10 safety stock = 90 units synced to East Coast retailer
+- **GA Plan**: Promote to ✅ once Shopify embedded UI ships for per-location preferences
 
 **API Endpoints**:
 - `POST /api/supplier/connection-invite` - Create invite
@@ -129,7 +132,7 @@ This document provides a comprehensive overview of all Cartrel features organize
 - **Selective Sync**: Only sync if `syncInventory=true`
 - **Change Tracking**: Updates only when quantity changes
 
-### Multi-Location Inventory (Phase 6)
+### Multi-Location Inventory (Phase 6, 🛠️ Beta)
 - **Location Filtering**: Sync only from specific supplier warehouse
 - **Safety Stock**: Reserve quantity (e.g., keep 10 units for emergencies)
 - **Channel Separation**: Keep retail and wholesale inventory separate
@@ -440,7 +443,7 @@ These features were scoped but deferred for post-launch:
 | 30-Day Rollback | Yes | No | ✅ Cartrel |
 | Import Preview | Yes | No | ✅ Cartrel |
 | Public Status Page | Yes | No | ✅ Cartrel |
-| Multi-Location Inventory | Yes | No | ✅ Cartrel |
+| Multi-Location Inventory | 🛠️ Beta | No | ✅ Cartrel* |
 | Granular Field Control | 8 fields | Limited | ✅ Cartrel |
 | Conflict Resolution | 3 modes | Limited | ✅ Cartrel |
 | Async Imports | 1000+ products | Limited | ✅ Cartrel |
@@ -448,11 +451,13 @@ These features were scoped but deferred for post-launch:
 | Payment Terms | 4 options | Limited | ✅ Cartrel |
 | Annual Discount | 16.7% | ~15% | ✅ Cartrel |
 | Grandfathering | Yes | Unknown | ✅ Cartrel |
-| Multi-vendor Routing | Yes | No | ✅ Cartrel |
+| Multi-vendor Routing | 🔜 Coming Soon | No | ✅ Cartrel† |
 | Variant Mapping | Auto + Manual | Yes | Tie |
 | Product Catalog | Yes | Yes | Tie |
 | Inventory Sync | Yes | Yes | Tie |
 | Shopify Integration | Yes | Yes | Tie |
+
+_*Beta feature available to invited partners. †Planned for GA once routing rules ship._
 
 ---
 

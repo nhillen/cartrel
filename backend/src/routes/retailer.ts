@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
 import { prisma } from '../index';
-import { createShopifyClient } from '../services/shopify';
+import { createShopifyGraphQLClient, fromShopifyGid } from '../services/shopify';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { orderLimiter } from '../middleware/rateLimits';
 
@@ -612,34 +612,57 @@ router.post('/import', async (req, res, next) => {
       retailPrice = parseFloat(markupValue);
     }
 
-    // Create product in retailer's Shopify
-    const client = createShopifyClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
-
-    const productData = {
-      product: {
-        title: supplierProduct.title,
-        body_html: supplierProduct.description || '',
-        vendor: supplierProduct.vendor || supplierShop.myshopifyDomain,
-        product_type: supplierProduct.productType || 'Wholesale',
-        tags: `cartrel,wholesale,supplier:${supplierId}`,
-        variants: [
-          {
-            price: retailPrice.toFixed(2),
-            sku: supplierProduct.sku || `WHOLESALE-${productId}`,
-            inventory_management: 'shopify',
-            inventory_quantity: 0, // Start with 0, retailer can adjust
-          },
-        ],
-        images: supplierProduct.imageUrl ? [{ src: supplierProduct.imageUrl }] : [],
-      },
+    // Create product in retailer's Shopify via GraphQL
+    const client = createShopifyGraphQLClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+    const productInput: any = {
+      title: supplierProduct.title,
+      descriptionHtml: supplierProduct.description || '',
+      vendor: supplierProduct.vendor || supplierShop.myshopifyDomain,
+      productType: supplierProduct.productType || 'Wholesale',
+      tags: [`cartrel`, `wholesale`, `supplier:${supplierId}`],
+      variants: [
+        {
+          price: retailPrice.toFixed(2),
+          sku: supplierProduct.sku || `WHOLESALE-${productId}`,
+          inventoryQuantity: 0,
+        },
+      ],
     };
 
-    const response = await client.post({
-      path: 'products',
-      data: productData,
-    });
+    if (supplierProduct.imageUrl) {
+      productInput.images = [{ src: supplierProduct.imageUrl }];
+    }
 
-    const createdProduct = (response.body as any).product;
+    const mutation = `
+      mutation importProduct($input: ProductInput!) {
+        productCreate(input: $input) {
+          product {
+            id
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const response: any = await client.request(mutation, { variables: { input: productInput } });
+    const userErrors = response.data?.productCreate?.userErrors || [];
+    if (userErrors.length > 0) {
+      throw new Error(userErrors[0].message || 'Product creation failed');
+    }
+
+    const createdProduct = response.data?.productCreate?.product;
+    const createdProductId = fromShopifyGid(createdProduct?.id);
+    const createdVariantId = fromShopifyGid(createdProduct?.variants?.edges?.[0]?.node?.id);
 
     // Create product mapping with retailer's sync preferences
     await prisma.productMapping.create({
@@ -648,8 +671,8 @@ router.post('/import', async (req, res, next) => {
         supplierProductId: supplierProduct.id,
         supplierShopifyProductId: productId,
         supplierShopifyVariantId: variantId,
-        retailerShopifyProductId: createdProduct.id.toString(),
-        retailerShopifyVariantId: createdProduct.variants[0].id.toString(),
+        retailerShopifyProductId: createdProductId,
+        retailerShopifyVariantId: createdVariantId,
         retailerMarkupType: markupType,
         retailerMarkupValue: parseFloat(markupValue),
         syncInventory,
@@ -669,7 +692,7 @@ router.post('/import', async (req, res, next) => {
         shopId: retailerShop.id,
         action: 'PRODUCT_IMPORTED',
         resourceType: 'ProductMapping',
-        resourceId: createdProduct.id.toString(),
+        resourceId: createdProductId,
         metadata: {
           supplierProductId: productId,
           markupType,
@@ -680,7 +703,7 @@ router.post('/import', async (req, res, next) => {
 
     res.json({
       success: true,
-      productId: createdProduct.id,
+      productId: createdProductId,
       retailPrice: retailPrice.toFixed(2),
     });
   } catch (error: any) {
@@ -764,40 +787,63 @@ router.post('/reimport', async (req, res, next) => {
     }
 
     // Create product in retailer's Shopify
-    const client = createShopifyClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
-
-    const productData = {
-      product: {
-        title: supplierProduct.title,
-        body_html: supplierProduct.description || '',
-        vendor: supplierProduct.vendor || supplierProduct.supplierShop.myshopifyDomain,
-        product_type: supplierProduct.productType || 'Wholesale',
-        tags: `cartrel,wholesale,supplier:${supplierProduct.supplierShopId}`,
-        variants: [
-          {
-            price: retailPrice.toFixed(2),
-            sku: supplierProduct.sku || `WHOLESALE-${supplierProduct.shopifyProductId}`,
-            inventory_management: 'shopify',
-            inventory_quantity: 0, // Start with 0, retailer can adjust
-          },
-        ],
-        images: supplierProduct.imageUrl ? [{ src: supplierProduct.imageUrl }] : [],
-      },
+    const client = createShopifyGraphQLClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+    const productInput: any = {
+      title: supplierProduct.title,
+      descriptionHtml: supplierProduct.description || '',
+      vendor: supplierProduct.vendor || supplierProduct.supplierShop.myshopifyDomain,
+      productType: supplierProduct.productType || 'Wholesale',
+      tags: [`cartrel`, `wholesale`, `supplier:${supplierProduct.supplierShopId}`],
+      variants: [
+        {
+          price: retailPrice.toFixed(2),
+          sku: supplierProduct.sku || `WHOLESALE-${supplierProduct.shopifyProductId}`,
+          inventoryQuantity: 0,
+        },
+      ],
     };
 
-    const response = await client.post({
-      path: 'products',
-      data: productData,
-    });
+    if (supplierProduct.imageUrl) {
+      productInput.images = [{ src: supplierProduct.imageUrl }];
+    }
 
-    const createdProduct = (response.body as any).product;
+    const mutation = `
+      mutation reimportProduct($input: ProductInput!) {
+        productCreate(input: $input) {
+          product {
+            id
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const response: any = await client.request(mutation, { variables: { input: productInput } });
+    const userErrors = response.data?.productCreate?.userErrors || [];
+    if (userErrors.length > 0) {
+      throw new Error(userErrors[0].message || 'Product creation failed');
+    }
+
+    const createdProduct = response.data?.productCreate?.product;
+    const createdProductId = fromShopifyGid(createdProduct?.id);
+    const createdVariantId = fromShopifyGid(createdProduct?.variants?.edges?.[0]?.node?.id);
 
     // Update product mapping with new Shopify IDs
     await prisma.productMapping.update({
       where: { id: mappingId },
       data: {
-        retailerShopifyProductId: createdProduct.id.toString(),
-        retailerShopifyVariantId: createdProduct.variants[0].id.toString(),
+        retailerShopifyProductId: createdProductId,
+        retailerShopifyVariantId: createdVariantId,
       },
     });
 
@@ -807,7 +853,7 @@ router.post('/reimport', async (req, res, next) => {
 
     res.json({
       success: true,
-      productId: createdProduct.id,
+      productId: createdProductId,
     });
   } catch (error: any) {
     logger.error('Error re-importing product:', error);
