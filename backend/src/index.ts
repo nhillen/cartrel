@@ -358,6 +358,30 @@ app.use('/status', statusRoutes);
 // Admin routes (TODO: add auth middleware before production)
 app.use('/api/admin', adminRoutes);
 
+// Test endpoint for Slack error reporting (development only)
+if (config.isDevelopment) {
+  app.get('/api/test-error', (_req, _res, next) => {
+    const error = new Error('Test error from Cartrel - Slack integration test');
+    next(error);
+  });
+}
+
+// Slack Error Reporting (Manabot) - MUST be before errorHandler
+const { slackReporter } = require('@manabot/slack-reporter');
+if (process.env.SLACK_WEBHOOK_ERROR) {
+  app.use(slackReporter({
+    webhooks: {
+      critical: process.env.SLACK_WEBHOOK_CRITICAL,
+      error: process.env.SLACK_WEBHOOK_ERROR,
+      warning: process.env.SLACK_WEBHOOK_WARNING,
+      info: process.env.SLACK_WEBHOOK_INFO
+    },
+    serviceName: 'cartrel',
+    environment: config.nodeEnv
+  }));
+  logger.info('✓ Slack error reporting enabled');
+}
+
 // Error handling
 app.use(errorHandler);
 
