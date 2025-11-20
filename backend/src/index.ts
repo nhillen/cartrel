@@ -360,7 +360,8 @@ app.use('/api/admin', adminRoutes);
 
 // Test endpoint for Slack error reporting (development only)
 if (config.isDevelopment) {
-  app.get('/api/test-error', (_req, _res, next) => {
+  app.get('/api/test-error', (_req, res, next) => {
+    res.status(500); // Set status to 500 to trigger 'error' severity
     const error = new Error('Test error from Cartrel - Slack integration test');
     next(error);
   });
