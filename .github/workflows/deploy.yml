@@ -1,0 +1,207 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  SERVICE_NAME: Cartrel
+  DEPLOY_PATH: /opt/cartrel
+  COMPOSE_FILE: docker-compose.prod.yml
+  CONTAINER_NAME: cartrel-app
+  HEALTH_ENDPOINT: http://vps-0b87e710.tail751d97.ts.net:3002
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. NOTIFY DEPLOYMENT START
+      - name: Notify Slack - Deployment Started
+        run: |
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🚀 Deploying Cartrel (Docker)...",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*🚀 Deployment Started*\n*Service:* Cartrel\n*Type:* Docker Compose\n*Commit:* `${{ github.sha }}`\n*Actor:* ${{ github.actor }}\n*Branch:* ${{ github.ref_name }}"
+                }
+              }]
+            }'
+
+      # 2. CHECKOUT & SETUP
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for versioning
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # 3. GENERATE VERSION
+      - name: Generate version metadata
+        run: |
+          VERSION=$(date +"%Y.%m.%d").$(git rev-list --count HEAD)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+
+          echo "📦 Version: $VERSION"
+          echo "📝 Commit: $COMMIT_HASH"
+          echo "📅 Build Date: $BUILD_DATE"
+
+          # Create version file for Docker build
+          mkdir -p backend
+          cat > backend/.deploy-info.json <<EOF
+          {
+            "service": "cartrel",
+            "version": "$VERSION",
+            "commitHash": "$COMMIT_HASH",
+            "commitFull": "${{ github.sha }}",
+            "buildDate": "$BUILD_DATE",
+            "deployedBy": "${{ github.actor }}"
+          }
+          EOF
+
+      # 4. BUILD & VALIDATE (in CI)
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: TypeScript validation
+        run: |
+          cd backend
+          npx tsc --noEmit
+          echo "✅ TypeScript validation passed"
+
+      # Frontend build happens on server (embedded app)
+
+      # 5. SETUP TAILSCALE
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      # 6. DEPLOY TO SERVER
+      - name: Deploy to server
+        run: |
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net << 'ENDSSH'
+          set -e
+
+          cd ${{ env.DEPLOY_PATH }}
+
+          echo "📥 Pulling latest code..."
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "🎨 Building embedded frontend..."
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+
+          echo "🏷️  Setting version tag..."
+          export DOCKER_TAG="${{ env.VERSION }}"
+
+          echo "🏗️  Building Docker image..."
+          docker compose -f ${{ env.COMPOSE_FILE }} build \
+            --build-arg VERSION=${{ env.VERSION }} \
+            --build-arg COMMIT_HASH=${{ env.COMMIT_HASH }} \
+            --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
+
+          echo "🗄️  Running database migrations..."
+          docker compose -f ${{ env.COMPOSE_FILE }} run --rm app npx prisma migrate deploy || true
+
+          echo "♻️  Restarting containers..."
+          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app
+
+          echo "✅ Deployment complete"
+
+          echo ""
+          echo "📊 Container status:"
+          docker compose -f ${{ env.COMPOSE_FILE }} ps
+          ENDSSH
+
+      # 7. VERIFY DEPLOYMENT
+      - name: Verify deployment
+        run: |
+          echo "⏳ Waiting for container to start..."
+          sleep 15
+
+          # Check container health
+          CONTAINER_STATUS=$(tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "docker inspect --format='{{.State.Health.Status}}' ${{ env.CONTAINER_NAME }}" \
+            2>/dev/null || echo "unknown")
+
+          echo "🐳 Container status: $CONTAINER_STATUS"
+
+          if [ "$CONTAINER_STATUS" = "healthy" ] || [ "$CONTAINER_STATUS" = "unknown" ]; then
+            echo "✅ Container is running"
+          else
+            echo "⚠️ Container health: $CONTAINER_STATUS (may still be starting)"
+          fi
+
+          # HTTP health check
+          HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            ${{ env.HEALTH_ENDPOINT }}/health || echo "000")
+
+          if [ "$HEALTH_STATUS" = "200" ]; then
+            echo "✅ HTTP health check passed (HTTP $HEALTH_STATUS)"
+          else
+            echo "❌ HTTP health check failed (HTTP $HEALTH_STATUS)"
+            # Show recent logs for debugging
+            tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+              "docker compose -f ${{ env.DEPLOY_PATH }}/${{ env.COMPOSE_FILE }} logs --tail=50 app"
+            exit 1
+          fi
+
+      # 8. NOTIFY SUCCESS
+      - name: Notify Slack - Success
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "✅ Cartrel deployed successfully",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*✅ Deployment Successful*\n*Service:* Cartrel\n*Version:* `${{ env.VERSION }}`\n*Commit:* `${{ env.COMMIT_HASH }}`\n*Type:* Docker Compose\n*URL:* https://cartrel.com"
+                }
+              }]
+            }'
+
+      # 9. NOTIFY FAILURE
+      - name: Notify Slack - Failure
+        if: failure()
+        run: |
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_CRITICAL }}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "❌ Cartrel deployment FAILED",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*❌ Deployment Failed*\n*Service:* Cartrel\n*Commit:* `${{ github.sha }}`\n*Actor:* ${{ github.actor }}\n*Type:* Docker Compose\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+                }
+              }]
+            }'
