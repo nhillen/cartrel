@@ -76,6 +76,8 @@ app.use(helmet({
       connectSrc: ["'self'", 'https://cartrel.com', 'https://*.shopify.com', 'https://monorail-edge.shopifysvc.com'],
       frameSrc: ["'self'", 'https://*.myshopify.com'],
       frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
+      formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
+      navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
     },
   },
   crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
@@ -147,20 +149,34 @@ app.get('/exitiframe', (req, res): void => {
       return;
     }
 
-    // Render page that breaks out of iframe using window.open
+    // Render page that breaks out of iframe - use multiple methods for compatibility
     res.send(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Redirecting...</title>
+          <meta http-equiv="refresh" content="0;url=${redirectUri}">
         </head>
         <body>
           <p style="text-align: center; margin-top: 50px; font-family: sans-serif;">
             Redirecting to authentication...
           </p>
           <script>
-            // Shopify's recommended approach: use window.open with "_top" target
-            window.open("${redirectUri}", "_top");
+            // Try multiple methods to break out of iframe
+            try {
+              // Method 1: Direct assignment (most reliable)
+              if (window.top) {
+                window.top.location.href = "${redirectUri}";
+              }
+            } catch (e) {
+              // Method 2: Parent location (fallback)
+              try {
+                window.parent.location.href = "${redirectUri}";
+              } catch (e2) {
+                // Method 3: Current window (last resort)
+                window.location.href = "${redirectUri}";
+              }
+            }
           </script>
         </body>
       </html>

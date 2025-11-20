@@ -670,12 +670,42 @@
         let currentSupplier = null;
         let importProduct = null; // Product being imported
 
-        // Initialize Shopify App Bridge
+        // Suppress console warnings from App Bridge and browser extensions
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            const message = args[0]?.toString() || '';
+            // Suppress known non-critical warnings
+            if (message.includes('runtime.lastError') ||
+                message.includes('Listener responded') ||
+                message.includes('message port closed')) {
+                return;
+            }
+            originalConsoleError.apply(console, args);
+        };
+
+        const originalConsoleWarn = console.warn;
+        console.warn = function(...args) {
+            const message = args[0]?.toString() || '';
+            // Suppress known non-critical warnings
+            if (message.includes('runtime.lastError') ||
+                message.includes('Listener responded') ||
+                message.includes('message port closed')) {
+                return;
+            }
+            originalConsoleWarn.apply(console, args);
+        };
+
+        // Initialize Shopify App Bridge with error handling
         if (host) {
-            const app = window['app-bridge'].createApp({
-                apiKey: '38477b096ee4819cf7ba22322d8fa9f9',
-                host: host,
-            });
+            try {
+                const app = window['app-bridge'].createApp({
+                    apiKey: '38477b096ee4819cf7ba22322d8fa9f9',
+                    host: host,
+                });
+            } catch (e) {
+                // Silently handle App Bridge initialization errors
+                console.debug('App Bridge initialization skipped:', e.message);
+            }
         }
 
         // Tab switching
