@@ -213,7 +213,7 @@ jobs:
       - name: Notify Slack - Failure
         if: failure()
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK_CRITICAL }}" \
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
             -H 'Content-Type: application/json' \
             -d '{
               "text": "🔴 Cartrel Deployment FAILED",
