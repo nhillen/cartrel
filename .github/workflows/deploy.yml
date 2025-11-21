@@ -179,14 +179,34 @@ jobs:
           curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
             -H 'Content-Type: application/json' \
             -d '{
-              "text": "✅ Cartrel deployed successfully",
-              "blocks": [{
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*✅ Deployment Successful*\n*Service:* Cartrel\n*Version:* `${{ env.VERSION }}`\n*Commit:* `${{ env.COMMIT_HASH }}`\n*Type:* Docker Compose\n*URL:* https://cartrel.com"
+              "text": "✅ Cartrel Deployment SUCCESSFUL",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🟢 Cartrel Deployment SUCCESSFUL"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "*Status:*\n✅ Deployed"},
+                    {"type": "mrkdwn", "text": "*Type:*\nDocker Compose"},
+                    {"type": "mrkdwn", "text": "*Version:*\n`${{ env.VERSION }}`"},
+                    {"type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ env.COMMIT_HASH }}`>"},
+                    {"type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}"},
+                    {"type": "mrkdwn", "text": "*Environment:*\nProduction"}
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🌐 *Live Site:* <https://cartrel.com|Cartrel>"
+                  }
                 }
-              }]
+              ]
             }'
 
       # 9. NOTIFY FAILURE
@@ -196,12 +216,30 @@ jobs:
           curl -X POST "${{ secrets.SLACK_WEBHOOK_CRITICAL }}" \
             -H 'Content-Type: application/json' \
             -d '{
-              "text": "❌ Cartrel deployment FAILED",
-              "blocks": [{
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*❌ Deployment Failed*\n*Service:* Cartrel\n*Commit:* `${{ github.sha }}`\n*Actor:* ${{ github.actor }}\n*Type:* Docker Compose\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+              "text": "🔴 Cartrel Deployment FAILED",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔴 Cartrel Deployment FAILED"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {"type": "mrkdwn", "text": "*Status:*\n❌ Failed"},
+                    {"type": "mrkdwn", "text": "*Type:*\nDocker Compose"},
+                    {"type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ env.COMMIT_HASH }}`>"},
+                    {"type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}"}
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ *Action Required:* Manual intervention needed\n\n📋 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Deployment Logs>"
+                  }
                 }
-              }]
+              ]
             }'
