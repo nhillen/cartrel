@@ -26,6 +26,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
               "text": "🚀 Deploying Cartrel (Docker)...",
               "blocks": [{
                 "type": "section",
@@ -35,6 +36,9 @@ jobs:
                 }
               }]
             }'
+
+          THREAD_TS=$(echo "$RESPONSE" | python3 -c "import json, sys; print(json.load(sys.stdin).get('ts', ''))")
+          echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
 
       # 2. CHECKOUT & SETUP
       - name: Checkout code
@@ -182,6 +186,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+              "thread_ts": "${{ steps.slack_start.outputs.thread_ts }}",
               "text": "✅ Cartrel Deployment SUCCESSFUL",
               "blocks": [
                 {
@@ -220,6 +226,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+              "thread_ts": "${{ steps.slack_start.outputs.thread_ts }}",
               "text": "🔴 Cartrel Deployment FAILED",
               "blocks": [
                 {
