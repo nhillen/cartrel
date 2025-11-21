@@ -20,8 +20,10 @@ jobs:
     steps:
       # 1. NOTIFY DEPLOYMENT START
       - name: Notify Slack - Deployment Started
+        id: slack_start
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
+          RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
               "text": "🚀 Deploying Cartrel (Docker)...",
@@ -176,7 +178,8 @@ jobs:
       - name: Notify Slack - Success
         if: success()
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
+          RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
               "text": "✅ Cartrel Deployment SUCCESSFUL",
@@ -213,7 +216,8 @@ jobs:
       - name: Notify Slack - Failure
         if: failure()
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}" \
+          RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H 'Content-Type: application/json' \
             -d '{
               "text": "🔴 Cartrel Deployment FAILED",
@@ -243,3 +247,4 @@ jobs:
                 }
               ]
             }'
+
