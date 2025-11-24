@@ -86,7 +86,7 @@ app.use(helmet({
 
 // Security: CORS configuration
 app.use(cors({
-  origin: config.appUrl,
+  origin: [config.appUrl, 'https://admin.cartrel.com'],
   credentials: true,
 }));
 
