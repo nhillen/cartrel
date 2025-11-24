@@ -147,7 +147,7 @@ export default function DashboardClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Cartrel Admin</h1>
-            <p className="text-sm text-gray-600">Customer Success Tools</p>
+            <p className="text-sm text-gray-600">Customer Success Tools <span className="text-xs text-gray-400">v1.0.1</span></p>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/sign-in' })}
