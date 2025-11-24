@@ -405,4 +405,197 @@ router.get('/stats', async (_req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/connections
+ * List all connections
+ */
+router.get('/connections', async (req, res) => {
+  try {
+    const { status, supplier, retailer, limit = '100' } = req.query;
+
+    const where: any = {};
+
+    // Filter by status
+    if (status && typeof status === 'string') {
+      where.status = status;
+    }
+
+    // Filter by supplier domain
+    if (supplier && typeof supplier === 'string') {
+      where.supplierShop = {
+        myshopifyDomain: { contains: supplier, mode: 'insensitive' },
+      };
+    }
+
+    // Filter by retailer domain
+    if (retailer && typeof retailer === 'string') {
+      where.retailerShop = {
+        myshopifyDomain: { contains: retailer, mode: 'insensitive' },
+      };
+    }
+
+    const connections = await prisma.connection.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        paymentTermsType: true,
+        tier: true,
+        createdAt: true,
+        supplierShop: {
+          select: {
+            id: true,
+            myshopifyDomain: true,
+            companyName: true,
+          },
+        },
+        retailerShop: {
+          select: {
+            id: true,
+            myshopifyDomain: true,
+            companyName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string, 10),
+    });
+
+    res.json({ connections });
+  } catch (error) {
+    logger.error('Error listing connections:', error);
+    res.status(500).json({ error: 'Failed to list connections' });
+  }
+});
+
+/**
+ * DELETE /api/admin/connections/:connectionId
+ * Delete a connection (for UAT/testing)
+ */
+router.delete('/connections/:connectionId', async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: {
+        supplierShop: true,
+        retailerShop: true,
+      },
+    });
+
+    if (!connection) {
+      res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+
+    // Delete connection (will cascade delete product mappings)
+    await prisma.connection.delete({
+      where: { id: connectionId },
+    });
+
+    // Log audit events for both shops
+    await Promise.all([
+      prisma.auditLog.create({
+        data: {
+          shopId: connection.supplierShopId,
+          action: 'CONNECTION_TERMINATED',
+          resourceType: 'Connection',
+          resourceId: connectionId,
+          metadata: {
+            retailer: connection.retailerShop.myshopifyDomain,
+            source: 'CS_ADMIN',
+            reason: 'Deleted via CS Admin Tool',
+          },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          shopId: connection.retailerShopId,
+          action: 'CONNECTION_TERMINATED',
+          resourceType: 'Connection',
+          resourceId: connectionId,
+          metadata: {
+            supplier: connection.supplierShop.myshopifyDomain,
+            source: 'CS_ADMIN',
+            reason: 'Deleted via CS Admin Tool',
+          },
+        },
+      }),
+    ]);
+
+    logger.info(
+      `[CS ADMIN] Connection deleted: ${connection.supplierShop.myshopifyDomain} -> ${connection.retailerShop.myshopifyDomain}`
+    );
+
+    res.json({
+      success: true,
+      message: 'Connection deleted successfully',
+    });
+  } catch (error) {
+    logger.error('Error deleting connection:', error);
+    res.status(500).json({ error: 'Failed to delete connection' });
+  }
+});
+
+/**
+ * GET /api/admin/products
+ * List supplier products
+ */
+router.get('/products', async (req, res) => {
+  try {
+    const { supplier, wholesale, limit = '100' } = req.query;
+
+    const where: any = {};
+
+    // Filter by supplier domain
+    if (supplier && typeof supplier === 'string') {
+      where.supplierShop = {
+        myshopifyDomain: { contains: supplier, mode: 'insensitive' },
+      };
+    }
+
+    // Filter by wholesale eligible
+    if (wholesale && typeof wholesale === 'string') {
+      where.isWholesaleEligible = wholesale === 'true';
+    }
+
+    const products = await prisma.supplierProduct.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        sku: true,
+        wholesalePrice: true,
+        inventoryQuantity: true,
+        isWholesaleEligible: true,
+        createdAt: true,
+        supplierShop: {
+          select: {
+            myshopifyDomain: true,
+            companyName: true,
+          },
+        },
+        _count: {
+          select: {
+            productMappings: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string, 10),
+    });
+
+    const enrichedProducts = products.map((product) => ({
+      ...product,
+      mappingCount: product._count.productMappings,
+    }));
+
+    res.json({ products: enrichedProducts });
+  } catch (error) {
+    logger.error('Error listing products:', error);
+    res.status(500).json({ error: 'Failed to list products' });
+  }
+});
+
 export default router;
