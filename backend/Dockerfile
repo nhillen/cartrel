@@ -28,11 +28,11 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy only package.json (skip package-lock.json to avoid corruption issues)
+COPY package.json ./
 
-# Clean npm cache and install all dependencies (including dev)
-RUN npm cache clean --force && npm install
+# Install all dependencies (including dev)
+RUN npm install
 
 # Copy source and config
 COPY . .
@@ -55,11 +55,11 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY package*.json ./
+# Copy only package.json (skip package-lock.json to avoid corruption issues)
+COPY package.json ./
 
-# Clean npm cache and install production dependencies only
-RUN npm cache clean --force && npm install --omit=dev
+# Install production dependencies only
+RUN npm install --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
