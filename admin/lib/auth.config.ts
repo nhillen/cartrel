@@ -26,7 +26,7 @@ export const authConfig: NextAuthConfig = {
     error: '/sign-in', // Redirect errors to sign-in page
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user }) {
       // Only allow whitelisted email addresses
       if (!user.email || !ALLOWED_EMAILS.includes(user.email)) {
         console.log(`[Auth] Rejected login attempt from: ${user.email}`);
@@ -51,7 +51,7 @@ export const authConfig: NextAuthConfig = {
 
       return isLoggedIn;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;

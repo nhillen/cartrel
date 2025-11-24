@@ -263,6 +263,33 @@ This document provides a comprehensive testing plan for all features built in Ca
 
 ---
 
+## Admin Console & Billing Test Mode
+
+### Test 7.1: Billing (Shopify Test Charges)
+**Objective**: Verify billing flows use Shopify `test: true` and handle state transitions
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|----------------|--------|
+| Create test recurring charge | 1. Initiate charge with `test: true` from admin billing tab<br>2. Accept in Shopify | Charge status: ACTIVE (test)<br>Plan updated in admin | ☐ |
+| Decline test charge | 1. Initiate charge with `test: true`<br>2. Decline in Shopify | Status: DECLINED<br>Plan unchanged<br>Error toast shown | ☐ |
+| Cancel active test charge | 1. Active test charge<br>2. Cancel in Shopify | Status: CANCELLED<br>App downgrades plan to FREE | ☐ |
+| Trial end in test mode | 1. Create test charge with `trial_days`>0<br>2. Simulate trial end (Partners or wait) | Trial -> ACTIVE transition logged<br>No real billing | ☐ |
+| Frozen dev store | 1. Freeze dev store in Partners<br>2. Load admin | Billing error surfaced; plan actions blocked; guidance shown | ☐ |
+
+### Test 7.2: Admin Console (Supplier-Scoped)
+**Objective**: Verify supplier-first hierarchy and CS signals
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|----------------|--------|
+| Supplier scoping | 1. Select supplier in sidebar<br>2. View connections tab | Only connections for selected supplier shown | ☐ |
+| Product scoping | 1. Select supplier<br>2. View products tab | Only products for selected supplier shown | ☐ |
+| Plan change (audit) | 1. Change plan via billing tab (test mode)<br>2. Refresh page | Plan persists; audit note visible in backend logs | ☐ |
+| Connection delete safety | 1. Delete a connection from connections tab | Connection removed<br>UI refreshed<br>No orphaned data | ☐ |
+| CS signals | 1. Open supplier with high counts<br>2. Check header badges | Limit/health badges visible (connections/products/POs) | ☐ |
+| Toast/loader UX | 1. Trigger refresh<br>2. Trigger plan change failure | Loader shown during fetch<br>Error toast shown on failure | ☐ |
+
+---
+
 ## End-to-End Scenarios
 
 ### Scenario 1: New Supplier Onboarding
