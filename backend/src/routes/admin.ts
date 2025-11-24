@@ -1,371 +1,408 @@
 /**
- * Admin Routes
- *
- * Internal admin endpoints for:
- * - Incident management (status page)
- * - System health monitoring
- * - Manual overrides
- *
- * NOTE: These endpoints should be protected with admin authentication in production
+ * Admin routes for CS tools
+ * Protected by HTTP Basic Auth
  */
 
-import express, { NextFunction, Request, Response } from 'express';
+import { Router } from 'express';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
-import { SystemComponent } from '@prisma/client';
-import { config } from '../config';
+import { requireAdminAuth } from '../middleware/adminAuth';
+import { PLAN_LIMITS } from '../utils/planLimits';
 
-const router = express.Router();
+const router = Router();
 
-// Require admin authentication for all routes in this router
+// Apply admin auth to all routes
 router.use(requireAdminAuth);
 
 /**
- * Create a new incident (manual)
+ * GET /api/admin/shops
+ * List all shops with basic info
  */
-router.post('/incidents', async (req, res) => {
+router.get('/shops', async (req, res) => {
   try {
-    const { title, component, impact, message } = req.body;
-
-    if (!title || !component || !impact) {
-      return res.status(400).json({ error: 'Missing required fields: title, component, impact' });
-    }
-
-    // Create incident
-    const incident = await prisma.incident.create({
-      data: {
-        title,
-        component,
-        impact,
-        status: 'INVESTIGATING',
-        autoDetected: false,
-        updates: {
-          create: {
-            message: message || `Investigating ${title}`,
-            status: 'INVESTIGATING',
-          },
-        },
-      },
-      include: {
-        updates: true,
-      },
-    });
-
-    logger.info(`Manual incident created: ${incident.id} - ${title}`);
-
-    return res.json(incident);
-  } catch (error) {
-    logger.error('Error creating incident:', error);
-    return res.status(500).json({ error: 'Failed to create incident' });
-  }
-});
-
-/**
- * Add an update to an existing incident
- */
-router.post('/incidents/:incidentId/updates', async (req, res) => {
-  try {
-    const { incidentId } = req.params;
-    const { message, status } = req.body;
-
-    if (!message || !status) {
-      return res.status(400).json({ error: 'Missing required fields: message, status' });
-    }
-
-    // Verify incident exists
-    const incident = await prisma.incident.findUnique({
-      where: { id: incidentId },
-    });
-
-    if (!incident) {
-      return res.status(404).json({ error: 'Incident not found' });
-    }
-
-    // Create update
-    const update = await prisma.incidentUpdate.create({
-      data: {
-        incidentId,
-        message,
-        status,
-      },
-    });
-
-    // Update incident status
-    await prisma.incident.update({
-      where: { id: incidentId },
-      data: {
-        status,
-        identifiedAt: status === 'IDENTIFIED' && !incident.identifiedAt ? new Date() : undefined,
-      },
-    });
-
-    logger.info(`Incident update added: ${incidentId} - ${status}`);
-
-    return res.json(update);
-  } catch (error) {
-    logger.error('Error adding incident update:', error);
-    return res.status(500).json({ error: 'Failed to add update' });
-  }
-});
-
-/**
- * Resolve an incident
- */
-router.post('/incidents/:incidentId/resolve', async (req, res) => {
-  try {
-    const { incidentId } = req.params;
-    const { message } = req.body;
-
-    const incident = await prisma.incident.update({
-      where: { id: incidentId },
-      data: {
-        status: 'RESOLVED',
-        resolvedAt: new Date(),
-        updates: {
-          create: {
-            message: message || 'This incident has been resolved.',
-            status: 'RESOLVED',
-          },
-        },
-      },
-      include: {
-        updates: true,
-      },
-    });
-
-    logger.info(`Incident resolved: ${incidentId}`);
-
-    res.json(incident);
-  } catch (error) {
-    logger.error('Error resolving incident:', error);
-    res.status(500).json({ error: 'Failed to resolve incident' });
-  }
-});
-
-/**
- * List all incidents (with pagination)
- */
-router.get('/incidents', async (req, res) => {
-  try {
-    const { status, limit = 50, offset = 0 } = req.query;
+    const { search, role, plan } = req.query;
 
     const where: any = {};
-    if (status) {
-      where.status = status;
+
+    // Search by domain or company name
+    if (search && typeof search === 'string') {
+      where.OR = [
+        { myshopifyDomain: { contains: search, mode: 'insensitive' } },
+        { companyName: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    const incidents = await prisma.incident.findMany({
+    // Filter by role
+    if (role && typeof role === 'string') {
+      where.role = role;
+    }
+
+    // Filter by plan
+    if (plan && typeof plan === 'string') {
+      where.plan = plan;
+    }
+
+    const shops = await prisma.shop.findMany({
       where,
-      include: {
-        updates: {
-          orderBy: {
-            createdAt: 'desc',
+      select: {
+        id: true,
+        myshopifyDomain: true,
+        companyName: true,
+        role: true,
+        plan: true,
+        createdAt: true,
+        purchaseOrdersThisMonth: true,
+        currentPeriodStart: true,
+        _count: {
+          select: {
+            supplierConnections: true,
+            retailerConnections: true,
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: Number(limit),
-      skip: Number(offset),
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Limit to prevent huge responses
     });
 
-    const total = await prisma.incident.count({ where });
+    // Enrich with product counts for suppliers
+    const enrichedShops = await Promise.all(
+      shops.map(async (shop) => {
+        let productCount = 0;
+        if (shop.role === 'SUPPLIER' || shop.role === 'BOTH') {
+          productCount = await prisma.supplierProduct.count({
+            where: {
+              supplierShopId: shop.id,
+              isWholesaleEligible: true,
+            },
+          });
+        }
 
-    res.json({
-      incidents,
-      total,
-      limit: Number(limit),
-      offset: Number(offset),
-    });
+        return {
+          ...shop,
+          productCount,
+          connectionCount: shop._count.supplierConnections + shop._count.retailerConnections,
+        };
+      })
+    );
+
+    res.json({ shops: enrichedShops });
   } catch (error) {
-    logger.error('Error listing incidents:', error);
-    res.status(500).json({ error: 'Failed to list incidents' });
+    logger.error('Error listing shops:', error);
+    res.status(500).json({ error: 'Failed to list shops' });
   }
 });
 
 /**
- * Delete an incident (cleanup/testing)
+ * GET /api/admin/shops/:shopId
+ * Get detailed shop info
  */
-router.delete('/incidents/:incidentId', async (req, res) => {
+router.get('/shops/:shopId', async (req, res) => {
   try {
-    const { incidentId } = req.params;
+    const { shopId } = req.params;
 
-    await prisma.incident.delete({
-      where: { id: incidentId },
-    });
-
-    logger.info(`Incident deleted: ${incidentId}`);
-
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Error deleting incident:', error);
-    res.status(500).json({ error: 'Failed to delete incident' });
-  }
-});
-
-/**
- * Get system health metrics
- */
-router.get('/health/metrics', async (req, res) => {
-  try {
-    const { component, limit = 100 } = req.query;
-
-    const where: any = {};
-    if (component) {
-      where.component = component;
-    }
-
-    const metrics = await prisma.systemHealth.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: Number(limit),
-    });
-
-    res.json(metrics);
-  } catch (error) {
-    logger.error('Error fetching health metrics:', error);
-    res.status(500).json({ error: 'Failed to fetch metrics' });
-  }
-});
-
-/**
- * Record a health metric (called by automated health checks)
- */
-router.post('/health/metrics', async (req, res) => {
-  try {
-    const {
-      component,
-      webhookQueueSize,
-      webhookErrorRate,
-      apiResponseTime,
-      databaseResponseTime,
-      healthy,
-    } = req.body;
-
-    if (!component) {
-      return res.status(400).json({ error: 'Missing required field: component' });
-    }
-
-    const metric = await prisma.systemHealth.create({
-      data: {
-        component,
-        webhookQueueSize,
-        webhookErrorRate,
-        apiResponseTime,
-        databaseResponseTime,
-        healthy: healthy !== undefined ? healthy : true,
-      },
-    });
-
-    // Auto-create incident if system becomes unhealthy
-    if (!healthy) {
-      await autoCreateIncidentIfNeeded(component, {
-        webhookQueueSize,
-        webhookErrorRate,
-        apiResponseTime,
-        databaseResponseTime,
-      });
-    }
-
-    return res.json(metric);
-  } catch (error) {
-    logger.error('Error recording health metric:', error);
-    return res.status(500).json({ error: 'Failed to record metric' });
-  }
-});
-
-/**
- * Auto-create incident if health checks detect issues
- */
-async function autoCreateIncidentIfNeeded(
-  component: SystemComponent,
-  metrics: any
-): Promise<void> {
-  try {
-    // Check if there's already an active incident for this component
-    const existingIncident = await prisma.incident.findFirst({
-      where: {
-        component,
-        status: {
-          not: 'RESOLVED',
-        },
-      },
-    });
-
-    if (existingIncident) {
-      // Already tracking this issue
-      return;
-    }
-
-    // Determine issue title and impact
-    let title = '';
-    let impact: 'MINOR' | 'MAJOR' | 'CRITICAL' = 'MINOR';
-    let message = '';
-
-    if (metrics.webhookQueueSize > 1000) {
-      title = `Webhook Queue Backlog (${metrics.webhookQueueSize} items)`;
-      impact = metrics.webhookQueueSize > 5000 ? 'MAJOR' : 'MINOR';
-      message = `Webhook queue has ${metrics.webhookQueueSize} pending items. Sync delays expected.`;
-    } else if (metrics.webhookErrorRate > 0.1) {
-      title = `High Webhook Error Rate (${Math.round(metrics.webhookErrorRate * 100)}%)`;
-      impact = metrics.webhookErrorRate > 0.2 ? 'MAJOR' : 'MINOR';
-      message = `${Math.round(metrics.webhookErrorRate * 100)}% of webhooks are failing. Investigating root cause.`;
-    } else if (metrics.apiResponseTime > 5000) {
-      title = `Slow API Response Time (${metrics.apiResponseTime}ms)`;
-      impact = 'MINOR';
-      message = `API is responding slowly (${metrics.apiResponseTime}ms avg). Performance degraded.`;
-    } else if (metrics.databaseResponseTime > 1000) {
-      title = `Database Performance Degraded (${metrics.databaseResponseTime}ms)`;
-      impact = 'MINOR';
-      message = `Database queries are slow (${metrics.databaseResponseTime}ms avg). May affect performance.`;
-    }
-
-    if (title) {
-      await prisma.incident.create({
-        data: {
-          title,
-          component,
-          impact,
-          status: 'INVESTIGATING',
-          autoDetected: true,
-          updates: {
-            create: {
-              message,
-              status: 'INVESTIGATING',
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      include: {
+        supplierConnections: {
+          include: {
+            retailerShop: {
+              select: {
+                myshopifyDomain: true,
+                companyName: true,
+              },
             },
           },
         },
-      });
+        retailerConnections: {
+          include: {
+            supplierShop: {
+              select: {
+                myshopifyDomain: true,
+                companyName: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-      logger.warn(`Auto-created incident: ${title}`);
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
     }
+
+    // Get product count
+    let productCount = 0;
+    if (shop.role === 'SUPPLIER' || shop.role === 'BOTH') {
+      productCount = await prisma.supplierProduct.count({
+        where: {
+          supplierShopId: shop.id,
+          isWholesaleEligible: true,
+        },
+      });
+    }
+
+    // Get recent audit logs
+    const auditLogs = await prisma.auditLog.findMany({
+      where: { shopId: shop.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const planLimits = PLAN_LIMITS[shop.plan];
+
+    res.json({
+      shop: {
+        ...shop,
+        productCount,
+        planLimits,
+        auditLogs,
+      },
+    });
   } catch (error) {
-    logger.error('Error auto-creating incident:', error);
+    logger.error('Error getting shop:', error);
+    res.status(500).json({ error: 'Failed to get shop' });
   }
-}
+});
 
-function requireAdminAuth(req: Request, res: Response, next: NextFunction): void {
-  if (!config.adminApiKey) {
-    logger.error('ADMIN_API_KEY is not configured. Blocking admin access.');
-    res.status(503).json({ error: 'Admin API is not configured' });
-    return;
+/**
+ * PATCH /api/admin/shops/:shopId/plan
+ * Update shop plan
+ */
+router.patch('/shops/:shopId/plan', async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { plan, notes } = req.body;
+
+    if (!plan) {
+      res.status(400).json({ error: 'Plan is required' });
+      return;
+    }
+
+    // Validate plan
+    const validPlans = ['FREE', 'STARTER', 'CORE', 'PRO', 'GROWTH', 'SCALE'];
+    if (!validPlans.includes(plan)) {
+      res.status(400).json({ error: 'Invalid plan', validPlans });
+      return;
+    }
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const oldPlan = shop.plan;
+
+    // Update plan
+    const updatedShop = await prisma.shop.update({
+      where: { id: shopId },
+      data: {
+        plan,
+        pendingPlan: null,
+        pendingChargeId: null,
+      },
+    });
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shop.id,
+        action: 'TIER_UPGRADED',
+        resourceType: 'Shop',
+        resourceId: shop.id,
+        metadata: {
+          oldPlan,
+          newPlan: plan,
+          source: 'CS_ADMIN',
+          notes: notes || 'Plan changed via CS Admin Tool',
+        },
+      },
+    });
+
+    logger.info(`[CS ADMIN] Plan changed for ${shop.myshopifyDomain}: ${oldPlan} -> ${plan}`);
+
+    res.json({
+      success: true,
+      shop: updatedShop,
+      message: `Plan updated from ${oldPlan} to ${plan}`,
+    });
+  } catch (error) {
+    logger.error('Error updating plan:', error);
+    res.status(500).json({ error: 'Failed to update plan' });
   }
+});
 
-  const headerToken = req.get('x-cartrel-admin-token');
-  const bearer = req.get('authorization');
-  const bearerToken = bearer && bearer.startsWith('Bearer ') ? bearer.slice(7) : null;
-  const token = headerToken || bearerToken;
+/**
+ * POST /api/admin/shops/:shopId/reset-usage
+ * Reset monthly usage counters
+ */
+router.post('/shops/:shopId/reset-usage', async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { notes } = req.body;
 
-  if (!token || token !== config.adminApiKey) {
-    logger.warn('Admin authentication failed', { path: req.path, ip: req.ip });
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Reset usage
+    const updatedShop = await prisma.shop.update({
+      where: { id: shopId },
+      data: {
+        purchaseOrdersThisMonth: 0,
+        productSKUsThisMonth: 0,
+        currentPeriodStart: new Date(),
+      },
+    });
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shop.id,
+        action: 'TIER_UPGRADED', // Reusing this action
+        resourceType: 'Shop',
+        resourceId: shop.id,
+        metadata: {
+          action: 'USAGE_RESET',
+          source: 'CS_ADMIN',
+          notes: notes || 'Usage counters reset via CS Admin Tool',
+          previousOrders: shop.purchaseOrdersThisMonth,
+          previousProducts: shop.productSKUsThisMonth,
+        },
+      },
+    });
+
+    logger.info(`[CS ADMIN] Usage reset for ${shop.myshopifyDomain}`);
+
+    res.json({
+      success: true,
+      shop: updatedShop,
+      message: 'Usage counters reset',
+    });
+  } catch (error) {
+    logger.error('Error resetting usage:', error);
+    res.status(500).json({ error: 'Failed to reset usage' });
   }
+});
 
-  next();
-}
+/**
+ * PATCH /api/admin/shops/:shopId/role
+ * Update shop role
+ */
+router.patch('/shops/:shopId/role', async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { role, notes } = req.body;
+
+    if (!role) {
+      res.status(400).json({ error: 'Role is required' });
+      return;
+    }
+
+    // Validate role
+    const validRoles = ['SUPPLIER', 'RETAILER', 'BOTH'];
+    if (!validRoles.includes(role)) {
+      res.status(400).json({ error: 'Invalid role', validRoles });
+      return;
+    }
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const oldRole = shop.role;
+
+    // Update role
+    const updatedShop = await prisma.shop.update({
+      where: { id: shopId },
+      data: { role },
+    });
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shop.id,
+        action: 'ROLE_CHANGED',
+        resourceType: 'Shop',
+        resourceId: shop.id,
+        metadata: {
+          oldRole,
+          newRole: role,
+          source: 'CS_ADMIN',
+          notes: notes || 'Role changed via CS Admin Tool',
+        },
+      },
+    });
+
+    logger.info(`[CS ADMIN] Role changed for ${shop.myshopifyDomain}: ${oldRole} -> ${role}`);
+
+    res.json({
+      success: true,
+      shop: updatedShop,
+      message: `Role updated from ${oldRole} to ${role}`,
+    });
+  } catch (error) {
+    logger.error('Error updating role:', error);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+/**
+ * GET /api/admin/stats
+ * Get overall platform statistics
+ */
+router.get('/stats', async (_req, res) => {
+  try {
+    const [
+      totalShops,
+      totalSuppliers,
+      totalRetailers,
+      totalConnections,
+      totalProducts,
+      totalOrders,
+      shopsByPlan,
+    ] = await Promise.all([
+      prisma.shop.count(),
+      prisma.shop.count({ where: { role: { in: ['SUPPLIER', 'BOTH'] } } }),
+      prisma.shop.count({ where: { role: { in: ['RETAILER', 'BOTH'] } } }),
+      prisma.connection.count({ where: { status: 'ACTIVE' } }),
+      prisma.supplierProduct.count({ where: { isWholesaleEligible: true } }),
+      prisma.purchaseOrder.count(),
+      prisma.shop.groupBy({
+        by: ['plan'],
+        _count: true,
+      }),
+    ]);
+
+    res.json({
+      totalShops,
+      totalSuppliers,
+      totalRetailers,
+      totalConnections,
+      totalProducts,
+      totalOrders,
+      shopsByPlan: Object.fromEntries(
+        shopsByPlan.map((group) => [group.plan, group._count])
+      ),
+    });
+  } catch (error) {
+    logger.error('Error getting stats:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
 
 export default router;

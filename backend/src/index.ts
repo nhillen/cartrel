@@ -355,8 +355,13 @@ app.use('/webhooks', webhookLimiter, webhookRoutes);
 // Public status page (no auth required)
 app.use('/status', statusRoutes);
 
-// Admin routes (TODO: add auth middleware before production)
+// Admin routes (protected by HTTP Basic Auth)
 app.use('/api/admin', adminRoutes);
+
+// Admin HTML interface
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/index.html'));
+});
 
 // Test endpoint for Slack error reporting (development only)
 if (config.isDevelopment) {

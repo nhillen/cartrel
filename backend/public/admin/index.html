@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartrel CS Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-value { font-size: 32px; font-weight: bold; color: #2563eb; }
+        .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+        .search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input, select, button, textarea {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="text"] { width: 300px; margin-right: 10px; }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover { background: #1d4ed8; }
+        button.secondary {
+            background: #6b7280;
+        }
+        button.secondary:hover { background: #4b5563; }
+        button.danger {
+            background: #dc2626;
+        }
+        button.danger:hover { background: #b91c1c; }
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        tr:hover { background: #f9fafb; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge.free { background: #dbeafe; color: #1e40af; }
+        .badge.starter { background: #dcfce7; color: #166534; }
+        .badge.core { background: #fef3c7; color: #92400e; }
+        .badge.pro { background: #fce7f3; color: #9f1239; }
+        .badge.growth { background: #e0e7ff; color: #3730a3; }
+        .badge.scale { background: #f3e8ff; color: #6b21a8; }
+        .badge.supplier { background: #dbeafe; color: #1e40af; }
+        .badge.retailer { background: #dcfce7; color: #166534; }
+        .badge.both { background: #fef3c7; color: #92400e; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 { font-size: 20px; }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ Cartrel CS Admin</h1>
+        
+        <div id="error-message"></div>
+        <div id="success-message"></div>
+        
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value">-</div>
+                <div class="stat-label">Total Shops</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">-</div>
+                <div class="stat-label">Suppliers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">-</div>
+                <div class="stat-label">Retailers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">-</div>
+                <div class="stat-label">Active Connections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">-</div>
+                <div class="stat-label">Wholesale Products</div>
+            </div>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Search by shop domain or company name..." />
+            <select id="filter-role">
+                <option value="">All Roles</option>
+                <option value="SUPPLIER">Suppliers</option>
+                <option value="RETAILER">Retailers</option>
+                <option value="BOTH">Both</option>
+            </select>
+            <select id="filter-plan">
+                <option value="">All Plans</option>
+                <option value="FREE">Free</option>
+                <option value="STARTER">Starter</option>
+                <option value="CORE">Core</option>
+                <option value="PRO">Pro</option>
+                <option value="GROWTH">Growth</option>
+                <option value="SCALE">Scale</option>
+            </select>
+            <button onclick="loadShops()">Search</button>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Shop Domain</th>
+                    <th>Company</th>
+                    <th>Role</th>
+                    <th>Plan</th>
+                    <th>Products</th>
+                    <th>Connections</th>
+                    <th>Orders/Mo</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="shops-table">
+                <tr><td colspan="8" class="loading">Loading shops...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Edit Shop Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Shop</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="shop-details"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentShopId = null;
+        
+        // Load stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                
+                const stats = document.querySelectorAll('.stat-card');
+                stats[0].querySelector('.stat-value').textContent = data.totalShops;
+                stats[1].querySelector('.stat-value').textContent = data.totalSuppliers;
+                stats[2].querySelector('.stat-value').textContent = data.totalRetailers;
+                stats[3].querySelector('.stat-value').textContent = data.totalConnections;
+                stats[4].querySelector('.stat-value').textContent = data.totalProducts;
+            } catch (error) {
+                showError('Failed to load stats');
+            }
+        }
+        
+        // Load shops
+        async function loadShops() {
+            try {
+                const search = document.getElementById('search').value;
+                const role = document.getElementById('filter-role').value;
+                const plan = document.getElementById('filter-plan').value;
+                
+                const params = new URLSearchParams();
+                if (search) params.append('search', search);
+                if (role) params.append('role', role);
+                if (plan) params.append('plan', plan);
+                
+                const res = await fetch('/api/admin/shops?' + params);
+                const data = await res.json();
+                
+                const tbody = document.getElementById('shops-table');
+                if (data.shops.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No shops found</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.shops.map(shop => `
+                    <tr>
+                        <td>${shop.myshopifyDomain}</td>
+                        <td>${shop.companyName || '-'}</td>
+                        <td><span class="badge ${shop.role.toLowerCase()}">${shop.role}</span></td>
+                        <td><span class="badge ${shop.plan.toLowerCase()}">${shop.plan}</span></td>
+                        <td>${shop.productCount}</td>
+                        <td>${shop.connectionCount}</td>
+                        <td>${shop.purchaseOrdersThisMonth}</td>
+                        <td><button class="secondary" onclick="editShop('${shop.id}')">Edit</button></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showError('Failed to load shops');
+            }
+        }
+        
+        // Edit shop
+        async function editShop(shopId) {
+            try {
+                currentShopId = shopId;
+                const res = await fetch('/api/admin/shops/' + shopId);
+                const data = await res.json();
+                const shop = data.shop;
+                
+                document.getElementById('shop-details').innerHTML = `
+                    <div>
+                        <h3 style="margin-bottom: 15px;">${shop.myshopifyDomain}</h3>
+                        
+                        <div class="form-group">
+                            <label>Plan</label>
+                            <select id="edit-plan">
+                                <option value="FREE" ${shop.plan === 'FREE' ? 'selected' : ''}>Free</option>
+                                <option value="STARTER" ${shop.plan === 'STARTER' ? 'selected' : ''}>Starter</option>
+                                <option value="CORE" ${shop.plan === 'CORE' ? 'selected' : ''}>Core</option>
+                                <option value="PRO" ${shop.plan === 'PRO' ? 'selected' : ''}>Pro</option>
+                                <option value="GROWTH" ${shop.plan === 'GROWTH' ? 'selected' : ''}>Growth</option>
+                                <option value="SCALE" ${shop.plan === 'SCALE' ? 'selected' : ''}>Scale</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select id="edit-role">
+                                <option value="SUPPLIER" ${shop.role === 'SUPPLIER' ? 'selected' : ''}>Supplier</option>
+                                <option value="RETAILER" ${shop.role === 'RETAILER' ? 'selected' : ''}>Retailer</option>
+                                <option value="BOTH" ${shop.role === 'BOTH' ? 'selected' : ''}>Both</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Notes (optional)</label>
+                            <textarea id="edit-notes" placeholder="Reason for change..."></textarea>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button onclick="updatePlan()">Update Plan</button>
+                            <button class="secondary" onclick="updateRole()">Update Role</button>
+                            <button class="danger" onclick="resetUsage()">Reset Usage</button>
+                        </div>
+                        
+                        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+                        
+                        <div style="margin-top: 20px;">
+                            <strong>Current Usage:</strong><br>
+                            Products: ${shop.productCount} / ${shop.planLimits.maxProducts}<br>
+                            Connections: ${shop.supplierConnections.length + shop.retailerConnections.length} / ${shop.planLimits.maxConnections}<br>
+                            Orders this month: ${shop.purchaseOrdersThisMonth} / ${shop.planLimits.maxPurchaseOrdersPerMonth}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('edit-modal').classList.add('active');
+            } catch (error) {
+                showError('Failed to load shop details');
+            }
+        }
+        
+        async function updatePlan() {
+            const plan = document.getElementById('edit-plan').value;
+            const notes = document.getElementById('edit-notes').value;
+            
+            try {
+                const res = await fetch(`/api/admin/shops/${currentShopId}/plan`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan, notes })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showSuccess('Plan updated successfully');
+                    closeModal();
+                    loadShops();
+                    loadStats();
+                } else {
+                    showError(data.error || 'Failed to update plan');
+                }
+            } catch (error) {
+                showError('Failed to update plan');
+            }
+        }
+        
+        async function updateRole() {
+            const role = document.getElementById('edit-role').value;
+            const notes = document.getElementById('edit-notes').value;
+            
+            try {
+                const res = await fetch(`/api/admin/shops/${currentShopId}/role`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role, notes })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showSuccess('Role updated successfully');
+                    closeModal();
+                    loadShops();
+                    loadStats();
+                } else {
+                    showError(data.error || 'Failed to update role');
+                }
+            } catch (error) {
+                showError('Failed to update role');
+            }
+        }
+        
+        async function resetUsage() {
+            if (!confirm('Reset usage counters for this shop?')) return;
+            
+            const notes = document.getElementById('edit-notes').value;
+            
+            try {
+                const res = await fetch(`/api/admin/shops/${currentShopId}/reset-usage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showSuccess('Usage counters reset');
+                    closeModal();
+                    loadShops();
+                } else {
+                    showError(data.error || 'Failed to reset usage');
+                }
+            } catch (error) {
+                showError('Failed to reset usage');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+        
+        function showError(message) {
+            const el = document.getElementById('error-message');
+            el.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+        
+        function showSuccess(message) {
+            const el = document.getElementById('success-message');
+            el.innerHTML = `<div class="success">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+        
+        // Initial load
+        loadStats();
+        loadShops();
+    </script>
+</body>
+</html>
