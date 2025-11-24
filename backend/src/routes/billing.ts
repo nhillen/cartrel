@@ -204,6 +204,65 @@ router.post('/cancel', async (req, res) => {
 });
 
 /**
+ * POST /api/billing/dev-upgrade
+ * Development/UAT-only endpoint to bypass payment for testing
+ * SECURITY: Only works in non-production environments
+ */
+router.post('/dev-upgrade', async (req, res) => {
+  try {
+    // CRITICAL: Only allow in development/UAT environments
+    if (process.env.NODE_ENV === 'production') {
+      res.status(403).json({ error: 'This endpoint is disabled in production' });
+      return;
+    }
+
+    const { shop, plan } = req.body;
+
+    if (!shop || !plan) {
+      res.status(400).json({ error: 'Missing shop or plan' });
+      return;
+    }
+
+    // Validate plan
+    if (!['FREE', 'STARTER', 'CORE', 'PRO', 'GROWTH', 'SCALE'].includes(plan)) {
+      res.status(400).json({ error: 'Invalid plan' });
+      return;
+    }
+
+    // Get shop from database
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Directly update plan without billing
+    await prisma.shop.update({
+      where: { id: shopRecord.id },
+      data: {
+        plan,
+        pendingPlan: null,
+        pendingChargeId: null,
+      },
+    });
+
+    logger.info(`[DEV-ONLY] Plan changed for ${shop}: ${shopRecord.plan} -> ${plan}`);
+
+    res.json({
+      success: true,
+      message: `Plan updated to ${plan} (DEV MODE - no billing)`,
+      plan,
+    });
+  } catch (error) {
+    logger.error('Error in dev upgrade:', error);
+    res.status(500).json({ error: 'Failed to update plan' });
+  }
+});
+
+/**
  * GET /api/billing/status
  * Get current subscription status
  */

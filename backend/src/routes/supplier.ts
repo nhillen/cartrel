@@ -187,6 +187,39 @@ router.post('/products/wholesale', async (req, res, next) => {
     }
 
     if (isWholesale) {
+      // Check if adding this product would exceed plan limits
+      const currentWholesaleCount = await prisma.supplierProduct.count({
+        where: {
+          supplierShopId: shopRecord.id,
+          isWholesaleEligible: true,
+        },
+      });
+
+      // Only check limit if product is not already wholesale
+      const existingProduct = await prisma.supplierProduct.findFirst({
+        where: {
+          supplierShopId: shopRecord.id,
+          shopifyProductId: productId,
+          isWholesaleEligible: true,
+        },
+      });
+
+      if (!existingProduct) {
+        // This is a new wholesale product, check limits
+        const { canMarkProductWholesale } = await import('../utils/planLimits');
+        const limitCheck = canMarkProductWholesale(currentWholesaleCount, shopRecord.plan);
+
+        if (!limitCheck.allowed) {
+          res.status(429).json({
+            error: limitCheck.reason,
+            upgradeRequired: true,
+            currentCount: currentWholesaleCount,
+            limit: (await import('../utils/planLimits')).getPlanLimits(shopRecord.plan).maxProducts,
+          });
+          return;
+        }
+      }
+
       // Add to wholesale catalog
       await prisma.supplierProduct.upsert({
         where: {
@@ -268,6 +301,231 @@ router.post('/products/wholesale', async (req, res, next) => {
     res.json({ success: true });
   } catch (error) {
     logger.error('Error toggling wholesale:', error);
+    next(error);
+  }
+});
+
+/**
+ * Bulk toggle products as wholesale
+ */
+router.post('/products/wholesale/bulk', async (req, res, next) => {
+  try {
+    const { shop, productIds, isWholesale } = req.body;
+
+    if (!shop || !productIds || !Array.isArray(productIds)) {
+      res.status(400).json({ error: 'Missing required parameters or productIds is not an array' });
+      return;
+    }
+
+    if (productIds.length === 0) {
+      res.status(400).json({ error: 'productIds array cannot be empty' });
+      return;
+    }
+
+    // Limit bulk operations to prevent abuse
+    if (productIds.length > 100) {
+      res.status(400).json({ error: 'Cannot process more than 100 products at once' });
+      return;
+    }
+
+    // Get shop from database
+    const shopRecord = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!shopRecord) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    if (isWholesale) {
+      // Check plan limits before marking as wholesale
+      const currentWholesaleCount = await prisma.supplierProduct.count({
+        where: {
+          supplierShopId: shopRecord.id,
+          isWholesaleEligible: true,
+        },
+      });
+
+      // Count how many NEW products we're adding (exclude already wholesale)
+      const existingWholesale = await prisma.supplierProduct.count({
+        where: {
+          supplierShopId: shopRecord.id,
+          shopifyProductId: { in: productIds },
+          isWholesaleEligible: true,
+        },
+      });
+
+      const newProductsCount = productIds.length - existingWholesale;
+      const projectedTotal = currentWholesaleCount + newProductsCount;
+
+      const { getPlanLimits } = await import('../utils/planLimits');
+      const limits = getPlanLimits(shopRecord.plan);
+
+      if (projectedTotal > limits.maxProducts) {
+        res.status(429).json({
+          error: `Adding ${newProductsCount} products would exceed your plan limit of ${limits.maxProducts} wholesale products (currently at ${currentWholesaleCount}). Upgrade to add more products.`,
+          upgradeRequired: true,
+          currentCount: currentWholesaleCount,
+          attemptedAdd: newProductsCount,
+          limit: limits.maxProducts,
+          wouldExceedBy: projectedTotal - limits.maxProducts,
+        });
+        return;
+      }
+    }
+
+    // Create Shopify client
+    const client = createShopifyGraphQLClient(shopRecord.myshopifyDomain, shopRecord.accessToken);
+
+    const results = {
+      succeeded: [] as number[],
+      failed: [] as { productId: number; error: string }[],
+    };
+
+    // Process each product
+    for (const productId of productIds) {
+      try {
+        // Fetch product details from Shopify
+        const query = `
+          query ProductDetails($id: ID!) {
+            product(id: $id) {
+              id
+              title
+              descriptionHtml
+              vendor
+              productType
+              images(first: 1) {
+                nodes {
+                  url
+                }
+              }
+              variants(first: 1) {
+                nodes {
+                  id
+                  title
+                  price
+                  compareAtPrice
+                  inventoryQuantity
+                  sku
+                }
+              }
+            }
+          }
+        `;
+
+        const response = await client.request(query, {
+          variables: { id: toShopifyGid('Product', productId) },
+        });
+
+        const product = response.data?.product;
+
+        if (!product) {
+          results.failed.push({ productId, error: 'Product not found in Shopify' });
+          continue;
+        }
+
+        if (isWholesale) {
+          // Add to wholesale catalog
+          await prisma.supplierProduct.upsert({
+            where: {
+              supplierShopId_shopifyVariantId: {
+                supplierShopId: shopRecord.id,
+                shopifyVariantId: product.variants?.nodes?.[0]?.id
+                  ? fromShopifyGid(product.variants.nodes[0].id)
+                  : productId,
+              },
+            },
+            create: {
+              supplierShopId: shopRecord.id,
+              shopifyProductId: productId,
+              shopifyVariantId: product.variants?.nodes?.[0]?.id
+                ? fromShopifyGid(product.variants.nodes[0].id)
+                : productId,
+              title: product.title,
+              description: product.descriptionHtml || null,
+              vendor: product.vendor || null,
+              productType: product.productType || null,
+              imageUrl: product.images?.nodes?.[0]?.url || null,
+              sku: product.variants?.nodes?.[0]?.sku || null,
+              variantTitle: product.variants?.nodes?.[0]?.title || null,
+              wholesalePrice: parseFloat(product.variants?.nodes?.[0]?.price || '0'),
+              compareAtPrice: product.variants?.nodes?.[0]?.compareAtPrice
+                ? parseFloat(product.variants.nodes[0].compareAtPrice)
+                : null,
+              inventoryQuantity: product.variants?.nodes?.[0]?.inventoryQuantity || 0,
+              isWholesaleEligible: true,
+            },
+            update: {
+              isWholesaleEligible: true,
+              title: product.title,
+              description: product.descriptionHtml || null,
+              vendor: product.vendor || null,
+              productType: product.productType || null,
+              imageUrl: product.images?.nodes?.[0]?.url || null,
+              sku: product.variants?.nodes?.[0]?.sku || null,
+              variantTitle: product.variants?.nodes?.[0]?.title || null,
+              wholesalePrice: parseFloat(product.variants?.nodes?.[0]?.price || '0'),
+              compareAtPrice: product.variants?.nodes?.[0]?.compareAtPrice
+                ? parseFloat(product.variants.nodes[0].compareAtPrice)
+                : null,
+              inventoryQuantity: product.variants?.nodes?.[0]?.inventoryQuantity || 0,
+              lastSyncedAt: new Date(),
+            },
+          });
+        } else {
+          // Remove from wholesale catalog
+          await prisma.supplierProduct.updateMany({
+            where: {
+              supplierShopId: shopRecord.id,
+              shopifyProductId: productId,
+            },
+            data: {
+              isWholesaleEligible: false,
+            },
+          });
+        }
+
+        results.succeeded.push(productId);
+      } catch (error) {
+        logger.error(`Error processing product ${productId}:`, error);
+        results.failed.push({
+          productId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    logger.info(
+      `Bulk wholesale ${isWholesale ? 'mark' : 'unmark'} for shop ${shop}: ${results.succeeded.length} succeeded, ${results.failed.length} failed`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: shopRecord.id,
+        action: isWholesale ? 'PRODUCTS_BULK_MARKED_WHOLESALE' : 'PRODUCTS_BULK_UNMARKED_WHOLESALE',
+        resourceType: 'SupplierProduct',
+        resourceId: 'bulk',
+        metadata: {
+          totalAttempted: productIds.length,
+          succeeded: results.succeeded.length,
+          failed: results.failed.length,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: productIds.length,
+        succeeded: results.succeeded.length,
+        failed: results.failed.length,
+      },
+    });
+  } catch (error) {
+    logger.error('Error in bulk wholesale toggle:', error);
     next(error);
   }
 });
