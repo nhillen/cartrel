@@ -54,6 +54,7 @@ jobs:
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
+            admin/package-lock.json
 
       # 3. GENERATE VERSION
       - name: Generate version metadata
@@ -126,8 +127,8 @@ jobs:
           echo "🏷️  Setting version tag..."
           export DOCKER_TAG="${{ env.VERSION }}"
 
-          echo "🏗️  Building Docker image..."
-          docker compose -f ${{ env.COMPOSE_FILE }} build \
+          echo "🏗️  Building Docker images (backend + admin)..."
+          docker compose -f ${{ env.COMPOSE_FILE }} build app admin \
             --build-arg VERSION=${{ env.VERSION }} \
             --build-arg COMMIT_HASH=${{ env.COMMIT_HASH }} \
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
@@ -136,7 +137,7 @@ jobs:
           docker compose -f ${{ env.COMPOSE_FILE }} run --rm app npx prisma migrate deploy || true
 
           echo "♻️  Restarting containers..."
-          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app
+          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin
 
           echo "✅ Deployment complete"
 

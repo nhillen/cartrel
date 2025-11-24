@@ -30,14 +30,14 @@ npm install
 npm run build
 cd /opt/cartrel
 
-echo "🏗️  Building Docker image..."
-docker compose -f docker-compose.prod.yml build app
+echo "🏗️  Building Docker images..."
+docker compose -f docker-compose.prod.yml build app admin
 
 echo "🗄️  Running migrations..."
 docker compose -f docker-compose.prod.yml run --rm app npx prisma migrate deploy
 
-echo "♻️  Restarting application..."
-docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps app
+echo "♻️  Restarting applications..."
+docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps app admin
 
 echo "✅ Deployment complete!"
 
