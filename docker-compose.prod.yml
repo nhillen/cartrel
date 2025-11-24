@@ -34,6 +34,8 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       target: runner
+      args:
+        - NEXT_PUBLIC_API_URL=https://cartrel.com/api/admin
     container_name: cartrel-admin
     restart: unless-stopped
     ports:
