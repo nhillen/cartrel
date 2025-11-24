@@ -48,7 +48,7 @@ services:
     networks:
       - gridtome_default  # Join GridTome's Docker network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3006/api/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3006/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
