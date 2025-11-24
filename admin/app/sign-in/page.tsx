@@ -2,11 +2,26 @@
 
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function SignInPage() {
+function SignInError() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
+  if (!error) return null;
+
+  return (
+    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+      <p className="text-red-800 text-sm text-center">
+        {error === 'AccessDenied'
+          ? 'Access denied. Only authorized Manafold Games accounts can sign in.'
+          : 'An error occurred during sign in. Please try again.'}
+      </p>
+    </div>
+  );
+}
+
+export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
@@ -17,15 +32,9 @@ export default function SignInPage() {
           <p className="text-gray-600">Customer Success Tools</p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800 text-sm text-center">
-              {error === 'AccessDenied'
-                ? 'Access denied. Only authorized Manafold Games accounts can sign in.'
-                : 'An error occurred during sign in. Please try again.'}
-            </p>
-          </div>
-        )}
+        <Suspense fallback={null}>
+          <SignInError />
+        </Suspense>
 
         <button
           onClick={() => signIn('google', { callbackUrl: '/' })}
