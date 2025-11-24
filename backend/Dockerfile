@@ -31,8 +31,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev)
-RUN npm install
+# Clean npm cache and install all dependencies (including dev)
+RUN npm cache clean --force && npm install
 
 # Copy source and config
 COPY . .
@@ -58,8 +58,8 @@ RUN apt-get update && apt-get install -y \
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm install --omit=dev
+# Clean npm cache and install production dependencies only
+RUN npm cache clean --force && npm install --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
