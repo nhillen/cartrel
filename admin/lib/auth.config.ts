@@ -1,79 +1,67 @@
 import type { NextAuthConfig } from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { compare } from 'bcryptjs';
+import Google from 'next-auth/providers/google';
 
-// Admin users (in production, move to database)
-const ADMIN_USERS = [
-  {
-    id: '1',
-    email: 'admin@cartrel.com',
-    name: 'Admin',
-    // Password: 'cartrel2025' - hashed with bcrypt
-    passwordHash: '$2b$10$WbCyh9WvLMrrBfAvaNOZY.lWnadBGSBRkBoF7g79viPH8nF/5dN16',
-  },
+// Whitelist of allowed admin emails
+const ALLOWED_EMAILS = [
+  'gabe@manafoldgames.com',
+  'nathan@manafoldgames.com',
 ];
 
 export const authConfig: NextAuthConfig = {
   providers: [
-    Credentials({
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const user = ADMIN_USERS.find(
-          (u) => u.email === credentials.email
-        );
-
-        if (!user) {
-          return null;
-        }
-
-        const isValid = await compare(
-          credentials.password as string,
-          user.passwordHash
-        );
-
-        if (!isValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code',
+        },
       },
     }),
   ],
   pages: {
     signIn: '/sign-in',
+    error: '/sign-in', // Redirect errors to sign-in page
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Only allow whitelisted email addresses
+      if (!user.email || !ALLOWED_EMAILS.includes(user.email)) {
+        console.log(`[Auth] Rejected login attempt from: ${user.email}`);
+        return false;
+      }
+
+      console.log(`[Auth] Approved login for: ${user.email}`);
+      return true;
+    },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnSignIn = nextUrl.pathname.startsWith('/sign-in');
-      
+      const isOnAuth = nextUrl.pathname.startsWith('/api/auth');
+
+      // Allow auth API routes
+      if (isOnAuth) return true;
+
       if (isOnSignIn) {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
         return true;
       }
-      
+
       return isLoggedIn;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+        token.email = user.email;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
+        session.user.email = token.email as string;
       }
       return session;
     },
@@ -82,4 +70,5 @@ export const authConfig: NextAuthConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  trustHost: true, // Trust the host for reverse proxy setups
 };
