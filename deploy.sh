@@ -24,6 +24,11 @@ cd /opt/cartrel
 echo "📥 Pulling latest code..."
 git pull origin main
 
+echo "🔗 Linking monorepo dependencies..."
+# Create symlink to manabot slack-reporter package for Docker build
+rm -rf /opt/cartrel/backend/slack-reporter
+ln -s /opt/manabot/packages/slack-reporter /opt/cartrel/backend/slack-reporter
+
 echo "🎨 Building embedded frontend..."
 cd /opt/cartrel/frontend
 npm install
@@ -32,6 +37,9 @@ cd /opt/cartrel
 
 echo "🏗️  Building Docker images..."
 docker compose -f docker-compose.prod.yml build app admin
+
+echo "🧹 Cleaning up symlinks..."
+rm -f /opt/cartrel/backend/slack-reporter
 
 echo "🗄️  Running migrations..."
 docker compose -f docker-compose.prod.yml run --rm app npx prisma migrate deploy
