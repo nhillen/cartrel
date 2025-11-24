@@ -7,7 +7,7 @@ The admin dashboard is a Next.js application that runs as a separate Docker cont
 ## Architecture
 
 - **Container**: `cartrel-admin`
-- **Port**: 3001 (internal)
+- **Port**: 3006 (internal)
 - **Public URL**: https://admin.cartrel.com
 - **Backend API**: https://cartrel.com/api/admin
 
@@ -50,12 +50,12 @@ cp .env.production.admin.example .env.production.admin
 nano .env.production.admin  # Fill in values
 ```
 
-2. **Configure reverse proxy** (Caddy/nginx) to route `admin.cartrel.com` to `localhost:3001`:
+2. **Configure reverse proxy** (Caddy/nginx) to route `admin.cartrel.com` to `localhost:3006`:
 
 ### Caddy Configuration:
 ```
 admin.cartrel.com {
-    reverse_proxy localhost:3001
+    reverse_proxy localhost:3006
 }
 ```
 
@@ -67,7 +67,7 @@ server {
     server_name admin.cartrel.com;
 
     location / {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:3006;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -96,7 +96,7 @@ Future enhancement: Move admin users to database.
 
 ## Health Checks
 
-- **Container health**: `http://localhost:3001/api/health`
+- **Container health**: `http://localhost:3006/api/health`
 - **Public health**: `https://admin.cartrel.com/api/health`
 
 ## Troubleshooting
@@ -127,7 +127,7 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate admin
 ```bash
 cd admin
 npm install
-npm run dev  # Runs on http://localhost:3001
+npm run dev  # Runs on http://localhost:3006
 ```
 
 Make sure backend is running on `localhost:3000` for API access.
