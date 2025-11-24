@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "uat:plan": "tsx scripts/uat-plan-manager.ts"
   },
   "dependencies": {
     "@bull-board/api": "^5.10.0",
