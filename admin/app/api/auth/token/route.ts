@@ -1,36 +1,37 @@
 /**
- * API route to get the JWT token from the NextAuth session
- * This allows the client to get the token and send it to the backend API
+ * API route to generate a JWT token from the NextAuth session
+ * This allows the client to get a token to send to the backend API
  */
 
-import { getToken } from 'next-auth/jwt';
-import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { SignJWT } from 'jose';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Get the JWT token from the session cookie
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET,
-    });
+    // Get the current session
+    const session = await auth();
 
-    if (!token) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No session' }, { status: 401 });
     }
 
-    // Return the raw JWT token string
-    // getToken() returns the decoded payload, but we need to get the raw token
-    // The raw token is stored in the session cookie
-    const sessionToken = request.cookies.get('next-auth.session-token') ||
-                        request.cookies.get('__Secure-next-auth.session-token');
+    // Generate a JWT token for the backend
+    const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
 
-    if (!sessionToken) {
-      return NextResponse.json({ error: 'No session token found' }, { status: 401 });
-    }
+    const token = await new SignJWT({
+      email: session.user.email,
+      id: session.user.id,
+      sub: session.user.id,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(secret);
 
-    return NextResponse.json({ token: sessionToken.value });
+    return NextResponse.json({ token });
   } catch (error) {
-    console.error('Error getting session token:', error);
+    console.error('Error generating token:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
