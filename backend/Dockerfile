@@ -58,8 +58,11 @@ RUN apt-get update && apt-get install -y \
 # Copy only package.json (skip package-lock.json to avoid corruption issues)
 COPY package.json ./
 
-# Copy slack-reporter from build stage (monorepo dependency from symlink)
-COPY --from=build /app/slack-reporter ./slack-reporter
+# Copy slack-reporter from build stage to the path npm expects
+# Package.json has: "file:../../manabot/packages/slack-reporter"
+# So we need to create /manabot/packages/slack-reporter from /app
+RUN mkdir -p /manabot/packages
+COPY --from=build /app/slack-reporter /manabot/packages/slack-reporter
 
 # Install production dependencies only
 RUN npm install --omit=dev
