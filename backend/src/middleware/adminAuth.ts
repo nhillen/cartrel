@@ -1,54 +1,83 @@
 /**
  * Admin authentication middleware
- * Uses HTTP Basic Auth for simple CS tool access
+ * Validates NextAuth JWT tokens from the admin dashboard
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { jwtVerify } from 'jose';
 import { logger } from '../utils/logger';
 
+// Whitelist of allowed admin emails (must match admin dashboard config)
+const ALLOWED_EMAILS = [
+  'gabe@manafoldgames.com',
+  'nathan@manafoldgames.com',
+];
+
 /**
- * Simple HTTP Basic Auth middleware for admin routes
+ * Middleware to validate NextAuth JWT tokens
  *
- * Credentials are set via environment variables:
- * - ADMIN_USERNAME (default: 'admin')
- * - ADMIN_PASSWORD (required in production)
+ * Expects JWT token in Authorization header: Bearer <token>
+ * Verifies token signature and checks email whitelist
  */
-export function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
-  // Get credentials from env
-  const validUsername = process.env.ADMIN_USERNAME || 'admin';
-  const validPassword = process.env.ADMIN_PASSWORD;
+export async function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
+  try {
+    // Get AUTH_SECRET from environment
+    const secret = process.env.AUTH_SECRET;
 
-  // Require password in production
-  if (process.env.NODE_ENV === 'production' && !validPassword) {
-    logger.error('ADMIN_PASSWORD not set in production environment');
-    res.status(500).send('Admin authentication not configured');
-    return;
-  }
+    if (!secret) {
+      logger.error('AUTH_SECRET not configured for admin authentication');
+      res.status(500).json({ error: 'Admin authentication not configured' });
+      return;
+    }
 
-  // Use default password in development
-  const password = validPassword || 'cartrel-dev-admin';
+    // Parse authorization header
+    const authHeader = req.headers.authorization;
 
-  // Parse authorization header
-  const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warn(`Admin auth failed: Missing or invalid authorization header from ${req.ip}`);
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Cartrel Admin"');
-    res.status(401).send('Authentication required');
-    return;
-  }
+    // Extract JWT token
+    const token = authHeader.split(' ')[1];
 
-  // Decode credentials
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-  const [username, providedPassword] = credentials.split(':');
+    if (!token) {
+      logger.warn(`Admin auth failed: Empty token from ${req.ip}`);
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
-  // Verify credentials
-  if (username === validUsername && providedPassword === password) {
-    logger.info(`Admin authenticated: ${username} from ${req.ip}`);
+    // Verify JWT token
+    const secretKey = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, secretKey);
+
+    // Check if email is in the payload
+    const email = payload.email as string | undefined;
+
+    if (!email) {
+      logger.warn(`Admin auth failed: No email in token from ${req.ip}`);
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Verify email is in whitelist
+    if (!ALLOWED_EMAILS.includes(email)) {
+      logger.warn(`Admin auth rejected: ${email} not in whitelist from ${req.ip}`);
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    // Add user info to request for downstream use
+    (req as any).adminUser = {
+      email,
+      id: payload.id || payload.sub,
+    };
+
+    logger.info(`Admin authenticated: ${email} from ${req.ip}`);
     next();
-  } else {
-    logger.warn(`Failed admin login attempt: ${username} from ${req.ip}`);
-    res.setHeader('WWW-Authenticate', 'Basic realm="Cartrel Admin"');
-    res.status(401).send('Invalid credentials');
+  } catch (error) {
+    logger.warn(`Admin auth failed: ${error instanceof Error ? error.message : 'Unknown error'} from ${req.ip}`);
+    res.status(401).json({ error: 'Unauthorized' });
   }
 }

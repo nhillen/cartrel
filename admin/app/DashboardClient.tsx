@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 
 interface Shop {
   id: string;
@@ -23,6 +23,7 @@ interface Stats {
 }
 
 export default function DashboardClient() {
+  const { data: session, status } = useSession();
   const [stats, setStats] = useState<Stats | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [search, setSearch] = useState('');
@@ -31,25 +32,69 @@ export default function DashboardClient() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (status === 'authenticated' && session) {
+      loadData();
+    }
+  }, [status, session]);
+
+  // Helper to get auth headers with JWT token
+  function getAuthHeaders() {
+    if (!session) {
+      throw new Error('No session available');
+    }
+
+    // NextAuth provides the JWT token in session via getToken()
+    // We need to get it from the session cookie
+    return {
+      'Content-Type': 'application/json',
+      // The token is stored in the session cookie, we'll extract it via an API route
+    };
+  }
+
+  async function getSessionToken(): Promise<string | null> {
+    try {
+      // Call our API route to get the token
+      const res = await fetch('/api/auth/token');
+      if (res.ok) {
+        const data = await res.json();
+        return data.token;
+      }
+    } catch (error) {
+      console.error('Error getting session token:', error);
+    }
+    return null;
+  }
 
   async function loadData() {
     setLoading(true);
     try {
+      const token = await getSessionToken();
+      if (!token) {
+        console.error('No session token available');
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+      };
+
       const [statsRes, shopsRes] = await Promise.all([
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/stats'),
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/shops'),
+        fetch(process.env.NEXT_PUBLIC_API_URL + '/stats', { headers }),
+        fetch(process.env.NEXT_PUBLIC_API_URL + '/shops', { headers }),
       ]);
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+      } else {
+        console.error('Failed to fetch stats:', statsRes.status);
       }
 
       if (shopsRes.ok) {
         const shopsData = await shopsRes.json();
         setShops(shopsData.shops || []);
+      } else {
+        console.error('Failed to fetch shops:', shopsRes.status);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -60,11 +105,20 @@ export default function DashboardClient() {
 
   async function updatePlan(shopId: string, plan: string) {
     try {
+      const token = await getSessionToken();
+      if (!token) {
+        alert('Authentication error');
+        return;
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/shops/${shopId}/plan`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
           body: JSON.stringify({ plan, notes: 'Updated via admin panel' }),
         }
       );
