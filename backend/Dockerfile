@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y \
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm install --production
+RUN npm ci --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
