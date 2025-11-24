@@ -373,20 +373,21 @@ if (config.isDevelopment) {
 }
 
 // Slack Error Reporting (Manabot) - MUST be before errorHandler
-const { slackReporter } = require('@manabot/slack-reporter');
-if (process.env.SLACK_WEBHOOK_ERROR) {
-  app.use(slackReporter({
-    webhooks: {
-      critical: process.env.SLACK_WEBHOOK_CRITICAL,
-      error: process.env.SLACK_WEBHOOK_ERROR,
-      warning: process.env.SLACK_WEBHOOK_WARNING,
-      info: process.env.SLACK_WEBHOOK_INFO
-    },
-    serviceName: 'cartrel',
-    environment: config.nodeEnv
-  }));
-  logger.info('✓ Slack error reporting enabled');
-}
+// TODO: Fix monorepo dependency issue for @manabot/slack-reporter
+// const { slackReporter } = require('@manabot/slack-reporter');
+// if (process.env.SLACK_WEBHOOK_ERROR) {
+//   app.use(slackReporter({
+//     webhooks: {
+//       critical: process.env.SLACK_WEBHOOK_CRITICAL,
+//       error: process.env.SLACK_WEBHOOK_ERROR,
+//       warning: process.env.SLACK_WEBHOOK_WARNING,
+//       info: process.env.SLACK_WEBHOOK_INFO
+//     },
+//     serviceName: 'cartrel',
+//     environment: config.nodeEnv
+//   }));
+//   logger.info('✓ Slack error reporting enabled');
+// }
 
 // Error handling
 app.use(errorHandler);
