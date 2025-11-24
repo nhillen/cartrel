@@ -58,6 +58,9 @@ RUN apt-get update && apt-get install -y \
 # Copy only package.json (skip package-lock.json to avoid corruption issues)
 COPY package.json ./
 
+# Copy slack-reporter from build stage (monorepo dependency from symlink)
+COPY --from=build /app/slack-reporter ./slack-reporter
+
 # Install production dependencies only
 RUN npm install --omit=dev
 
