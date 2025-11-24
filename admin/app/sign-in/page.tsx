@@ -14,7 +14,7 @@ function SignInError() {
     <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
       <p className="text-red-800 text-sm text-center">
         {error === 'AccessDenied'
-          ? 'Access denied. Only authorized Manafold Games accounts can sign in.'
+          ? 'Access denied. Please contact support if you believe this is an error.'
           : 'An error occurred during sign in. Please try again.'}
       </p>
     </div>
@@ -60,10 +60,6 @@ export default function SignInPage() {
           </svg>
           Sign in with Google
         </button>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Restricted to authorized Manafold Games accounts</p>
-        </div>
       </div>
     </div>
   );
