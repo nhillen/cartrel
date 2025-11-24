@@ -79,8 +79,8 @@ COPY --from=build /app/src/views ./dist/views
 RUN groupadd --gid 1001 nodejs && \
     useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
 
-# Change ownership
-RUN chown -R nodejs:nodejs /app
+# Change ownership of /app and /manabot for nodejs user
+RUN chown -R nodejs:nodejs /app /manabot
 
 USER nodejs
 
