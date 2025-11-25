@@ -133,23 +133,30 @@ jobs:
           export DOCKER_TAG="${{ env.VERSION }}"
 
           echo "🏗️  Building Docker images (backend + admin)..."
-          docker compose -f ${{ env.COMPOSE_FILE }} build --progress=plain app admin \
+          docker compose -f ${{ env.COMPOSE_FILE }} build --progress=plain --no-cache app admin \
             --build-arg VERSION=${{ env.VERSION }} \
             --build-arg COMMIT_HASH=${{ env.COMMIT_HASH }} \
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
 
           echo "🗄️  Running database migrations..."
-          bash -c 'docker compose -f ${{ env.COMPOSE_FILE }} run -T --rm app npx prisma migrate deploy' || true
+          docker compose -f ${{ env.COMPOSE_FILE }} run -T --rm app npx prisma migrate deploy || true
 
           echo "♻️  Restarting containers..."
-          bash -c 'docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin'
-          echo "Container restart command completed"
+          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin
 
-          echo "✅ Deployment complete"
+          echo "⏳ Waiting for containers to be ready..."
+          sleep 5
 
           echo ""
           echo "📊 Container status:"
           docker compose -f ${{ env.COMPOSE_FILE }} ps
+
+          echo ""
+          echo "🔍 Container image info:"
+          docker inspect cartrel-app --format='Image: {{.Image}} Created: {{.Created}}' || true
+          docker inspect cartrel-admin --format='Image: {{.Image}} Created: {{.Created}}' || true
+
+          echo "✅ Deployment complete"
           ENDSSH
 
       # 7. VERIFY DEPLOYMENT
