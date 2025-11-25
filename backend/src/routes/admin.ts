@@ -775,19 +775,24 @@ router.get('/audit-logs', async (req, res) => {
 
     const auditLogs = await prisma.auditLog.findMany({
       where,
-      include: {
-        shop: {
-          select: {
-            myshopifyDomain: true,
-            companyName: true,
-          },
-        },
-      },
       orderBy: { createdAt: 'desc' },
       take: parseInt(limit as string, 10),
     });
 
-    res.json({ auditLogs });
+    // Enrich with shop info
+    const shopIds = [...new Set(auditLogs.map(log => log.shopId))];
+    const shops = await prisma.shop.findMany({
+      where: { id: { in: shopIds } },
+      select: { id: true, myshopifyDomain: true, companyName: true },
+    });
+    const shopMap = new Map(shops.map(s => [s.id, s]));
+
+    const enrichedLogs = auditLogs.map(log => ({
+      ...log,
+      shop: shopMap.get(log.shopId) || null,
+    }));
+
+    res.json({ auditLogs: enrichedLogs });
   } catch (error) {
     logger.error('Error listing audit logs:', error);
     res.status(500).json({ error: 'Failed to list audit logs' });
