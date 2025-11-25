@@ -273,7 +273,7 @@ export default function DashboardClient() {
     (selectedShop.productCount > 500 || selectedShop.connectionCount > 50 || selectedShop.purchaseOrdersThisMonth > 1000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 text-slate-900 relative overflow-hidden">
+    <div className="bg-admin-ambient">
       <div className="pointer-events-none absolute inset-0 opacity-50">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-200 blur-3xl" />
         <div className="absolute right-[-10%] top-10 h-80 w-80 rounded-full bg-emerald-200 blur-3xl" />
@@ -307,7 +307,12 @@ export default function DashboardClient() {
             </div>
             <div>
               <div className="text-lg font-semibold">Cartrel Admin</div>
-              <p className="text-xs text-slate-500">Supplier-first CS console</p>
+              <p className="text-xs text-slate-500 flex items-center gap-2">
+                Supplier-first CS console
+                <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-700">
+                  v1.2.0
+                </span>
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -329,7 +334,7 @@ export default function DashboardClient() {
         </div>
       </header>
 
-      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <main className="layout-wide mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
             <StatCard title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" />
