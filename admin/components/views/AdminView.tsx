@@ -231,6 +231,31 @@ export function AdminView() {
                 </div>
               </div>
             )}
+
+            {/* Version info */}
+            <div className="pt-3 border-t">
+              <h3 className="text-xs font-medium text-slate-500 uppercase mb-2">Version</h3>
+              <div className="space-y-1 text-xs">
+                {stats.version && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Version</span>
+                    <span className="font-mono">{stats.version}</span>
+                  </div>
+                )}
+                {stats.commitHash && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Commit</span>
+                    <span className="font-mono">{stats.commitHash}</span>
+                  </div>
+                )}
+                {stats.buildDate && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Built</span>
+                    <span>{new Date(stats.buildDate).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

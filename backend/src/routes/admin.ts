@@ -9,6 +9,19 @@ import { logger } from '../utils/logger';
 import { requireAdminAuth } from '../middleware/adminAuth';
 import { PLAN_LIMITS } from '../utils/planLimits';
 import { getWebhookQueue, getImportQueue, initializeQueues } from '../queues';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Read deploy info once at startup
+let deployInfo: { version?: string; commitHash?: string; buildDate?: string } = {};
+try {
+  const infoPath = path.join(__dirname, '../../.deploy-info.json');
+  if (fs.existsSync(infoPath)) {
+    deployInfo = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
+  }
+} catch {
+  // Deploy info not available
+}
 
 const router = Router();
 
@@ -399,6 +412,9 @@ router.get('/stats', async (_req, res) => {
       shopsByPlan: Object.fromEntries(
         shopsByPlan.map((group) => [group.plan, group._count])
       ),
+      version: deployInfo.version || null,
+      commitHash: deployInfo.commitHash || null,
+      buildDate: deployInfo.buildDate || null,
     });
   } catch (error) {
     logger.error('Error getting stats:', error);
@@ -657,57 +673,53 @@ router.get('/health', async (_req, res) => {
       logger.warn('Could not get queue stats:', error);
     }
 
-    // Get latest system health metrics (last 24 hours)
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-
-    const healthMetrics = await prisma.systemHealth.findMany({
-      where: {
-        createdAt: { gte: oneDayAgo },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-
-    // Get latest health reading per component
-    const latestByComponent: Record<string, any> = {};
-    for (const metric of healthMetrics) {
-      if (!latestByComponent[metric.component]) {
-        latestByComponent[metric.component] = metric;
+    // Get latest system health metrics (last 24 hours) - if table exists
+    let healthMetrics: any[] = [];
+    let latestByComponent: Record<string, any> = {};
+    try {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      healthMetrics = await prisma.systemHealth.findMany({
+        where: { createdAt: { gte: oneDayAgo } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      for (const metric of healthMetrics) {
+        if (!latestByComponent[metric.component]) {
+          latestByComponent[metric.component] = metric;
+        }
       }
+    } catch {
+      // SystemHealth table may not exist yet
     }
 
-    // Get active incidents
-    const activeIncidents = await prisma.incident.findMany({
-      where: {
-        status: { not: 'RESOLVED' },
-      },
-      include: {
-        updates: {
-          orderBy: { createdAt: 'desc' },
-          take: 3,
+    // Get active incidents - if table exists
+    let activeIncidents: any[] = [];
+    let recentIncidents: any[] = [];
+    try {
+      activeIncidents = await prisma.incident.findMany({
+        where: { status: { not: 'RESOLVED' } },
+        include: {
+          updates: { orderBy: { createdAt: 'desc' }, take: 3 },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    // Get recent resolved incidents (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const recentIncidents = await prisma.incident.findMany({
-      where: {
-        status: 'RESOLVED',
-        resolvedAt: { gte: sevenDaysAgo },
-      },
-      orderBy: { resolvedAt: 'desc' },
-      take: 10,
-    });
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      recentIncidents = await prisma.incident.findMany({
+        where: { status: 'RESOLVED', resolvedAt: { gte: sevenDaysAgo } },
+        orderBy: { resolvedAt: 'desc' },
+        take: 10,
+      });
+    } catch {
+      // Incident table may not exist yet
+    }
 
     // Determine overall health
     const hasActiveIncident = activeIncidents.length > 0;
-    const hasCritical = activeIncidents.some(i => i.impact === 'CRITICAL');
-    const hasMajor = activeIncidents.some(i => i.impact === 'MAJOR');
+    const hasCritical = activeIncidents.some((i: any) => i.impact === 'CRITICAL');
+    const hasMajor = activeIncidents.some((i: any) => i.impact === 'MAJOR');
 
     let overallStatus = 'healthy';
     if (hasCritical) overallStatus = 'critical';
@@ -732,16 +744,16 @@ router.get('/health', async (_req, res) => {
         databaseResponseTime: h.databaseResponseTime,
         checkedAt: h.createdAt,
       })),
-      activeIncidents: activeIncidents.map(i => ({
+      activeIncidents: activeIncidents.map((i: any) => ({
         id: i.id,
         title: i.title,
         component: i.component,
         impact: i.impact,
         status: i.status,
         createdAt: i.createdAt,
-        latestUpdate: i.updates[0]?.message,
+        latestUpdate: i.updates?.[0]?.message || null,
       })),
-      recentIncidents: recentIncidents.map(i => ({
+      recentIncidents: recentIncidents.map((i: any) => ({
         id: i.id,
         title: i.title,
         component: i.component,

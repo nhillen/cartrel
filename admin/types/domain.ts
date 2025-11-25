@@ -117,6 +117,9 @@ export interface Stats {
   totalProducts: number;
   totalOrders: number;
   shopsByPlan: Record<ShopPlan, number>;
+  version: string | null;
+  commitHash: string | null;
+  buildDate: string | null;
 }
 
 // Health types
