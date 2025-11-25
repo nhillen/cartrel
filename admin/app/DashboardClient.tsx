@@ -112,31 +112,40 @@ export default function DashboardClient() {
         Authorization: `Bearer ${token}`,
       };
 
-      const [statsRes, shopsRes, connectionsRes, productsRes] = await Promise.all([
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/stats', { headers }),
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/shops', { headers }),
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/connections', { headers }),
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/products?limit=200', { headers }),
-      ]);
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      let rateLimited = false;
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
+      const fetchJson = async (path: string) => {
+        const res = await fetch(process.env.NEXT_PUBLIC_API_URL + path, { headers });
+        if (res.status === 429) {
+          rateLimited = true;
+          throw new Error('rate_limited');
+        }
+        if (!res.ok) {
+          throw new Error(`fetch_failed_${path}`);
+        }
+        return res.json();
+      };
+
+      try {
+        const statsData = await fetchJson('/stats');
+        await sleep(120); // slight stagger to avoid rate limits
+        const shopsData = await fetchJson('/shops');
+        await sleep(120);
+        const connectionsData = await fetchJson('/connections');
+        await sleep(120);
+        const productsData = await fetchJson('/products?limit=200');
+
         setStats(statsData);
-      }
-
-      if (shopsRes.ok) {
-        const shopsData = await shopsRes.json();
         setShops(shopsData.shops || []);
-      }
-
-      if (connectionsRes.ok) {
-        const connectionsData = await connectionsRes.json();
         setConnections(connectionsData.connections || []);
-      }
-
-      if (productsRes.ok) {
-        const productsData = await productsRes.json();
         setProducts(productsData.products || []);
+      } catch (err) {
+        if (rateLimited) {
+          pushToast('error', 'Rate limited (429). Please wait 60s and try again.');
+        } else {
+          throw err;
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -318,7 +327,8 @@ export default function DashboardClient() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => loadData()}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition"
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition disabled:opacity-60"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
               Refresh
