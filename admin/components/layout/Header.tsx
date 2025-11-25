@@ -32,14 +32,14 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top row: Logo, Nav, Actions */}
         <div className="py-3 flex items-center justify-between">
-          {/* Logo */}
+          {/* Logo + Stats (left) */}
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-white font-semibold shadow-md text-sm">
               CT
             </div>
             <div>
               <div className="text-base font-semibold">Cartrel Admin</div>
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
                 {stats ? (
                   <>
                     <button
@@ -55,6 +55,12 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
                     >
                       {stats.totalRetailers} Retailers
                     </button>
+                    <span className="text-slate-300">|</span>
+                    <span>{stats.totalShops} Shops</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{stats.totalConnections} Connections</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{stats.totalProducts} Products</span>
                   </>
                 ) : (
                   <span className="text-slate-500">CS Console</span>
@@ -63,7 +69,7 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs (center) */}
           <nav className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -86,8 +92,41 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
             })}
           </nav>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3">
+          {/* Actions + Status (right) */}
+          <div className="flex items-center gap-4">
+            {/* Health status */}
+            <div className="flex items-center gap-2 text-xs">
+              {health?.queues && health.queues.webhook.total > 0 && (
+                <span className={cn('text-slate-600', health.queues.webhook.total > 100 && 'text-amber-600')}>
+                  {health.queues.webhook.total} queued
+                </span>
+              )}
+              {health?.queues && health.queues.webhook.failed > 0 && (
+                <span className="text-red-600">{health.queues.webhook.failed} failed</span>
+              )}
+              {health?.activeIncidents && health.activeIncidents.length > 0 ? (
+                <span className="inline-flex items-center gap-1 text-amber-600">
+                  <AlertTriangle className="w-3 h-3" />
+                  {health.activeIncidents.length} incident{health.activeIncidents.length > 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-slate-600">
+                  <span className={cn(
+                    'w-2 h-2 rounded-full',
+                    health?.status === 'healthy' ? 'bg-emerald-500' :
+                    health?.status === 'warning' ? 'bg-amber-500' :
+                    health?.status === 'degraded' ? 'bg-orange-500' :
+                    health?.status === 'critical' ? 'bg-red-500' : 'bg-emerald-500'
+                  )} />
+                  {health?.status === 'healthy' ? 'Operational' :
+                   health?.status === 'warning' ? 'Minor issues' :
+                   health?.status === 'degraded' ? 'Degraded' :
+                   health?.status === 'critical' ? 'Issues' : 'Operational'}
+                </span>
+              )}
+            </div>
+
+            {/* Buttons */}
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
@@ -107,65 +146,6 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
-          </div>
-        </div>
-
-        {/* Status Strip */}
-        <div className="pb-2 flex items-center justify-between text-xs text-slate-600">
-          <div className="flex items-center gap-4">
-            {stats && (
-              <>
-                <span>
-                  <strong>{stats.totalShops}</strong> Shops
-                </span>
-                <span className="text-slate-300">|</span>
-                <span>
-                  <strong>{stats.totalConnections}</strong> Connections
-                </span>
-                <span className="text-slate-300">|</span>
-                <span>
-                  <strong>{stats.totalProducts}</strong> Products
-                </span>
-              </>
-            )}
-            {health?.queues && (
-              <>
-                <span className="text-slate-300">|</span>
-                <span className={health.queues.webhook.total > 100 ? 'text-amber-600' : ''}>
-                  <strong>{health.queues.webhook.total}</strong> queued
-                </span>
-                {health.queues.webhook.failed > 0 && (
-                  <>
-                    <span className="text-slate-300">|</span>
-                    <span className="text-red-600">
-                      <strong>{health.queues.webhook.failed}</strong> failed
-                    </span>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {health?.activeIncidents && health.activeIncidents.length > 0 ? (
-              <span className="inline-flex items-center gap-1 text-amber-600">
-                <AlertTriangle className="w-3 h-3" />
-                {health.activeIncidents.length} active incident{health.activeIncidents.length > 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <span className={cn(
-                  'w-2 h-2 rounded-full',
-                  health?.status === 'healthy' ? 'bg-emerald-500' :
-                  health?.status === 'warning' ? 'bg-amber-500' :
-                  health?.status === 'degraded' ? 'bg-orange-500' :
-                  health?.status === 'critical' ? 'bg-red-500' : 'bg-emerald-500'
-                )} />
-                {health?.status === 'healthy' ? 'All systems operational' :
-                 health?.status === 'warning' ? 'Minor issues' :
-                 health?.status === 'degraded' ? 'Degraded performance' :
-                 health?.status === 'critical' ? 'System issues' : 'All systems operational'}
-              </span>
-            )}
           </div>
         </div>
       </div>
