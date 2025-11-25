@@ -33,4 +33,12 @@ body {
   .layout-wide {
     @apply max-w-screen-2xl;
   }
+
+  .card {
+    @apply bg-white/90 border rounded-2xl shadow-sm;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full;
+  }
 }

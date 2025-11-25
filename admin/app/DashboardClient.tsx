@@ -309,7 +309,7 @@ export default function DashboardClient() {
       </div>
 
       <header className="backdrop-blur bg-white/80 border-b sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-white font-semibold shadow-md">
               CT
@@ -344,80 +344,31 @@ export default function DashboardClient() {
         </div>
       </header>
 
-      <main className="layout-wide mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <main className="layout-wide mx-auto px-4 sm:px-6 lg:px-8 py-6 relative">
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-            <StatCard title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" />
-            <StatCard title="Retailers" value={stats.totalRetailers} icon={<Store className="w-4 h-4" />} accent="from-emerald-500 to-teal-500" />
-            <StatCard title="Connections" value={stats.totalConnections} icon={<ArrowRightLeft className="w-4 h-4" />} accent="from-amber-500 to-orange-500" />
-            <StatCard title="Products" value={stats.totalProducts} icon={<Database className="w-4 h-4" />} accent="from-purple-500 to-pink-500" />
-            <StatCard title="Shops" value={stats.totalShops} icon={<ShieldCheck className="w-4 h-4" />} accent="from-slate-500 to-gray-500" />
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            <StatCard clickable title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" />
+            <StatCard clickable title="Retailers" value={stats.totalRetailers} icon={<Store className="w-4 h-4" />} accent="from-emerald-500 to-teal-500" />
+            <StatCard clickable title="Connections" value={stats.totalConnections} icon={<ArrowRightLeft className="w-4 h-4" />} accent="from-amber-500 to-orange-500" />
+            <StatCard clickable title="Products" value={stats.totalProducts} icon={<Database className="w-4 h-4" />} accent="from-purple-500 to-pink-500" />
+            <StatCard clickable title="Shops" value={stats.totalShops} icon={<ShieldCheck className="w-4 h-4" />} accent="from-slate-500 to-gray-500" />
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <aside className="lg:col-span-4 xl:col-span-3">
-            <div className="bg-white/80 border rounded-2xl shadow-sm p-4 sticky top-28">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">Suppliers</div>
-                  <p className="text-xs text-slate-500">Pick a supplier to see connections</p>
-                </div>
-                <span className="text-xs text-slate-500">{supplierShops.length}</span>
-              </div>
-              <div className="mb-3">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search suppliers or retailers..."
-                  className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                {loading ? (
-                  <SkeletonCard />
-                ) : filteredSuppliers.length === 0 ? (
-                  <div className="text-xs text-slate-500 p-3 border rounded-lg bg-slate-50">No suppliers match that search.</div>
-                ) : (
-                  filteredSuppliers.map((shop) => (
-                    <button
-                      key={shop.id}
-                      onClick={() => {
-                        setSelectedShop(shop);
-                        setDetailTab('connections');
-                      }}
-                      className={`w-full text-left p-3 border rounded-xl transition hover:shadow-sm ${
-                        selectedShop?.id === shop.id ? 'border-blue-300 bg-blue-50/70' : 'border-slate-200 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-semibold truncate">{shop.myshopifyDomain}</div>
-                          {shop.companyName && <div className="text-xs text-slate-500 truncate">{shop.companyName}</div>}
-                        </div>
-                        <span className={planChip(shop.plan)}>{shop.plan}</span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-600">
-                        <span className="inline-flex items-center gap-1">
-                          <ArrowRightLeft className="w-3 h-3" />
-                          {shop.connectionCount} conns
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <Database className="w-3 h-3" />
-                          {shop.productCount} products
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <CreditCard className="w-3 h-3" />
-                          {shop.purchaseOrdersThisMonth} POs/mo
-                        </span>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
+            <LeftRail
+              supplierCount={supplierShops.length}
+              search={search}
+              setSearch={setSearch}
+              loading={loading}
+              suppliers={filteredSuppliers}
+              selectedShop={selectedShop}
+              onSelect={(shop) => {
+                setSelectedShop(shop);
+                setDetailTab('connections');
+              }}
+            />
           </aside>
 
           <section className="lg:col-span-8 xl:col-span-9">
@@ -535,19 +486,147 @@ export default function DashboardClient() {
   );
 }
 
+function LeftRail({
+  supplierCount,
+  search,
+  setSearch,
+  loading,
+  suppliers,
+  selectedShop,
+  onSelect,
+}: {
+  supplierCount: number;
+  search: string;
+  setSearch: (val: string) => void;
+  loading: boolean;
+  suppliers: Shop[];
+  selectedShop: Shop | null;
+  onSelect: (shop: Shop) => void;
+}) {
+  const [density, setDensity] = useState<'cozy' | 'compact'>('cozy');
+  const rowPadding = density === 'compact' ? 'p-2.5' : 'p-3';
+  const planBadge = (plan: string) => {
+    const tone =
+      plan === 'FREE'
+        ? 'bg-gray-100 text-gray-800'
+        : plan === 'STARTER'
+        ? 'bg-emerald-100 text-emerald-800'
+        : plan === 'CORE'
+        ? 'bg-amber-100 text-amber-800'
+        : plan === 'PRO'
+        ? 'bg-rose-100 text-rose-800'
+        : plan === 'GROWTH'
+        ? 'bg-indigo-100 text-indigo-800'
+        : 'bg-purple-100 text-purple-800';
+    return `pill ${tone}`;
+  };
+
+  return (
+    <div className="card p-4 sticky top-24">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="text-sm font-semibold text-slate-800">Suppliers</div>
+          <p className="text-xs text-slate-500">Select to see details</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="px-2 py-1 rounded-lg border bg-slate-50">{supplierCount}</span>
+          <div className="flex rounded-lg border overflow-hidden">
+            <button
+              onClick={() => setDensity('cozy')}
+              className={`px-2 py-1 ${density === 'cozy' ? 'bg-slate-100 font-semibold' : 'bg-white'}`}
+            >
+              Cozy
+            </button>
+            <button
+              onClick={() => setDensity('compact')}
+              className={`px-2 py-1 ${density === 'compact' ? 'bg-slate-100 font-semibold' : 'bg-white'}`}
+            >
+              Compact
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="mb-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search suppliers or retailers..."
+          className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
+      <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+        {loading ? (
+          <SkeletonCard />
+        ) : suppliers.length === 0 ? (
+          <div className="text-xs text-slate-500 p-3 border rounded-lg bg-slate-50">
+            No suppliers match that search.
+          </div>
+        ) : (
+          suppliers.map((shop) => (
+            <button
+              key={shop.id}
+              onClick={() => onSelect(shop)}
+              className={`w-full text-left ${rowPadding} border rounded-xl transition hover:shadow-sm ${
+                selectedShop?.id === shop.id
+                  ? 'border-blue-400 bg-blue-50/80'
+                  : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                    {shop.companyName?.slice(0, 2).toUpperCase() || shop.myshopifyDomain.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{shop.companyName || shop.myshopifyDomain}</div>
+                    <div className="text-xs text-slate-500 truncate">{shop.myshopifyDomain}</div>
+                  </div>
+                </div>
+                <span className={`pill ${planBadge(shop.plan)}`}>{shop.plan}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-slate-600 text-right">
+                <span className="inline-flex items-center justify-end gap-1">
+                  <ArrowRightLeft className="w-3 h-3" />
+                  {shop.connectionCount} conns
+                </span>
+                <span className="inline-flex items-center justify-end gap-1">
+                  <Database className="w-3 h-3" />
+                  {shop.productCount} products
+                </span>
+                <span className="inline-flex items-center justify-end gap-1">
+                  <CreditCard className="w-3 h-3" />
+                  {shop.purchaseOrdersThisMonth} orders/mo
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StatCard({
   title,
   value,
   icon,
   accent,
+  clickable,
 }: {
   title: string;
   value: number;
   icon: ReactNode;
   accent: string;
+  clickable?: boolean;
 }) {
   return (
-    <div className="bg-white/90 border rounded-2xl shadow-sm p-4 flex items-center justify-between">
+    <div
+      className={`card p-4 flex items-center justify-between ${
+        clickable ? 'cursor-pointer hover:shadow-md transition' : ''
+      }`}
+    >
       <div>
         <div className="text-xs uppercase text-slate-500">{title}</div>
         <div className="text-2xl font-semibold mt-1">{value}</div>
@@ -562,12 +641,14 @@ function StatCard({
 function SkeletonCard() {
   return (
     <div className="space-y-2">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="p-3 border rounded-xl bg-slate-50 animate-pulse">
-          <div className="h-3 bg-slate-200 rounded w-2/3 mb-2" />
-          <div className="h-2 bg-slate-200 rounded w-1/3" />
-        </div>
-      ))}
+      <div className="p-3 border rounded-xl bg-slate-50 animate-pulse">
+        <div className="h-3 bg-slate-200 rounded w-2/3 mb-2" />
+        <div className="h-2 bg-slate-200 rounded w-1/3" />
+      </div>
+      <div className="p-3 border rounded-xl bg-slate-50 animate-pulse">
+        <div className="h-3 bg-slate-200 rounded w-2/3 mb-2" />
+        <div className="h-2 bg-slate-200 rounded w-1/3" />
+      </div>
     </div>
   );
 }
@@ -583,6 +664,24 @@ function ConnectionsTable({
   onDelete: (id: string) => void;
   selectedSupplier: Shop | null;
 }) {
+  const emptyState = (
+    <div className="text-sm text-slate-500 border rounded-xl p-6 bg-slate-50 text-center space-y-3">
+      <div className="font-semibold text-slate-700">No connections yet</div>
+      <p className="text-xs text-slate-500">
+        Invite a retailer to start syncing products and orders for this supplier.
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        <button className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+          <ArrowRightLeft className="w-4 h-4" />
+          Invite retailer
+        </button>
+        <button className="text-sm text-slate-600 hover:text-slate-800 underline">
+          Copy invite link
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="overflow-x-auto">
       <div className="flex items-center justify-between mb-3">
@@ -618,13 +717,11 @@ function ConnectionsTable({
             </tr>
           ) : connections.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                No connections for this supplier.
-              </td>
+              <td colSpan={6} className="px-4 py-6">{emptyState}</td>
             </tr>
           ) : (
             connections.map((conn) => (
-              <tr key={conn.id} className="hover:bg-slate-50">
+              <tr key={conn.id} className="hover:bg-slate-50 group">
                 <td className="px-4 py-3">
                   <div className="font-semibold text-slate-900">{conn.retailerShop.myshopifyDomain}</div>
                   {conn.retailerShop.companyName && (
@@ -633,7 +730,7 @@ function ConnectionsTable({
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    className={`pill ${
                       conn.status === 'ACTIVE'
                         ? 'bg-emerald-100 text-emerald-800'
                         : conn.status === 'PENDING_INVITE'
@@ -648,16 +745,20 @@ function ConnectionsTable({
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-900">{conn.paymentTermsType}</td>
                 <td className="px-4 py-3 text-sm text-slate-900">{conn.tier}</td>
-                <td className="px-4 py-3 text-sm text-slate-500">
+                <td className="px-4 py-3 text-sm text-slate-500 text-right">
                   {new Date(conn.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => onDelete(conn.id)}
-                    className="text-sm text-rose-600 hover:text-rose-800 font-medium"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition">
+                    <button className="text-sm text-slate-700 hover:text-slate-900">View</button>
+                    <button className="text-sm text-slate-700 hover:text-slate-900">Impersonate</button>
+                    <button
+                      onClick={() => onDelete(conn.id)}
+                      className="text-sm text-rose-600 hover:text-rose-800 font-medium"
+                    >
+                      Disable
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))
@@ -669,6 +770,20 @@ function ConnectionsTable({
 }
 
 function ProductsTable({ loading, products }: { loading: boolean; products: Product[] }) {
+  const emptyState = (
+    <div className="text-sm text-slate-500 border rounded-xl p-6 bg-slate-50 text-center space-y-3">
+      <div className="font-semibold text-slate-700">No products for this supplier</div>
+      <p className="text-xs text-slate-500">Select products from the supplier store or bulk import.</p>
+      <div className="flex items-center justify-center gap-2">
+        <button className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+          <Database className="w-4 h-4" />
+          Select products
+        </button>
+        <button className="text-sm text-slate-600 hover:text-slate-800 underline">Bulk import</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="overflow-x-auto">
       <div className="flex items-center justify-between mb-3">
@@ -696,9 +811,7 @@ function ProductsTable({ loading, products }: { loading: boolean; products: Prod
             </tr>
           ) : products.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                No products for this supplier.
-              </td>
+              <td colSpan={6} className="px-4 py-6">{emptyState}</td>
             </tr>
           ) : (
             products.map((product) => (
@@ -708,18 +821,18 @@ function ProductsTable({ loading, products }: { loading: boolean; products: Prod
                   <div className="text-xs text-slate-500">{product.supplierShop.myshopifyDomain}</div>
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-900">{product.sku || '-'}</td>
-                <td className="px-4 py-3 text-sm text-slate-900">${product.wholesalePrice}</td>
-                <td className="px-4 py-3 text-sm text-slate-900">{product.inventoryQuantity}</td>
+                <td className="px-4 py-3 text-sm text-right text-slate-900">${product.wholesalePrice}</td>
+                <td className="px-4 py-3 text-sm text-right text-slate-900">{product.inventoryQuantity}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    className={`pill ${
                       product.isWholesaleEligible ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'
                     }`}
                   >
                     {product.isWholesaleEligible ? 'Eligible' : 'Not enabled'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-slate-900">{product.mappingCount}</td>
+                <td className="px-4 py-3 text-sm text-right text-slate-900">{product.mappingCount}</td>
               </tr>
             ))
           )}
