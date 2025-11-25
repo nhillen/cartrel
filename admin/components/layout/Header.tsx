@@ -29,7 +29,7 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
 
   return (
     <header className="backdrop-blur bg-white/80 border-b sticky top-0 z-20 shadow-sm">
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Top row: Logo, Nav, Actions */}
         <div className="py-3 flex items-center justify-between">
           {/* Logo + Stats (left) */}
