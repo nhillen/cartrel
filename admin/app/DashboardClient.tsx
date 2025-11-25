@@ -136,9 +136,9 @@ export default function DashboardClient() {
         await sleep(120); // slight stagger to avoid rate limits
         const shopsData = await fetchJson('/shops');
         await sleep(120);
-        const connectionsData = await fetchJson('/connections');
+        const connectionsData = await fetchJson('/connections?status=ACTIVE');
         await sleep(120);
-        const productsData = await fetchJson('/products?limit=200');
+        const productsData = await fetchJson('/products?limit=200&wholesale=true');
 
         setStats(statsData);
         setShops(shopsData.shops || []);

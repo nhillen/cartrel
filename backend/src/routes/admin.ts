@@ -55,8 +55,8 @@ router.get('/shops', async (req, res) => {
         currentPeriodStart: true,
         _count: {
           select: {
-            supplierConnections: true,
-            retailerConnections: true,
+            supplierConnections: { where: { status: 'ACTIVE' } },
+            retailerConnections: { where: { status: 'ACTIVE' } },
           },
         },
       },
