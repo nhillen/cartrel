@@ -64,3 +64,6 @@ dump.rdb
 *.pem
 *.key
 !.gitkeep
+
+# External dependencies copied during deploy
+backend/slack-reporter/

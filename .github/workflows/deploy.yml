@@ -120,6 +120,9 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
+          echo "📦 Copying slack-reporter dependency..."
+          cp -r /opt/manabot/packages/slack-reporter backend/slack-reporter
+
           echo "🎨 Building embedded frontend..."
           cd frontend
           npm install
