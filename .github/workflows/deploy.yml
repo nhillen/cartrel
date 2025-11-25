@@ -133,16 +133,17 @@ jobs:
           export DOCKER_TAG="${{ env.VERSION }}"
 
           echo "🏗️  Building Docker images (backend + admin)..."
-          docker compose -f ${{ env.COMPOSE_FILE }} build app admin \
+          docker compose -f ${{ env.COMPOSE_FILE }} build --progress=plain app admin \
             --build-arg VERSION=${{ env.VERSION }} \
             --build-arg COMMIT_HASH=${{ env.COMMIT_HASH }} \
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
 
           echo "🗄️  Running database migrations..."
-          docker compose -f ${{ env.COMPOSE_FILE }} run --rm app npx prisma migrate deploy || true
+          bash -c 'docker compose -f ${{ env.COMPOSE_FILE }} run -T --rm app npx prisma migrate deploy' || true
 
           echo "♻️  Restarting containers..."
-          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin
+          bash -c 'docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin'
+          echo "Container restart command completed"
 
           echo "✅ Deployment complete"
 
