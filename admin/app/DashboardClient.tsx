@@ -273,7 +273,12 @@ export default function DashboardClient() {
     (selectedShop.productCount > 500 || selectedShop.connectionCount > 50 || selectedShop.purchaseOrdersThisMonth > 1000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 text-slate-900 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-50">
+        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-200 blur-3xl" />
+        <div className="absolute right-[-10%] top-10 h-80 w-80 rounded-full bg-emerald-200 blur-3xl" />
+        <div className="absolute left-1/3 bottom-[-20%] h-96 w-96 rounded-full bg-indigo-100 blur-[90px]" />
+      </div>
       <div className="fixed top-4 right-4 space-y-2 z-50">
         {toasts.map((toast) => (
           <div
@@ -294,7 +299,7 @@ export default function DashboardClient() {
         ))}
       </div>
 
-      <header className="backdrop-blur bg-white/80 border-b sticky top-0 z-20">
+      <header className="backdrop-blur bg-white/80 border-b sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-500 flex items-center justify-center text-white font-semibold shadow-md">
@@ -324,7 +329,7 @@ export default function DashboardClient() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
             <StatCard title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" />
