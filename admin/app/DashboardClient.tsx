@@ -66,6 +66,7 @@ interface Stats {
 type DetailTab = 'connections' | 'products' | 'billing' | 'activity';
 type ToastType = 'success' | 'error' | 'info';
 type Scope = 'all' | 'supplier';
+type ViewMode = 'supplier' | 'retailer';
 
 export default function DashboardClient() {
   const { data: session, status } = useSession();
@@ -79,6 +80,7 @@ export default function DashboardClient() {
   const [detailTab, setDetailTab] = useState<DetailTab>('connections');
   const [toasts, setToasts] = useState<{ id: number; type: ToastType; message: string }[]>([]);
   const [scope, setScope] = useState<Scope>('supplier');
+  const [viewMode, setViewMode] = useState<ViewMode>('supplier');
 
   const pushToast = useCallback((type: ToastType, message: string) => {
     const id = Date.now();
@@ -165,10 +167,15 @@ export default function DashboardClient() {
 
   useEffect(() => {
     if (!selectedShop && shops.length > 0) {
-      const supplier = shops.find((shop) => shop.role === 'SUPPLIER') || shops[0];
-      setSelectedShop(supplier);
+      if (viewMode === 'supplier') {
+        const supplier = shops.find((shop) => shop.role === 'SUPPLIER') || shops[0];
+        setSelectedShop(supplier || null);
+      } else {
+        const retailer = shops.find((shop) => shop.role === 'RETAILER') || shops[0];
+        setSelectedShop(retailer || null);
+      }
     }
-  }, [shops, selectedShop]);
+  }, [shops, selectedShop, viewMode]);
 
   async function updatePlan(shopId: string, plan: string, mode: 'test' | 'live') {
     try {
@@ -240,6 +247,13 @@ export default function DashboardClient() {
       ),
     [shops]
   );
+  const retailerShops = useMemo(
+    () =>
+      shops.filter((shop) =>
+        ['RETAILER', 'SUPPLIER_RETAILER'].includes(shop.role || 'RETAILER')
+      ),
+    [shops]
+  );
 
   const allSuppliersPseudo: Shop | null = useMemo(() => {
     if (!stats) return null;
@@ -255,7 +269,9 @@ export default function DashboardClient() {
     };
   }, [stats]);
 
-  const filteredSuppliers = supplierShops.filter(
+  const listShops = viewMode === 'supplier' ? supplierShops : retailerShops;
+
+  const filteredSuppliers = listShops.filter(
     (shop) =>
       shop.myshopifyDomain.toLowerCase().includes(search.toLowerCase()) ||
       shop.companyName?.toLowerCase().includes(search.toLowerCase())
@@ -263,8 +279,11 @@ export default function DashboardClient() {
 
   const filteredConnections = connections.filter((conn) => {
     const matchesScope =
-      scope === 'all' ||
-      (selectedShop && conn.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain);
+      scope === 'all' && viewMode === 'supplier'
+        ? true
+        : viewMode === 'supplier'
+        ? selectedShop && conn.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain
+        : selectedShop && conn.retailerShop.myshopifyDomain === selectedShop.myshopifyDomain;
     const matchesSearch =
       conn.retailerShop.myshopifyDomain.toLowerCase().includes(search.toLowerCase()) ||
       conn.retailerShop.companyName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -273,6 +292,9 @@ export default function DashboardClient() {
   });
 
   const filteredProducts = products.filter((product) => {
+    if (viewMode === 'retailer') {
+      return false;
+    }
     const matchesScope =
       scope === 'all' ||
       (selectedShop && product.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain);
@@ -380,8 +402,8 @@ export default function DashboardClient() {
       <main className="layout-wide mx-auto px-4 sm:px-6 lg:px-8 py-6 relative">
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <StatCard clickable title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" />
-            <StatCard clickable title="Retailers" value={stats.totalRetailers} icon={<Store className="w-4 h-4" />} accent="from-emerald-500 to-teal-500" />
+            <StatCard clickable title="Suppliers" value={stats.totalSuppliers} icon={<Factory className="w-4 h-4" />} accent="from-blue-500 to-indigo-500" onClick={() => setViewMode('supplier')} />
+            <StatCard clickable title="Retailers" value={stats.totalRetailers} icon={<Store className="w-4 h-4" />} accent="from-emerald-500 to-teal-500" onClick={() => setViewMode('retailer')} />
             <StatCard clickable title="Connections" value={stats.totalConnections} icon={<ArrowRightLeft className="w-4 h-4" />} accent="from-amber-500 to-orange-500" />
             <StatCard clickable title="Products" value={stats.totalProducts} icon={<Database className="w-4 h-4" />} accent="from-purple-500 to-pink-500" />
             <StatCard clickable title="Shops" value={stats.totalShops} icon={<ShieldCheck className="w-4 h-4" />} accent="from-slate-500 to-gray-500" />
@@ -405,13 +427,22 @@ export default function DashboardClient() {
               allSuppliers={allSuppliersPseudo}
               scope={scope}
               onScopeChange={(next) => setScope(next)}
+              viewMode={viewMode}
+              onViewModeChange={(mode) => {
+                setViewMode(mode);
+                setScope('supplier');
+                const list = mode === 'supplier' ? supplierShops : retailerShops;
+                if (list.length > 0) {
+                  setSelectedShop(list[0]);
+                }
+              }}
             />
           </aside>
 
           <section className="lg:col-span-8 xl:col-span-9">
             {!selectedShop ? (
               <div className="bg-white border rounded-2xl p-8 shadow-sm text-center text-slate-500">
-                Select a supplier to view details.
+                Select a {viewMode === 'supplier' ? 'supplier' : 'retailer'} to view details.
               </div>
             ) : (
               <div className="space-y-6">
@@ -427,11 +458,13 @@ export default function DashboardClient() {
                         )}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
-                        {scope === 'all' ? (
-                          <span className="pill bg-slate-100 text-slate-800">Global totals</span>
-                        ) : (
-                          <span className={planChip(selectedShop.plan)}>Plan: {selectedShop.plan}</span>
-                        )}
+                      {scope === 'all' || viewMode === 'retailer' ? (
+                        <span className="pill bg-slate-100 text-slate-800">
+                          {viewMode === 'supplier' ? 'Global totals' : 'Retailer view'}
+                        </span>
+                      ) : (
+                        <span className={planChip(selectedShop.plan)}>Plan: {selectedShop.plan}</span>
+                      )}
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700">
                           <ArrowRightLeft className="w-3 h-3" />
                           {usageCounts.connections} connections
@@ -453,7 +486,7 @@ export default function DashboardClient() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {scope !== 'all' && (
+                      {scope !== 'all' && viewMode === 'supplier' && (
                         <button
                           onClick={() => setDetailTab('billing')}
                           className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition"
@@ -542,6 +575,8 @@ function LeftRail({
   allSuppliers,
   scope,
   onScopeChange,
+  viewMode,
+  onViewModeChange,
 }: {
   supplierCount: number;
   search: string;
@@ -553,6 +588,8 @@ function LeftRail({
   allSuppliers: Shop | null;
   scope: Scope;
   onScopeChange: (scope: Scope) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }) {
   const [density, setDensity] = useState<'cozy' | 'compact'>('cozy');
   const rowPadding = density === 'compact' ? 'p-2.5' : 'p-3';
@@ -576,7 +613,9 @@ function LeftRail({
     <div className="card p-4 sticky top-24">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <div className="text-sm font-semibold text-slate-800">Suppliers</div>
+          <div className="text-sm font-semibold text-slate-800">
+            {viewMode === 'supplier' ? 'Suppliers' : 'Retailers'}
+          </div>
           <p className="text-xs text-slate-500">Select to see details</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -621,6 +660,24 @@ function LeftRail({
           All suppliers
         </button>
       </div>
+      <div className="flex items-center gap-2 text-xs text-slate-600 mb-3">
+        <button
+          onClick={() => onViewModeChange('supplier')}
+          className={`px-3 py-1 rounded-lg border ${
+            viewMode === 'supplier' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white'
+          }`}
+        >
+          Supplier view
+        </button>
+        <button
+          onClick={() => onViewModeChange('retailer')}
+          className={`px-3 py-1 rounded-lg border ${
+            viewMode === 'retailer' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white'
+          }`}
+        >
+          Retailer view
+        </button>
+      </div>
       <div className="mb-3">
         <input
           type="text"
@@ -646,6 +703,7 @@ function LeftRail({
                 onClick={() => {
                   onScopeChange('all');
                   onSelect(allSuppliers);
+                  onViewModeChange('supplier');
                 }}
                 className={`w-full text-left ${rowPadding} border rounded-xl transition hover:shadow-sm ${
                   selectedShop?.id === 'all' ? 'border-blue-400 bg-blue-50/80' : 'border-slate-200 bg-white'
@@ -730,18 +788,21 @@ function StatCard({
   icon,
   accent,
   clickable,
+  onClick,
 }: {
   title: string;
   value: number;
   icon: ReactNode;
   accent: string;
   clickable?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
       className={`card p-4 flex items-center justify-between ${
         clickable ? 'cursor-pointer hover:shadow-md transition' : ''
       }`}
+      onClick={onClick}
     >
       <div>
         <div className="text-xs uppercase text-slate-500">{title}</div>
