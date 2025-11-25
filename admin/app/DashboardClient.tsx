@@ -65,6 +65,7 @@ interface Stats {
 
 type DetailTab = 'connections' | 'products' | 'billing' | 'activity';
 type ToastType = 'success' | 'error' | 'info';
+type Scope = 'all' | 'supplier';
 
 export default function DashboardClient() {
   const { data: session, status } = useSession();
@@ -77,6 +78,7 @@ export default function DashboardClient() {
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('connections');
   const [toasts, setToasts] = useState<{ id: number; type: ToastType; message: string }[]>([]);
+  const [scope, setScope] = useState<Scope>('supplier');
 
   const pushToast = useCallback((type: ToastType, message: string) => {
     const id = Date.now();
@@ -239,27 +241,47 @@ export default function DashboardClient() {
     [shops]
   );
 
+  const allSuppliersPseudo: Shop | null = useMemo(() => {
+    if (!stats) return null;
+    return {
+      id: 'all',
+      myshopifyDomain: 'All suppliers',
+      companyName: 'Global scope',
+      role: 'SUPPLIER',
+      plan: '-',
+      productCount: stats.totalProducts,
+      connectionCount: stats.totalConnections,
+      purchaseOrdersThisMonth: 0,
+    };
+  }, [stats]);
+
   const filteredSuppliers = supplierShops.filter(
     (shop) =>
       shop.myshopifyDomain.toLowerCase().includes(search.toLowerCase()) ||
       shop.companyName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredConnections = connections.filter(
-    (conn) =>
-      selectedShop &&
-      conn.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain &&
-      (conn.retailerShop.myshopifyDomain.toLowerCase().includes(search.toLowerCase()) ||
-        conn.retailerShop.companyName?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredConnections = connections.filter((conn) => {
+    const matchesScope =
+      scope === 'all' ||
+      (selectedShop && conn.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain);
+    const matchesSearch =
+      conn.retailerShop.myshopifyDomain.toLowerCase().includes(search.toLowerCase()) ||
+      conn.retailerShop.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+      conn.supplierShop.myshopifyDomain.toLowerCase().includes(search.toLowerCase());
+    return matchesScope && matchesSearch;
+  });
 
-  const filteredProducts = products.filter(
-    (product) =>
-      selectedShop &&
-      product.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain &&
-      (product.title.toLowerCase().includes(search.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredProducts = products.filter((product) => {
+    const matchesScope =
+      scope === 'all' ||
+      (selectedShop && product.supplierShop.myshopifyDomain === selectedShop.myshopifyDomain);
+    const matchesSearch =
+      product.title.toLowerCase().includes(search.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(search.toLowerCase()) ||
+      product.supplierShop.myshopifyDomain.toLowerCase().includes(search.toLowerCase());
+    return matchesScope && matchesSearch;
+  });
 
   const planChip = (plan: string) => {
     const tone =
@@ -277,9 +299,20 @@ export default function DashboardClient() {
     return `inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full ${tone}`;
   };
 
+  const usageCounts = selectedShop && scope === 'supplier'
+    ? {
+        products: selectedShop.productCount,
+        connections: selectedShop.connectionCount,
+        orders: selectedShop.purchaseOrdersThisMonth,
+      }
+    : {
+        products: stats?.totalProducts || 0,
+        connections: stats?.totalConnections || 0,
+        orders: 0,
+      };
+
   const isOverloaded =
-    selectedShop &&
-    (selectedShop.productCount > 500 || selectedShop.connectionCount > 50 || selectedShop.purchaseOrdersThisMonth > 1000);
+    usageCounts.products > 500 || usageCounts.connections > 50 || usageCounts.orders > 1000;
 
   return (
     <div className="bg-admin-ambient">
@@ -367,7 +400,11 @@ export default function DashboardClient() {
               onSelect={(shop) => {
                 setSelectedShop(shop);
                 setDetailTab('connections');
+                setScope(shop.id === 'all' ? 'all' : 'supplier');
               }}
+              allSuppliers={allSuppliersPseudo}
+              scope={scope}
+              onScopeChange={(next) => setScope(next)}
             />
           </aside>
 
@@ -382,24 +419,30 @@ export default function DashboardClient() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-3">
-                        <div className="text-xl font-semibold">{selectedShop.myshopifyDomain}</div>
-                        {selectedShop.companyName && (
+                        <div className="text-xl font-semibold">
+                          {scope === 'all' ? 'All suppliers' : selectedShop.myshopifyDomain}
+                        </div>
+                        {scope !== 'all' && selectedShop.companyName && (
                           <span className="text-sm text-slate-500">({selectedShop.companyName})</span>
                         )}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
-                        <span className={planChip(selectedShop.plan)}>Plan: {selectedShop.plan}</span>
+                        {scope === 'all' ? (
+                          <span className="pill bg-slate-100 text-slate-800">Global totals</span>
+                        ) : (
+                          <span className={planChip(selectedShop.plan)}>Plan: {selectedShop.plan}</span>
+                        )}
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700">
                           <ArrowRightLeft className="w-3 h-3" />
-                          {selectedShop.connectionCount} connections
+                          {usageCounts.connections} connections
                         </span>
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700">
                           <Database className="w-3 h-3" />
-                          {selectedShop.productCount} products
+                          {usageCounts.products} products
                         </span>
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-700">
                           <CreditCard className="w-3 h-3" />
-                          {selectedShop.purchaseOrdersThisMonth} POs/mo
+                          {usageCounts.orders} Orders/mo
                         </span>
                         {isOverloaded && (
                           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-800">
@@ -410,13 +453,15 @@ export default function DashboardClient() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setDetailTab('billing')}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        Billing & Limits
-                      </button>
+                      {scope !== 'all' && (
+                        <button
+                          onClick={() => setDetailTab('billing')}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          Billing & Limits
+                        </button>
+                      )}
                       <button
                         onClick={() => setDetailTab('connections')}
                         className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-slate-50 transition"
@@ -494,6 +539,9 @@ function LeftRail({
   suppliers,
   selectedShop,
   onSelect,
+  allSuppliers,
+  scope,
+  onScopeChange,
 }: {
   supplierCount: number;
   search: string;
@@ -502,6 +550,9 @@ function LeftRail({
   suppliers: Shop[];
   selectedShop: Shop | null;
   onSelect: (shop: Shop) => void;
+  allSuppliers: Shop | null;
+  scope: Scope;
+  onScopeChange: (scope: Scope) => void;
 }) {
   const [density, setDensity] = useState<'cozy' | 'compact'>('cozy');
   const rowPadding = density === 'compact' ? 'p-2.5' : 'p-3';
@@ -546,6 +597,30 @@ function LeftRail({
           </div>
         </div>
       </div>
+      <div className="flex items-center gap-2 text-xs text-slate-600 mb-3">
+        <button
+          onClick={() => {
+            onScopeChange('supplier');
+            if (selectedShop?.id === 'all' && suppliers[0]) onSelect(suppliers[0]);
+          }}
+          className={`px-3 py-1 rounded-lg border ${
+            scope === 'supplier' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white'
+          }`}
+        >
+          Per supplier
+        </button>
+        <button
+          onClick={() => {
+            onScopeChange('all');
+            if (allSuppliers) onSelect(allSuppliers);
+          }}
+          className={`px-3 py-1 rounded-lg border ${
+            scope === 'all' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white'
+          }`}
+        >
+          All suppliers
+        </button>
+      </div>
       <div className="mb-3">
         <input
           type="text"
@@ -564,44 +639,85 @@ function LeftRail({
             No suppliers match that search.
           </div>
         ) : (
-          suppliers.map((shop) => (
-            <button
-              key={shop.id}
-              onClick={() => onSelect(shop)}
-              className={`w-full text-left ${rowPadding} border rounded-xl transition hover:shadow-sm ${
-                selectedShop?.id === shop.id
-                  ? 'border-blue-400 bg-blue-50/80'
-                  : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
-                    {shop.companyName?.slice(0, 2).toUpperCase() || shop.myshopifyDomain.slice(0, 2).toUpperCase()}
+          <>
+            {allSuppliers && (
+              <button
+                key="all-suppliers"
+                onClick={() => {
+                  onScopeChange('all');
+                  onSelect(allSuppliers);
+                }}
+                className={`w-full text-left ${rowPadding} border rounded-xl transition hover:shadow-sm ${
+                  selectedShop?.id === 'all' ? 'border-blue-400 bg-blue-50/80' : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-slate-700 text-white flex items-center justify-center text-xs font-bold">
+                      ALL
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">All suppliers</div>
+                      <div className="text-xs text-slate-500 truncate">Global view</div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{shop.companyName || shop.myshopifyDomain}</div>
-                    <div className="text-xs text-slate-500 truncate">{shop.myshopifyDomain}</div>
-                  </div>
+                  <span className="pill bg-slate-100 text-slate-800">Totals</span>
                 </div>
-                <span className={`pill ${planBadge(shop.plan)}`}>{shop.plan}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-slate-600 text-right">
-                <span className="inline-flex items-center justify-end gap-1">
-                  <ArrowRightLeft className="w-3 h-3" />
-                  {shop.connectionCount} conns
-                </span>
-                <span className="inline-flex items-center justify-end gap-1">
-                  <Database className="w-3 h-3" />
-                  {shop.productCount} products
-                </span>
-                <span className="inline-flex items-center justify-end gap-1">
-                  <CreditCard className="w-3 h-3" />
-                  {shop.purchaseOrdersThisMonth} orders/mo
-                </span>
-              </div>
-            </button>
-          ))
+                <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-slate-600 text-right">
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <ArrowRightLeft className="w-3 h-3" />
+                    {allSuppliers.connectionCount} conns
+                  </span>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <Database className="w-3 h-3" />
+                    {allSuppliers.productCount} products
+                  </span>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <CreditCard className="w-3 h-3" />
+                    {allSuppliers.purchaseOrdersThisMonth} orders/mo
+                  </span>
+                </div>
+              </button>
+            )}
+            {suppliers.map((shop) => (
+              <button
+                key={shop.id}
+                onClick={() => onSelect(shop)}
+                className={`w-full text-left ${rowPadding} border rounded-xl transition hover:shadow-sm ${
+                  selectedShop?.id === shop.id
+                    ? 'border-blue-400 bg-blue-50/80'
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                      {shop.companyName?.slice(0, 2).toUpperCase() || shop.myshopifyDomain.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{shop.companyName || shop.myshopifyDomain}</div>
+                      <div className="text-xs text-slate-500 truncate">{shop.myshopifyDomain}</div>
+                    </div>
+                  </div>
+                  <span className={`pill ${planBadge(shop.plan)}`}>{shop.plan}</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-slate-600 text-right">
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <ArrowRightLeft className="w-3 h-3" />
+                    {shop.connectionCount} conns
+                  </span>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <Database className="w-3 h-3" />
+                    {shop.productCount} products
+                  </span>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <CreditCard className="w-3 h-3" />
+                    {shop.purchaseOrdersThisMonth} orders/mo
+                  </span>
+                </div>
+              </button>
+            ))}
+          </>
         )}
       </div>
     </div>
