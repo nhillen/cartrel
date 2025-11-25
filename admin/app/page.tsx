@@ -1,6 +1,6 @@
 import { requireAuth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import DashboardClient from './DashboardClient';
+import { Dashboard } from '@/components/views/Dashboard';
 
 export default async function DashboardPage() {
   try {
@@ -9,5 +9,5 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
 
-  return <DashboardClient />;
+  return <Dashboard />;
 }
