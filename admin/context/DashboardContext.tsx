@@ -56,7 +56,7 @@ type DashboardAction =
 
 // Initial state
 const initialState: DashboardState = {
-  activeView: 'retailers',
+  activeView: 'suppliers',
   selectedNodeId: null,
   selectedNodeType: null,
   expandedNodes: new Set<string>(),

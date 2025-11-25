@@ -5,9 +5,10 @@
  */
 
 import { signOut } from 'next-auth/react';
-import { Loader2, LogOut, RefreshCcw, Store, Factory, Settings } from 'lucide-react';
+import { Loader2, LogOut, RefreshCcw, Store, Factory, Settings, AlertTriangle } from 'lucide-react';
 import { useActiveView } from '@/context/DashboardContext';
 import { useStats } from '@/queries/useStats';
+import { useHealth } from '@/queries/useHealth';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -18,10 +19,11 @@ interface HeaderProps {
 export function Header({ onRefresh, isRefreshing }: HeaderProps) {
   const { activeView, setActiveView } = useActiveView();
   const { data: stats } = useStats();
+  const { data: health } = useHealth();
 
   const navItems = [
-    { id: 'retailers' as const, label: 'Retailers', icon: Store },
     { id: 'suppliers' as const, label: 'Suppliers', icon: Factory },
+    { id: 'retailers' as const, label: 'Retailers', icon: Store },
     { id: 'admin' as const, label: 'Admin', icon: Settings },
   ];
 
@@ -37,7 +39,27 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
             </div>
             <div>
               <div className="text-base font-semibold">Cartrel Admin</div>
-              <p className="text-xs text-slate-500">CS Console</p>
+              <div className="flex items-center gap-2 text-xs">
+                {stats ? (
+                  <>
+                    <button
+                      onClick={() => setActiveView('suppliers')}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      {stats.totalSuppliers} Suppliers
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      onClick={() => setActiveView('retailers')}
+                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      {stats.totalRetailers} Retailers
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-slate-500">CS Console</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -98,14 +120,6 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
                 </span>
                 <span className="text-slate-300">|</span>
                 <span>
-                  <strong>{stats.totalSuppliers}</strong> Suppliers
-                </span>
-                <span className="text-slate-300">|</span>
-                <span>
-                  <strong>{stats.totalRetailers}</strong> Retailers
-                </span>
-                <span className="text-slate-300">|</span>
-                <span>
                   <strong>{stats.totalConnections}</strong> Connections
                 </span>
                 <span className="text-slate-300">|</span>
@@ -114,12 +128,44 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
                 </span>
               </>
             )}
+            {health?.queues && (
+              <>
+                <span className="text-slate-300">|</span>
+                <span className={health.queues.webhook.total > 100 ? 'text-amber-600' : ''}>
+                  <strong>{health.queues.webhook.total}</strong> queued
+                </span>
+                {health.queues.webhook.failed > 0 && (
+                  <>
+                    <span className="text-slate-300">|</span>
+                    <span className="text-red-600">
+                      <strong>{health.queues.webhook.failed}</strong> failed
+                    </span>
+                  </>
+                )}
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              All systems operational
-            </span>
+            {health?.activeIncidents && health.activeIncidents.length > 0 ? (
+              <span className="inline-flex items-center gap-1 text-amber-600">
+                <AlertTriangle className="w-3 h-3" />
+                {health.activeIncidents.length} active incident{health.activeIncidents.length > 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <span className={cn(
+                  'w-2 h-2 rounded-full',
+                  health?.status === 'healthy' ? 'bg-emerald-500' :
+                  health?.status === 'warning' ? 'bg-amber-500' :
+                  health?.status === 'degraded' ? 'bg-orange-500' :
+                  health?.status === 'critical' ? 'bg-red-500' : 'bg-emerald-500'
+                )} />
+                {health?.status === 'healthy' ? 'All systems operational' :
+                 health?.status === 'warning' ? 'Minor issues' :
+                 health?.status === 'degraded' ? 'Degraded performance' :
+                 health?.status === 'critical' ? 'System issues' : 'All systems operational'}
+              </span>
+            )}
           </div>
         </div>
       </div>

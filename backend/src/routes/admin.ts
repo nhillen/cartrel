@@ -8,6 +8,7 @@ import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { requireAdminAuth } from '../middleware/adminAuth';
 import { PLAN_LIMITS } from '../utils/planLimits';
+import { getWebhookQueue, getImportQueue, initializeQueues } from '../queues';
 
 const router = Router();
 
@@ -595,6 +596,201 @@ router.get('/products', async (req, res) => {
   } catch (error) {
     logger.error('Error listing products:', error);
     res.status(500).json({ error: 'Failed to list products' });
+  }
+});
+
+/**
+ * GET /api/admin/health
+ * Get system health metrics, queue stats, and active incidents
+ */
+router.get('/health', async (_req, res) => {
+  try {
+    // Get queue stats
+    let queueStats = null;
+    try {
+      let webhookQueue;
+      let importQueue;
+      try {
+        webhookQueue = getWebhookQueue();
+        importQueue = getImportQueue();
+      } catch {
+        ({ webhookQueue, importQueue } = initializeQueues());
+      }
+
+      const [
+        webhookWaiting,
+        webhookActive,
+        webhookFailed,
+        webhookCompleted,
+        importWaiting,
+        importActive,
+        importFailed,
+        importCompleted,
+      ] = await Promise.all([
+        webhookQueue.getWaitingCount(),
+        webhookQueue.getActiveCount(),
+        webhookQueue.getFailedCount(),
+        webhookQueue.getCompletedCount(),
+        importQueue.getWaitingCount(),
+        importQueue.getActiveCount(),
+        importQueue.getFailedCount(),
+        importQueue.getCompletedCount(),
+      ]);
+
+      queueStats = {
+        webhook: {
+          waiting: webhookWaiting,
+          active: webhookActive,
+          failed: webhookFailed,
+          completed: webhookCompleted,
+          total: webhookWaiting + webhookActive,
+        },
+        import: {
+          waiting: importWaiting,
+          active: importActive,
+          failed: importFailed,
+          completed: importCompleted,
+          total: importWaiting + importActive,
+        },
+      };
+    } catch (error) {
+      logger.warn('Could not get queue stats:', error);
+    }
+
+    // Get latest system health metrics (last 24 hours)
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const healthMetrics = await prisma.systemHealth.findMany({
+      where: {
+        createdAt: { gte: oneDayAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Get latest health reading per component
+    const latestByComponent: Record<string, any> = {};
+    for (const metric of healthMetrics) {
+      if (!latestByComponent[metric.component]) {
+        latestByComponent[metric.component] = metric;
+      }
+    }
+
+    // Get active incidents
+    const activeIncidents = await prisma.incident.findMany({
+      where: {
+        status: { not: 'RESOLVED' },
+      },
+      include: {
+        updates: {
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Get recent resolved incidents (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentIncidents = await prisma.incident.findMany({
+      where: {
+        status: 'RESOLVED',
+        resolvedAt: { gte: sevenDaysAgo },
+      },
+      orderBy: { resolvedAt: 'desc' },
+      take: 10,
+    });
+
+    // Determine overall health
+    const hasActiveIncident = activeIncidents.length > 0;
+    const hasCritical = activeIncidents.some(i => i.impact === 'CRITICAL');
+    const hasMajor = activeIncidents.some(i => i.impact === 'MAJOR');
+
+    let overallStatus = 'healthy';
+    if (hasCritical) overallStatus = 'critical';
+    else if (hasMajor) overallStatus = 'degraded';
+    else if (hasActiveIncident) overallStatus = 'warning';
+
+    // Calculate queue health
+    const queueHealthy = queueStats
+      ? queueStats.webhook.total < 500 && queueStats.webhook.failed < 50
+      : true;
+
+    res.json({
+      status: overallStatus,
+      queueHealthy,
+      queues: queueStats,
+      components: Object.values(latestByComponent).map((h: any) => ({
+        component: h.component,
+        healthy: h.healthy,
+        webhookQueueSize: h.webhookQueueSize,
+        webhookErrorRate: h.webhookErrorRate,
+        apiResponseTime: h.apiResponseTime,
+        databaseResponseTime: h.databaseResponseTime,
+        checkedAt: h.createdAt,
+      })),
+      activeIncidents: activeIncidents.map(i => ({
+        id: i.id,
+        title: i.title,
+        component: i.component,
+        impact: i.impact,
+        status: i.status,
+        createdAt: i.createdAt,
+        latestUpdate: i.updates[0]?.message,
+      })),
+      recentIncidents: recentIncidents.map(i => ({
+        id: i.id,
+        title: i.title,
+        component: i.component,
+        impact: i.impact,
+        resolvedAt: i.resolvedAt,
+      })),
+    });
+  } catch (error) {
+    logger.error('Error getting health:', error);
+    res.status(500).json({ error: 'Failed to get health data' });
+  }
+});
+
+/**
+ * GET /api/admin/audit-logs
+ * Get recent audit logs across all shops
+ */
+router.get('/audit-logs', async (req, res) => {
+  try {
+    const { action, shopId, limit = '50' } = req.query;
+
+    const where: any = {};
+
+    if (action && typeof action === 'string') {
+      where.action = action;
+    }
+
+    if (shopId && typeof shopId === 'string') {
+      where.shopId = shopId;
+    }
+
+    const auditLogs = await prisma.auditLog.findMany({
+      where,
+      include: {
+        shop: {
+          select: {
+            myshopifyDomain: true,
+            companyName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string, 10),
+    });
+
+    res.json({ auditLogs });
+  } catch (error) {
+    logger.error('Error listing audit logs:', error);
+    res.status(500).json({ error: 'Failed to list audit logs' });
   }
 });
 

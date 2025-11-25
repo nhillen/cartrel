@@ -24,7 +24,7 @@ export function Dashboard() {
       case 'admin':
         return <AdminView />;
       default:
-        return <RetailersView />;
+        return <SuppliersView />;
     }
   };
 
@@ -39,7 +39,7 @@ export function Dashboard() {
       case 'admin':
         return <AdminViewWrapper />;
       default:
-        return <RetailersViewWrapper />;
+        return <SuppliersViewWrapper />;
     }
   };
 

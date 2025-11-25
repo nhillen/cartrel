@@ -119,7 +119,7 @@ export interface Stats {
   shopsByPlan: Record<ShopPlan, number>;
 }
 
-// Health types (for future use)
+// Health types
 export interface SystemHealth {
   id: string;
   component: string;
@@ -129,4 +129,46 @@ export interface SystemHealth {
   databaseResponseTime: number | null;
   healthy: boolean;
   createdAt: string;
+}
+
+export interface QueueStats {
+  waiting: number;
+  active: number;
+  failed: number;
+  completed: number;
+  total: number;
+}
+
+export interface HealthData {
+  status: 'healthy' | 'warning' | 'degraded' | 'critical';
+  queueHealthy: boolean;
+  queues: {
+    webhook: QueueStats;
+    import: QueueStats;
+  } | null;
+  components: Array<{
+    component: string;
+    healthy: boolean;
+    webhookQueueSize: number | null;
+    webhookErrorRate: number | null;
+    apiResponseTime: number | null;
+    databaseResponseTime: number | null;
+    checkedAt: string;
+  }>;
+  activeIncidents: Array<{
+    id: string;
+    title: string;
+    component: string;
+    impact: string;
+    status: string;
+    createdAt: string;
+    latestUpdate: string | null;
+  }>;
+  recentIncidents: Array<{
+    id: string;
+    title: string;
+    component: string;
+    impact: string;
+    resolvedAt: string;
+  }>;
 }
