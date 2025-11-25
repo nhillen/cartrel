@@ -38,7 +38,12 @@ export function Header({ onRefresh, isRefreshing }: HeaderProps) {
               CT
             </div>
             <div>
-              <div className="text-base font-semibold">Cartrel Admin</div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-semibold">Cartrel Admin</span>
+                {stats?.version && (
+                  <span className="text-xs font-mono text-slate-400">v{stats.version}</span>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 {stats ? (
                   <>

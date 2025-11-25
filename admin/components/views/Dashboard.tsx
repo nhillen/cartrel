@@ -9,7 +9,7 @@ import { useActiveView } from '@/context/DashboardContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { RetailersView } from './RetailersView';
 import { SuppliersView } from './SuppliersView';
-import { AdminView } from './AdminView';
+import { AdminView, AdminLeftPane, AdminMiddlePane, AdminRightPane } from './AdminView';
 
 export function Dashboard() {
   const { activeView } = useActiveView();
@@ -92,8 +92,6 @@ import { ConnectionsList } from '@/components/list/ConnectionsList';
 import { ProductsList } from '@/components/list/ProductsList';
 import { ShopsList } from '@/components/list/ShopsList';
 import { Inspector } from '@/components/inspector/Inspector';
-import { Settings, CreditCard, Activity, BarChart3 } from 'lucide-react';
-import { EmptyState } from '@/components/ui/EmptyState';
 import type { Connection, Product } from '@/types/domain';
 
 // ===== RETAILERS VIEW PANES =====
@@ -427,90 +425,4 @@ function SuppliersRightPane() {
 }
 
 // ===== ADMIN VIEW PANES =====
-
-function AdminLeftPane() {
-  return (
-    <div className="p-4">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold text-slate-900">Admin Settings</h2>
-        <p className="text-xs text-slate-500">Platform configuration</p>
-      </div>
-
-      <div className="space-y-1">
-        <AdminNavItem
-          icon={CreditCard}
-          label="Pricing Tiers"
-          description="Manage subscription plans"
-          active
-        />
-        <AdminNavItem
-          icon={Activity}
-          label="System Health"
-          description="Platform monitoring"
-        />
-        <AdminNavItem
-          icon={BarChart3}
-          label="Platform Stats"
-          description="Usage analytics"
-        />
-      </div>
-    </div>
-  );
-}
-
-function AdminMiddlePane() {
-  return (
-    <div className="h-full flex flex-col p-6">
-      <EmptyState
-        icon={Settings}
-        title="Admin Settings Coming Soon"
-        description="This section will include pricing tier management, system health monitoring, and platform analytics."
-      />
-    </div>
-  );
-}
-
-function AdminRightPane() {
-  return (
-    <div className="p-4">
-      <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-        Select an admin section
-      </div>
-    </div>
-  );
-}
-
-interface AdminNavItemProps {
-  icon: typeof Settings;
-  label: string;
-  description: string;
-  active?: boolean;
-}
-
-function AdminNavItem({ icon: Icon, label, description, active }: AdminNavItemProps) {
-  return (
-    <button
-      className={`w-full text-left p-3 rounded-lg transition ${
-        active
-          ? 'bg-blue-50 border border-blue-200'
-          : 'hover:bg-slate-100 border border-transparent'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-            active ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          <Icon className="w-4 h-4" />
-        </div>
-        <div>
-          <div className={`text-sm font-medium ${active ? 'text-blue-900' : 'text-slate-700'}`}>
-            {label}
-          </div>
-          <div className="text-xs text-slate-500">{description}</div>
-        </div>
-      </div>
-    </button>
-  );
-}
+// AdminLeftPane, AdminMiddlePane, AdminRightPane are imported from AdminView.tsx

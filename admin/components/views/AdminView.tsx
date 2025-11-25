@@ -12,7 +12,8 @@ import { api } from '@/queries/api';
 import type { FailedJob } from '@/types/domain';
 import { cn } from '@/lib/utils';
 
-export function AdminView() {
+// Shared hook for admin view data
+function useAdminData() {
   const { data: health, isLoading: healthLoading } = useHealth();
   const { data: stats } = useStats();
   const { data: failedJobsData } = useQuery({
@@ -23,11 +24,15 @@ export function AdminView() {
   });
 
   const failedJobs = failedJobsData?.failedJobs || [];
+  return { health, healthLoading, stats, failedJobs };
+}
+
+// Export individual pane components for AppShell
+export function AdminLeftPane() {
+  const { health } = useAdminData();
 
   return (
-    <>
-      {/* Left Pane - System Status */}
-      <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4">
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-slate-900">System Status</h2>
           <p className="text-xs text-slate-500">Platform health monitoring</p>
@@ -106,10 +111,15 @@ export function AdminView() {
             </div>
           </div>
         )}
-      </div>
+    </div>
+  );
+}
 
-      {/* Middle Pane - Incidents & Failed Jobs */}
-      <div className="h-full flex flex-col p-6 overflow-auto">
+export function AdminMiddlePane() {
+  const { health, failedJobs } = useAdminData();
+
+  return (
+    <div className="h-full flex flex-col p-6 overflow-auto">
         {/* Active Incidents */}
         {health?.activeIncidents && health.activeIncidents.length > 0 && (
           <div className="mb-6">
@@ -199,10 +209,15 @@ export function AdminView() {
             </div>
           </div>
         )}
-      </div>
+    </div>
+  );
+}
 
-      {/* Right Pane - Platform Stats */}
-      <div className="p-4 space-y-4">
+export function AdminRightPane() {
+  const { stats } = useAdminData();
+
+  return (
+    <div className="p-4 space-y-4">
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-slate-900">Platform Stats</h2>
           <p className="text-xs text-slate-500">Usage overview</p>
@@ -258,7 +273,17 @@ export function AdminView() {
             </div>
           </div>
         )}
-      </div>
+    </div>
+  );
+}
+
+// Legacy export for backwards compatibility
+export function AdminView() {
+  return (
+    <>
+      <AdminLeftPane />
+      <AdminMiddlePane />
+      <AdminRightPane />
     </>
   );
 }
