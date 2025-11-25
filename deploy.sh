@@ -1,6 +1,26 @@
 #!/bin/bash
 set -e
 
+# ============================================================================
+# DEPRECATED: Manual deployment script
+# ============================================================================
+# This script is DEPRECATED. Use GitHub Actions instead:
+#   - Push to main branch for automatic deployment
+#   - Or manually trigger: gh workflow run deploy.yml
+#
+# This script remains for emergency fallback only.
+# ============================================================================
+
+echo "⚠️  WARNING: This script is deprecated. Prefer GitHub Actions deployment."
+echo "   To deploy via GitHub Actions: gh workflow run deploy.yml"
+echo ""
+read -p "Continue with manual deployment? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Aborted. Use 'gh workflow run deploy.yml' instead."
+    exit 0
+fi
+
 echo "🚀 Deploying Cartrel to production..."
 
 # Check for uncommitted changes

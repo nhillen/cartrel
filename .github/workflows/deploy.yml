@@ -22,20 +22,22 @@ jobs:
       - name: Notify Slack - Deployment Started
         id: slack_start
         run: |
+          COMMIT_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+
           RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
-            -H 'Content-Type: application/json' \
-            -d '{
-              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
-              "text": "🚀 Deploying Cartrel (Docker)...",
-              "blocks": [{
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*🚀 Deployment Started*\n*Service:* Cartrel\n*Type:* Docker Compose\n*Commit:* `${{ github.sha }}`\n*Actor:* ${{ github.actor }}\n*Branch:* ${{ github.ref_name }}"
+            -H "Content-Type: application/json" \
+            -d "{
+              \"channel\": \"${{ secrets.SLACK_CHANNEL_ID }}\",
+              \"text\": \"🚀 Deploying Cartrel (Docker)...\",
+              \"blocks\": [{
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"*🚀 Deployment Started*\n*Service:* Cartrel\n*Type:* Docker Compose\n*Commit:* \`${COMMIT_SHORT}\`\n*Actor:* ${{ github.actor }}\n*Branch:* ${{ github.ref_name }}\"
                 }
               }]
-            }'
+            }")
 
           THREAD_TS=$(echo "$RESPONSE" | python3 -c "import json, sys; print(json.load(sys.stdin).get('ts', ''))")
           echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
@@ -183,77 +185,77 @@ jobs:
       - name: Notify Slack - Success
         if: success()
         run: |
-          RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+          curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
-            -H 'Content-Type: application/json' \
-            -d '{
-              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
-              "thread_ts": "${{ steps.slack_start.outputs.thread_ts }}",
-              "text": "✅ Cartrel Deployment SUCCESSFUL",
-              "blocks": [
+            -H "Content-Type: application/json" \
+            -d "{
+              \"channel\": \"${{ secrets.SLACK_CHANNEL_ID }}\",
+              \"thread_ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
+              \"text\": \"✅ Cartrel Deployment SUCCESSFUL\",
+              \"blocks\": [
                 {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🟢 Cartrel Deployment SUCCESSFUL"
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"🟢 Cartrel Deployment SUCCESSFUL\"
                   }
                 },
                 {
-                  "type": "section",
-                  "fields": [
-                    {"type": "mrkdwn", "text": "*Status:*\n✅ Deployed"},
-                    {"type": "mrkdwn", "text": "*Type:*\nDocker Compose"},
-                    {"type": "mrkdwn", "text": "*Version:*\n`${{ env.VERSION }}`"},
-                    {"type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ env.COMMIT_HASH }}`>"},
-                    {"type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}"},
-                    {"type": "mrkdwn", "text": "*Environment:*\nProduction"}
+                  \"type\": \"section\",
+                  \"fields\": [
+                    {\"type\": \"mrkdwn\", \"text\": \"*Status:*\n✅ Deployed\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Type:*\nDocker Compose\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Version:*\n\`${{ env.VERSION }}\`\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|\`${{ env.COMMIT_HASH }}\`>\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Deployed by:*\n${{ github.actor }}\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Environment:*\nProduction\"}
                   ]
                 },
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "🌐 *Live Site:* <https://cartrel.com|Cartrel>"
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"🌐 *Live Site:* <https://cartrel.com|Cartrel>\"
                   }
                 }
               ]
-            }'
+            }"
 
       # 9. NOTIFY FAILURE
       - name: Notify Slack - Failure
         if: failure()
         run: |
-          RESPONSE=$(curl -s -X POST "https://slack.com/api/chat.postMessage" \
+          curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
-            -H 'Content-Type: application/json' \
-            -d '{
-              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
-              "thread_ts": "${{ steps.slack_start.outputs.thread_ts }}",
-              "text": "🔴 Cartrel Deployment FAILED",
-              "blocks": [
+            -H "Content-Type: application/json" \
+            -d "{
+              \"channel\": \"${{ secrets.SLACK_CHANNEL_ID }}\",
+              \"thread_ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
+              \"text\": \"🔴 Cartrel Deployment FAILED\",
+              \"blocks\": [
                 {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🔴 Cartrel Deployment FAILED"
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"🔴 Cartrel Deployment FAILED\"
                   }
                 },
                 {
-                  "type": "section",
-                  "fields": [
-                    {"type": "mrkdwn", "text": "*Status:*\n❌ Failed"},
-                    {"type": "mrkdwn", "text": "*Type:*\nDocker Compose"},
-                    {"type": "mrkdwn", "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ env.COMMIT_HASH }}`>"},
-                    {"type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}"}
+                  \"type\": \"section\",
+                  \"fields\": [
+                    {\"type\": \"mrkdwn\", \"text\": \"*Status:*\n❌ Failed\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Type:*\nDocker Compose\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|\`${{ env.COMMIT_HASH }}\`>\"},
+                    {\"type\": \"mrkdwn\", \"text\": \"*Triggered by:*\n${{ github.actor }}\"}
                   ]
                 },
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "⚠️ *Action Required:* Manual intervention needed\n\n📋 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Deployment Logs>"
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"⚠️ *Action Required:* Manual intervention needed\n\n📋 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Deployment Logs>\"
                   }
                 }
               ]
-            }'
+            }"
 
