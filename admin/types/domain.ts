@@ -172,3 +172,18 @@ export interface HealthData {
     resolvedAt: string;
   }>;
 }
+
+export interface FailedJob {
+  id: string;
+  name: string;
+  data: {
+    topic?: string;
+    shopDomain?: string;
+  };
+  failedReason: string;
+  stacktrace?: string;
+  attemptsMade: number;
+  timestamp: number;
+  processedOn?: number;
+  finishedOn?: number;
+}

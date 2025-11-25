@@ -799,4 +799,43 @@ router.get('/audit-logs', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/failed-jobs
+ * Get failed webhook jobs from the queue
+ */
+router.get('/failed-jobs', async (req, res) => {
+  try {
+    const { limit = '20' } = req.query;
+
+    let webhookQueue;
+    try {
+      webhookQueue = getWebhookQueue();
+    } catch {
+      ({ webhookQueue } = initializeQueues());
+    }
+
+    const failedJobs = await webhookQueue.getFailed(0, parseInt(limit as string, 10));
+
+    const jobs = failedJobs.map(job => ({
+      id: job.id,
+      name: job.name,
+      data: {
+        topic: job.data?.topic,
+        shopDomain: job.data?.shopDomain,
+      },
+      failedReason: job.failedReason,
+      stacktrace: job.stacktrace?.[0]?.substring(0, 500), // Truncate stacktrace
+      attemptsMade: job.attemptsMade,
+      timestamp: job.timestamp,
+      processedOn: job.processedOn,
+      finishedOn: job.finishedOn,
+    }));
+
+    res.json({ failedJobs: jobs });
+  } catch (error) {
+    logger.error('Error getting failed jobs:', error);
+    res.status(500).json({ error: 'Failed to get failed jobs' });
+  }
+});
+
 export default router;
