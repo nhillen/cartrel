@@ -108,12 +108,11 @@ jobs:
           oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
 
-      # 6. DEPLOY TO SERVER
-      - name: Deploy to server
+      # 6. DEPLOY TO SERVER - Build
+      - name: Build on server
         run: |
           tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net << 'ENDSSH'
           set -e
-
           cd ${{ env.DEPLOY_PATH }}
 
           echo "📥 Pulling latest code..."
@@ -138,26 +137,39 @@ jobs:
             --build-arg COMMIT_HASH=${{ env.COMMIT_HASH }} \
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
 
-          echo "🗄️  Running database migrations..."
-          docker compose -f ${{ env.COMPOSE_FILE }} run -T --rm app npx prisma migrate deploy || true
+          echo "✅ Build complete"
+          ENDSSH
 
+      # 6b. Run migrations
+      - name: Run migrations
+        run: |
+          echo "🗄️  Running database migrations..."
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "cd ${{ env.DEPLOY_PATH }} && docker compose -f ${{ env.COMPOSE_FILE }} run -T --rm app npx prisma migrate deploy" || true
+
+      # 6c. Restart containers
+      - name: Restart containers
+        run: |
           echo "♻️  Restarting containers..."
-          docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "cd ${{ env.DEPLOY_PATH }} && docker compose -f ${{ env.COMPOSE_FILE }} up -d --force-recreate --no-deps app admin"
 
           echo "⏳ Waiting for containers to be ready..."
           sleep 5
 
           echo ""
           echo "📊 Container status:"
-          docker compose -f ${{ env.COMPOSE_FILE }} ps
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "cd ${{ env.DEPLOY_PATH }} && docker compose -f ${{ env.COMPOSE_FILE }} ps"
 
           echo ""
           echo "🔍 Container image info:"
-          docker inspect cartrel-app --format='Image: {{.Image}} Created: {{.Created}}' || true
-          docker inspect cartrel-admin --format='Image: {{.Image}} Created: {{.Created}}' || true
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "docker inspect cartrel-app --format='Image: {{.Image}} Created: {{.Created}}'" || true
+          tailscale ssh deploy@vps-0b87e710.tail751d97.ts.net \
+            "docker inspect cartrel-admin --format='Image: {{.Image}} Created: {{.Created}}'" || true
 
           echo "✅ Deployment complete"
-          ENDSSH
 
       # 7. VERIFY DEPLOYMENT
       - name: Verify deployment
