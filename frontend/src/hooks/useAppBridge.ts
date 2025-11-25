@@ -1,12 +1,11 @@
-import { useContext } from 'react';
-import { AppBridgeContext } from '../context/AppBridgeContext';
-
+/**
+ * Hook to access the App Bridge v4 shopify global
+ * For backwards compatibility - prefer using window.shopify directly
+ */
 export function useAppBridge() {
-  const appBridge = useContext(AppBridgeContext);
-
-  if (!appBridge) {
-    throw new Error('App Bridge has not finished booting');
+  if (!window.shopify) {
+    throw new Error('App Bridge has not finished loading. Make sure the CDN script is in index.html');
   }
 
-  return appBridge;
+  return window.shopify;
 }

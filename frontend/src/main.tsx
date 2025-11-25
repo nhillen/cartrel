@@ -5,14 +5,14 @@ import './index.css';
 import App from './App';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { AppProvider as PolarisProvider } from '@shopify/polaris';
-import { AppBridgeProvider } from './providers/AppBridgeProvider';
+
+// App Bridge v4 - initialization handled by CDN script in index.html
+// No Provider wrapper needed anymore
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PolarisProvider i18n={enTranslations}>
-      <AppBridgeProvider>
-        <App />
-      </AppBridgeProvider>
+      <App />
     </PolarisProvider>
   </StrictMode>,
 );

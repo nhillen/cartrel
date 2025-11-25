@@ -249,7 +249,9 @@ router.post('/verify', async (req, res, next): Promise<void> => {
 });
 
 /**
- * Register webhooks for a shop
+ * Register webhooks for a shop using GraphQL API
+ * Migrated from REST API per Shopify deprecation timeline (Feb 2025)
+ * https://shopify.dev/docs/api/admin-graphql/latest/mutations/webhookSubscriptionCreate
  */
 async function registerWebhooks(shop: string, accessToken: string) {
   const session = new Session({
@@ -260,31 +262,61 @@ async function registerWebhooks(shop: string, accessToken: string) {
     accessToken,
   });
 
-  const client = new shopify.clients.Rest({ session });
+  const client = new shopify.clients.Graphql({ session });
 
+  // GraphQL webhook topics use SCREAMING_SNAKE_CASE
   const webhooks = [
-    { topic: 'products/create', address: `${config.appUrl}/webhooks/shopify/products/create` },
-    { topic: 'products/update', address: `${config.appUrl}/webhooks/shopify/products/update` },
-    { topic: 'products/delete', address: `${config.appUrl}/webhooks/shopify/products/delete` },
-    { topic: 'inventory_levels/update', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
-    { topic: 'orders/create', address: `${config.appUrl}/webhooks/shopify/orders/create` },
-    { topic: 'orders/updated', address: `${config.appUrl}/webhooks/shopify/orders/update` },
-    { topic: 'app/uninstalled', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
+    { topic: 'PRODUCTS_CREATE', address: `${config.appUrl}/webhooks/shopify/products/create` },
+    { topic: 'PRODUCTS_UPDATE', address: `${config.appUrl}/webhooks/shopify/products/update` },
+    { topic: 'PRODUCTS_DELETE', address: `${config.appUrl}/webhooks/shopify/products/delete` },
+    { topic: 'INVENTORY_LEVELS_UPDATE', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
+    { topic: 'ORDERS_CREATE', address: `${config.appUrl}/webhooks/shopify/orders/create` },
+    { topic: 'ORDERS_UPDATED', address: `${config.appUrl}/webhooks/shopify/orders/update` },
+    { topic: 'APP_UNINSTALLED', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
   ];
+
+  const mutation = `
+    mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
+      webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+        webhookSubscription {
+          id
+          topic
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
 
   for (const webhook of webhooks) {
     try {
-      await client.post({
-        path: 'webhooks',
-        data: {
-          webhook: {
-            topic: webhook.topic,
-            address: webhook.address,
-            format: 'json',
+      const response = await client.request(mutation, {
+        variables: {
+          topic: webhook.topic,
+          webhookSubscription: {
+            callbackUrl: webhook.address,
+            format: 'JSON',
           },
         },
       });
-      logger.info(`Registered webhook: ${webhook.topic} for ${shop}`);
+
+      const result = response.data?.webhookSubscriptionCreate;
+
+      if (result?.userErrors?.length > 0) {
+        // "Address for this topic has already been taken" is not a real error
+        const isAlreadyRegistered = result.userErrors.some(
+          (e: { message: string }) => e.message.includes('already been taken')
+        );
+        if (isAlreadyRegistered) {
+          logger.debug(`Webhook already registered: ${webhook.topic} for ${shop}`);
+        } else {
+          logger.warn(`Webhook registration warning for ${webhook.topic}:`, result.userErrors);
+        }
+      } else if (result?.webhookSubscription?.id) {
+        logger.info(`Registered webhook: ${webhook.topic} for ${shop}`);
+      }
     } catch (error) {
       logger.error(`Failed to register webhook ${webhook.topic}:`, error);
     }
