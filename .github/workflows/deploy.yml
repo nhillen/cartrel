@@ -184,23 +184,23 @@ jobs:
             exit 1
           fi
 
-      # 8. NOTIFY SUCCESS
+      # 8. NOTIFY SUCCESS (edit original message)
       - name: Notify Slack - Success
         if: success()
         run: |
-          curl -s -X POST "https://slack.com/api/chat.postMessage" \
+          curl -s -X POST "https://slack.com/api/chat.update" \
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"channel\": \"${{ secrets.SLACK_CHANNEL_ID }}\",
-              \"thread_ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
-              \"text\": \"✅ Cartrel Deployment SUCCESSFUL\",
+              \"ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
+              \"text\": \"🟢 Cartrel Deployment SUCCESSFUL\",
               \"blocks\": [
                 {
                   \"type\": \"header\",
                   \"text\": {
                     \"type\": \"plain_text\",
-                    \"text\": \"🟢 Cartrel Deployment SUCCESSFUL\"
+                    \"text\": \"🟢 Cartrel Deployed Successfully\"
                   }
                 },
                 {
@@ -224,16 +224,16 @@ jobs:
               ]
             }"
 
-      # 9. NOTIFY FAILURE
+      # 9. NOTIFY FAILURE (edit original message)
       - name: Notify Slack - Failure
         if: failure()
         run: |
-          curl -s -X POST "https://slack.com/api/chat.postMessage" \
+          curl -s -X POST "https://slack.com/api/chat.update" \
             -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"channel\": \"${{ secrets.SLACK_CHANNEL_ID }}\",
-              \"thread_ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
+              \"ts\": \"${{ steps.slack_start.outputs.thread_ts }}\",
               \"text\": \"🔴 Cartrel Deployment FAILED\",
               \"blocks\": [
                 {
