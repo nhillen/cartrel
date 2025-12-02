@@ -53,6 +53,11 @@ export interface ActivityEntry {
     | 'INVENTORY_UPDATE'
     | 'CATALOG_UPDATE'
     | 'ORDER_FORWARD'
+    | 'ORDER_PENDING'
+    | 'ORDER_SHADOWED'
+    | 'ORDER_PUSHED'
+    | 'ORDER_PUSH_FAILED'
+    | 'FULFILLMENT_SYNCED'
     | 'RATE_LIMIT'
     | 'MAPPING_ERROR'
     | 'SKU_DRIFT';
@@ -202,7 +207,7 @@ class ConnectionHealthServiceClass {
    */
   async recordSync(
     connectionId: string,
-    type: 'INVENTORY' | 'CATALOG' | 'ORDER',
+    type: 'INVENTORY' | 'CATALOG' | 'ORDER' | 'FULFILLMENT',
     success: boolean,
     error?: string
   ): Promise<void> {

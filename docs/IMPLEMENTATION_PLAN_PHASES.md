@@ -30,10 +30,10 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - ✅ Multi-location: per-connection location filter (single/all, feature-flag multi); resync on default location change; buffer/reserve application.
 - ✅ Rate-limit aware batching for inventory updates to destinations.
 
-## Phase 5: Order Forwarding
-- Manual/auto forwarding per connection; shipping rules/tags; $0 workaround; error surfaces.
-- Shadow mode (preview) and bulk push for errors/on-hold orders; feature-flag auto support for Shopify “On Hold.”
-- Fulfillment/track sync back; idempotency; POS/local pickup exclusion.
+## Phase 5: Order Forwarding ✅
+- ✅ Manual/auto forwarding per connection; shipping rules/tags; $0 workaround; error surfaces.
+- ✅ Shadow mode (preview) and bulk push for errors/on-hold orders; feature-flag auto support for Shopify "On Hold."
+- ✅ Fulfillment/track sync back; idempotency; POS/local pickup exclusion.
 
 ## Phase 6: Metafields Sync
 - Definition selection UI/logic; supported types; caps enforcement per tier.

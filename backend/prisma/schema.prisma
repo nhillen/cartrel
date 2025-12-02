@@ -478,6 +478,7 @@ model PurchaseOrder {
   perksApplied     Json? // Array of AppliedPerk objects
 
   // Shopify integration
+  retailerShopifyOrderId      String? // The original retailer order that triggered this PO
   supplierShopifyOrderId      String?
   supplierShopifyDraftOrderId String?
 
