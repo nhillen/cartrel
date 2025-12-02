@@ -28,11 +28,11 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy only package.json (skip package-lock.json to avoid corruption issues)
-COPY package.json ./
+# Copy package files (including lock file for reproducible builds)
+COPY package.json package-lock.json ./
 
-# Install all dependencies (including dev)
-RUN npm install
+# Install all dependencies (including dev) using ci for reproducibility
+RUN npm ci
 
 # Copy source and config
 COPY . .
@@ -55,8 +55,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only package.json (skip package-lock.json to avoid corruption issues)
-COPY package.json ./
+# Copy package files (including lock file for reproducible builds)
+COPY package.json package-lock.json ./
 
 # Copy slack-reporter from build stage to the path npm expects
 # Package.json has: "file:../../manabot/packages/slack-reporter"
@@ -64,8 +64,8 @@ COPY package.json ./
 RUN mkdir -p /manabot/packages
 COPY --from=build /app/slack-reporter /manabot/packages/slack-reporter
 
-# Install production dependencies only
-RUN npm install --omit=dev
+# Install production dependencies only using ci for reproducibility
+RUN npm ci --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
