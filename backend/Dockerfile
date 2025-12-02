@@ -31,8 +31,8 @@ WORKDIR /app
 # Copy package files (including lock file for reproducible builds)
 COPY package.json package-lock.json ./
 
-# Install all dependencies (including dev) using ci for reproducibility
-RUN npm ci
+# Install all dependencies (including dev)
+RUN npm install
 
 # Copy source and config
 COPY . .
@@ -64,8 +64,8 @@ COPY package.json package-lock.json ./
 RUN mkdir -p /manabot/packages
 COPY --from=build /app/slack-reporter /manabot/packages/slack-reporter
 
-# Install production dependencies only using ci for reproducibility
-RUN npm ci --omit=dev
+# Install production dependencies only
+RUN npm install --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
