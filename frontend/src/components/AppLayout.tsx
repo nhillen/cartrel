@@ -5,6 +5,7 @@ import {
   ProductIcon,
   OrderIcon,
   SettingsIcon,
+  SearchIcon,
 } from '@shopify/polaris-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -48,6 +49,13 @@ export function AppLayout({ children }: AppLayoutProps) {
             icon: OrderIcon,
             selected: location.pathname.startsWith('/orders'),
             onClick: () => navigate('/orders'),
+          },
+          {
+            url: '/marketplace',
+            label: 'Partner Network',
+            icon: SearchIcon,
+            selected: location.pathname.startsWith('/marketplace'),
+            onClick: () => navigate('/marketplace'),
           },
           {
             url: '/settings',

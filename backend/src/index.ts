@@ -23,6 +23,7 @@ import retailerRoutes from './routes/retailer';
 import billingRoutes from './routes/billing';
 import statusRoutes from './routes/status';
 import adminRoutes from './routes/admin';
+import marketplaceRoutes from './routes/marketplace';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeInputs } from './middleware/validation';
 import { generalApiLimiter, authLimiter, webhookLimiter } from './middleware/rateLimits';
@@ -369,6 +370,9 @@ app.use('/status', statusRoutes);
 
 // Admin routes (protected by HTTP Basic Auth)
 app.use('/api/admin', adminRoutes);
+
+// Marketplace routes (partner discovery)
+app.use('/api/marketplace', marketplaceRoutes);
 
 // Admin HTML interface
 app.get('/admin', (_req, res) => {

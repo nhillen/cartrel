@@ -175,3 +175,63 @@ export interface Order {
     price: number;
   }>;
 }
+
+// Marketplace types
+export interface PartnerProfile {
+  id: string;
+  displayName: string;
+  slug: string | null;
+  description: string | null;
+  website: string | null;
+  socialLinks: Record<string, string> | null;
+  location: string | null;
+  country: string | null;
+  category: string | null;
+  logoUrl: string | null;
+  coverImageUrl: string | null;
+  galleryImages: string[] | null;
+  visibility: 'PUBLIC' | 'PRIVATE' | 'CONNECTIONS_ONLY';
+  verified: boolean;
+  productCount: number;
+  connectionCount: number;
+  allowReshare: boolean;
+  reshareScope: string | null;
+  reshareMaxDests: number;
+  shop?: {
+    id: string;
+    role: string;
+    myshopifyDomain?: string;
+  };
+}
+
+export interface MarketplaceInvite {
+  id: string;
+  message: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+  suggestedSyncMode: string | null;
+  createdAt: string;
+  expiresAt: string;
+  senderProfile?: {
+    id: string;
+    displayName: string;
+    logoUrl: string | null;
+    category: string | null;
+  };
+  recipientProfile?: {
+    id: string;
+    displayName: string;
+    logoUrl: string | null;
+    category: string | null;
+  };
+}
+
+export interface BrowseProfilesResponse {
+  profiles: PartnerProfile[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface MarketplaceInvitesResponse {
+  sent: MarketplaceInvite[];
+  received: MarketplaceInvite[];
+}
