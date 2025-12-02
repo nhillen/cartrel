@@ -34,14 +34,14 @@ RUN npm install -g npm@11
 # Copy package files (including lock file for reproducible builds)
 COPY package.json package-lock.json ./
 
-# Set up slack-reporter at the path referenced in package-lock.json
-# package.json has: "file:../../manabot/packages/slack-reporter"
-# From /app, that resolves to /manabot/packages/slack-reporter
+# Set up slack-reporter dependency
+# The deploy script copies it to backend/slack-reporter, so copy to expected path
 RUN mkdir -p /manabot/packages
 COPY slack-reporter /manabot/packages/slack-reporter
 
 # Install all dependencies (including dev)
-RUN npm install
+# Delete lockfile first - the local lockfile has paths incompatible with Docker
+RUN rm -f package-lock.json && npm install
 
 # Copy source and config
 COPY . .
@@ -77,8 +77,8 @@ RUN mkdir -p /manabot/packages
 COPY --from=build /app/slack-reporter /manabot/packages/slack-reporter
 
 # Install production dependencies only
-# Note: Using npm install instead of npm ci due to file: dependency on slack-reporter
-RUN npm install --omit=dev
+# Delete lockfile first - the local lockfile has paths incompatible with Docker
+RUN rm -f package-lock.json && npm install --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
