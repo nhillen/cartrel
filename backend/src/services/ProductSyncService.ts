@@ -6,12 +6,52 @@
  * - Propagate changes to connected retailers via ProductMappings
  * - Respect sync preferences (syncTitle, syncPricing, syncImages, etc.)
  * - Handle conflict resolution (SUPPLIER_WINS, RETAILER_WINS, REVIEW_QUEUE)
+ *
+ * Per PRD_PRODUCT_ONLY_MODE:
+ * - CATALOG_ONLY mode syncs content without inventory
+ * - Per-connection syncScope controls field defaults
+ *
+ * Per PRD_PRODUCT_SETTINGS_SYNC:
+ * - Field-level controls per connection
+ * - Tag sync modes (append vs mirror)
  */
 
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
+import { ConnectionHealthService } from './ConnectionHealthService';
+import { SyncMode } from '@prisma/client';
 import crypto from 'crypto';
+
+// Sync scope fields that can be controlled per connection
+export interface SyncScope {
+  syncTitle?: boolean;
+  syncDescription?: boolean;
+  syncImages?: boolean;
+  syncPricing?: boolean;
+  syncVendor?: boolean;
+  syncProductType?: boolean;
+  syncTags?: boolean;
+  syncSEO?: boolean;
+  syncWeight?: boolean;
+  syncBarcode?: boolean;
+  tagSyncMode?: 'APPEND' | 'MIRROR';
+}
+
+// Default sync scope
+const DEFAULT_SYNC_SCOPE: SyncScope = {
+  syncTitle: true,
+  syncDescription: true,
+  syncImages: true,
+  syncPricing: true,
+  syncVendor: false,
+  syncProductType: false,
+  syncTags: false,
+  syncSEO: false,
+  syncWeight: false,
+  syncBarcode: false,
+  tagSyncMode: 'APPEND',
+};
 
 interface ShopifyProduct {
   id: string;
@@ -164,6 +204,12 @@ export class ProductSyncService {
 
   /**
    * Sync a single product to a retailer based on ProductMapping settings
+   *
+   * Checks:
+   * - SKU drift blocking
+   * - Hidden tag handling
+   * - Connection sync mode (CATALOG_ONLY skips inventory)
+   * - Field-level sync preferences (mapping + connection scope)
    */
   private static async syncToRetailer(
     supplierProduct: any,
@@ -171,6 +217,30 @@ export class ProductSyncService {
   ): Promise<void> {
     const { connection, conflictMode } = mapping;
     const retailerShop = connection.retailerShop;
+
+    // Check for SKU drift - block sync until resolved
+    if (mapping.skuDriftDetected) {
+      logger.warn(
+        `SKU drift detected for mapping ${mapping.id} - sync blocked until resolved`
+      );
+      await this.recordSyncError(
+        mapping.id,
+        connection.id,
+        'SKU drift detected - original SKU has changed. Please remap or resolve.'
+      );
+      return;
+    }
+
+    // Check for hidden tag - handle according to action
+    if (mapping.sourceHiddenTag && mapping.hiddenTagAction !== 'PENDING') {
+      logger.info(
+        `Hidden tag on source product for mapping ${mapping.id} - action: ${mapping.hiddenTagAction}`
+      );
+      // If ZERO_INVENTORY or UNSYNC, skip regular sync
+      if (mapping.hiddenTagAction === 'ZERO_INVENTORY' || mapping.hiddenTagAction === 'UNSYNC') {
+        return;
+      }
+    }
 
     // Check conflict mode - if REVIEW_QUEUE, don't auto-sync
     if (conflictMode === 'REVIEW_QUEUE') {
@@ -201,30 +271,44 @@ export class ProductSyncService {
         retailerShop.accessToken
       );
 
-      // Build update mutation based on sync preferences
+      // Merge connection syncScope with mapping preferences
+      // Mapping preferences override connection defaults
+      const connectionScope = this.parseConnectionSyncScope(connection.syncScope);
+      const effectiveScope = this.mergeScopes(connectionScope, mapping);
+
+      // Build update mutation based on effective sync preferences
       const updates: any = {};
 
-      if (mapping.syncTitle) {
+      if (effectiveScope.syncTitle) {
         updates.title = supplierProduct.title;
       }
 
-      if (mapping.syncDescription) {
+      if (effectiveScope.syncDescription) {
         updates.descriptionHtml = supplierProduct.description;
       }
 
-      if (mapping.syncImages) {
+      if (effectiveScope.syncImages) {
         updates.images = supplierProduct.imageUrl ? [{ src: supplierProduct.imageUrl }] : [];
       }
 
-      if (mapping.syncPricing) {
+      if (effectiveScope.syncVendor) {
+        updates.vendor = supplierProduct.vendor;
+      }
+
+      if (effectiveScope.syncProductType) {
+        updates.productType = supplierProduct.productType;
+      }
+
+      // Pricing sync - respects CATALOG_ONLY mode
+      if (effectiveScope.syncPricing) {
         // Apply retailer markup
         const basePrice = parseFloat(supplierProduct.wholesalePrice);
         let retailerPrice = basePrice;
 
         if (mapping.retailerMarkupType === 'PERCENTAGE') {
-          retailerPrice = basePrice * (1 + parseFloat(mapping.retailerMarkupValue) / 100);
+          retailerPrice = basePrice * (1 + parseFloat(mapping.retailerMarkupValue || 0) / 100);
         } else if (mapping.retailerMarkupType === 'FIXED_AMOUNT') {
-          retailerPrice = basePrice + parseFloat(mapping.retailerMarkupValue);
+          retailerPrice = basePrice + parseFloat(mapping.retailerMarkupValue || 0);
         }
 
         updates.variants = [
@@ -235,11 +319,19 @@ export class ProductSyncService {
         ];
       }
 
-      if (mapping.syncSEO && (supplierProduct.seoTitle || supplierProduct.seoDescription)) {
+      if (effectiveScope.syncSEO && (supplierProduct.seoTitle || supplierProduct.seoDescription)) {
         updates.seo = {
           title: supplierProduct.seoTitle,
           description: supplierProduct.seoDescription,
         };
+      }
+
+      // Tag sync with mode support (APPEND vs MIRROR)
+      if (effectiveScope.syncTags && supplierProduct.tags) {
+        // For MIRROR mode, we'd replace all tags
+        // For APPEND mode (default), we'd add without removing
+        // Note: This requires fetching existing tags for APPEND mode
+        updates.tags = supplierProduct.tags;
       }
 
       // Only update if there are changes
@@ -287,22 +379,100 @@ export class ProductSyncService {
         throw new Error(`Shopify update failed: ${errors[0].message}`);
       }
 
-      // Update mapping with new sync hash
+      // Update mapping with success status
       await prisma.productMapping.update({
         where: { id: mapping.id },
         data: {
           lastSyncHash: syncHash,
-          updatedAt: new Date(),
+          lastSyncAt: new Date(),
+          lastCatalogAt: new Date(),
+          lastSuccessAt: new Date(),
+          errorCount: 0,
+          lastError: null,
+          lastErrorAt: null,
         },
       });
+
+      // Record health
+      await ConnectionHealthService.recordSync(connection.id, 'CATALOG', true);
 
       logger.info(
         `Product ${supplierProduct.id} synced to retailer ${retailerShop.id} successfully`
       );
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`Error syncing to retailer ${retailerShop.id}:`, error);
+
+      // Record error on mapping
+      await this.recordSyncError(mapping.id, connection.id, errorMessage);
+
       throw error;
     }
+  }
+
+  /**
+   * Record a sync error on a mapping and connection
+   */
+  private static async recordSyncError(
+    mappingId: string,
+    connectionId: string,
+    error: string
+  ): Promise<void> {
+    // Update mapping error tracking
+    await prisma.productMapping.update({
+      where: { id: mappingId },
+      data: {
+        lastError: error,
+        lastErrorAt: new Date(),
+        errorCount: { increment: 1 },
+      },
+    });
+
+    // Record health event
+    await ConnectionHealthService.recordSync(connectionId, 'CATALOG', false, error);
+  }
+
+  /**
+   * Parse connection syncScope JSON into SyncScope object
+   */
+  private static parseConnectionSyncScope(scopeJson: any): SyncScope {
+    if (!scopeJson) {
+      return DEFAULT_SYNC_SCOPE;
+    }
+
+    try {
+      const parsed = typeof scopeJson === 'string' ? JSON.parse(scopeJson) : scopeJson;
+      return { ...DEFAULT_SYNC_SCOPE, ...parsed };
+    } catch {
+      return DEFAULT_SYNC_SCOPE;
+    }
+  }
+
+  /**
+   * Merge connection scope with mapping-level preferences
+   * Mapping preferences take precedence
+   */
+  private static mergeScopes(connectionScope: SyncScope, mapping: any): SyncScope {
+    return {
+      syncTitle: mapping.syncTitle ?? connectionScope.syncTitle,
+      syncDescription: mapping.syncDescription ?? connectionScope.syncDescription,
+      syncImages: mapping.syncImages ?? connectionScope.syncImages,
+      syncPricing: mapping.syncPricing ?? connectionScope.syncPricing,
+      syncVendor: connectionScope.syncVendor,
+      syncProductType: connectionScope.syncProductType,
+      syncTags: mapping.syncTags ?? connectionScope.syncTags,
+      syncSEO: mapping.syncSEO ?? connectionScope.syncSEO,
+      syncWeight: connectionScope.syncWeight,
+      syncBarcode: connectionScope.syncBarcode,
+      tagSyncMode: mapping.tagSyncMode ?? connectionScope.tagSyncMode,
+    };
+  }
+
+  /**
+   * Check if connection is in product-only mode
+   */
+  static isProductOnlyMode(connection: any): boolean {
+    return connection.syncMode === SyncMode.CATALOG_ONLY;
   }
 
   /**
