@@ -29,6 +29,12 @@ enum ShopPlan {
   SCALE
 }
 
+enum WebhookDeliveryMethod {
+  HTTP // Standard HTTP webhooks (default)
+  EVENTBRIDGE // AWS EventBridge (Shopify Plus only)
+  PUBSUB // Google Cloud Pub/Sub
+}
+
 model Shop {
   id              String   @id @default(cuid())
   myshopifyDomain String   @unique // e.g., "brandname.myshopify.com"
@@ -75,6 +81,12 @@ model Shop {
   // Partner network & payouts (Phase 1)
   partnerProfile PartnerProfile?
   payoutSettings PayoutSettings[]
+
+  // Webhook delivery configuration (HTTP default, EventBridge/PubSub for scale)
+  webhookDeliveryMethod WebhookDeliveryMethod @default(HTTP)
+  eventBridgeArn        String? // AWS EventBridge ARN (Shopify Plus only)
+  pubsubProject         String? // GCP Pub/Sub project ID
+  pubsubTopic           String? // GCP Pub/Sub topic name
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -597,6 +609,8 @@ enum AuditAction {
   PRODUCT_IMPORTED
   PRODUCTS_BULK_IMPORTED
   ASYNC_IMPORT_COMPLETED
+  BULK_IMPORT_STARTED
+  BULK_IMPORT_COMPLETED
   PURCHASE_ORDER_CREATED
   PURCHASE_ORDER_PAID
   PURCHASE_ORDER_SHIPPED

@@ -60,14 +60,24 @@ export class ProductImportService {
   /**
    * Fetch available products from supplier for import
    * Filters out already-imported products by default
+   * Supports cursor-based pagination for large catalogs (1000+ products)
    */
   static async getAvailableProducts(
     connectionId: string,
-    includeImported: boolean = false,
-    _cursor?: string
-  ): Promise<{ products: any[]; hasNextPage: boolean; nextCursor?: string }> {
+    options: {
+      includeImported?: boolean;
+      cursor?: string;
+      limit?: number;
+      search?: string;
+    } = {}
+  ): Promise<{ products: any[]; hasNextPage: boolean; nextCursor?: string; totalCount: number }> {
     try {
-      logger.info(`Fetching available products for connection ${connectionId}`);
+      const { includeImported = false, cursor, limit = 50, search } = options;
+      const take = Math.min(limit, 100); // Cap at 100 per page
+
+      logger.info(
+        `Fetching available products for connection ${connectionId} (cursor: ${cursor || 'none'}, limit: ${take})`
+      );
 
       const connection = await prisma.connection.findUnique({
         where: { id: connectionId },
@@ -81,12 +91,28 @@ export class ProductImportService {
         throw new Error(`Connection ${connectionId} not found`);
       }
 
-      // Get supplier's wholesale products
+      // Build where clause
+      const whereClause: any = {
+        supplierShopId: connection.supplierShopId,
+        isWholesaleEligible: true,
+      };
+
+      // Add search filter if provided
+      if (search) {
+        whereClause.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Get total count for pagination info
+      const totalCount = await prisma.supplierProduct.count({
+        where: whereClause,
+      });
+
+      // Get supplier's wholesale products with cursor pagination
       const supplierProducts = await prisma.supplierProduct.findMany({
-        where: {
-          supplierShopId: connection.supplierShopId,
-          isWholesaleEligible: true,
-        },
+        where: whereClause,
         include: {
           productMappings: {
             where: {
@@ -94,16 +120,19 @@ export class ProductImportService {
             },
           },
         },
-        take: 50,
-        orderBy: {
-          title: 'asc',
-        },
+        take: take + 1, // Fetch one extra to check if there's more
+        orderBy: [{ title: 'asc' }, { id: 'asc' }], // Stable ordering for cursor
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       });
 
+      // Check if there are more results
+      const hasNextPage = supplierProducts.length > take;
+      const productsToReturn = hasNextPage ? supplierProducts.slice(0, -1) : supplierProducts;
+
       // Filter based on includeImported flag
-      let filteredProducts = supplierProducts;
+      let filteredProducts = productsToReturn;
       if (!includeImported) {
-        filteredProducts = supplierProducts.filter((p) => p.productMappings.length === 0);
+        filteredProducts = productsToReturn.filter((p) => p.productMappings.length === 0);
       }
 
       const products = filteredProducts.map((p) => ({
@@ -119,14 +148,18 @@ export class ProductImportService {
         mappingId: p.productMappings[0]?.id,
       }));
 
+      // Get cursor for next page (last item's ID)
+      const nextCursor = hasNextPage ? productsToReturn[productsToReturn.length - 1].id : undefined;
+
       logger.info(
-        `Found ${products.length} available products (${includeImported ? 'including' : 'excluding'} imported)`
+        `Found ${products.length} available products (${includeImported ? 'including' : 'excluding'} imported, total: ${totalCount})`
       );
 
       return {
         products,
-        hasNextPage: false, // TODO: Implement cursor-based pagination for 1000+ products
-        nextCursor: undefined,
+        hasNextPage,
+        nextCursor,
+        totalCount,
       };
     } catch (error) {
       logger.error(`Error fetching available products:`, error);
@@ -827,6 +860,412 @@ export class ProductImportService {
     } catch (error) {
       logger.error(`Error updating mapping preferences:`, error);
       throw error;
+    }
+  }
+
+  // =============================================================================
+  // BULK IMPORT (GraphQL Bulk Operations)
+  // =============================================================================
+
+  /**
+   * Bulk import products using Shopify's bulkOperationRunMutation
+   * Much more efficient for large imports (10-100x faster than individual mutations)
+   *
+   * Flow:
+   * 1. Build JSONL file with product inputs
+   * 2. Upload via staged uploads
+   * 3. Run bulk mutation
+   * 4. Poll for completion
+   * 5. Process results and create mappings
+   */
+  static async bulkImportProducts(
+    connectionId: string,
+    supplierProductIds: string[],
+    preferences: ImportPreferences
+  ): Promise<{
+    operationId: string;
+    productCount: number;
+    status: 'STARTED' | 'FAILED';
+    error?: string;
+  }> {
+    try {
+      logger.info(
+        `Starting bulk import of ${supplierProductIds.length} products for connection ${connectionId}`
+      );
+
+      const connection = await prisma.connection.findUnique({
+        where: { id: connectionId },
+        include: {
+          supplierShop: true,
+          retailerShop: true,
+        },
+      });
+
+      if (!connection) {
+        throw new Error(`Connection ${connectionId} not found`);
+      }
+
+      // Get all supplier products
+      const supplierProducts = await prisma.supplierProduct.findMany({
+        where: {
+          id: { in: supplierProductIds },
+          supplierShopId: connection.supplierShopId,
+        },
+      });
+
+      if (supplierProducts.length === 0) {
+        return {
+          operationId: '',
+          productCount: 0,
+          status: 'FAILED',
+          error: 'No valid products found',
+        };
+      }
+
+      // Build JSONL content for bulk mutation
+      const jsonlLines: string[] = [];
+      const productMap = new Map<number, string>(); // line index -> supplierProductId
+
+      for (let i = 0; i < supplierProducts.length; i++) {
+        const product = supplierProducts[i];
+        const retailPrice = this.calculateRetailPrice(
+          parseFloat(product.wholesalePrice.toString()),
+          preferences
+        );
+
+        const productInput = this.buildProductInput(product, retailPrice, preferences);
+        jsonlLines.push(JSON.stringify({ input: productInput }));
+        productMap.set(i, product.id);
+      }
+
+      const jsonlContent = jsonlLines.join('\n');
+
+      // Create staged upload for the JSONL file
+      const targets = await BulkOperationService.createStagedUploads(connection.retailerShop, [
+        {
+          filename: `bulk-import-${connectionId}-${Date.now()}.jsonl`,
+          mimeType: 'application/jsonl',
+          resource: 'BULK_MUTATION_VARIABLES',
+          fileSize: Buffer.byteLength(jsonlContent, 'utf8'),
+        },
+      ]);
+
+      if (targets.length === 0) {
+        throw new Error('Failed to create staged upload target');
+      }
+
+      // Upload the JSONL file
+      const stagedPath = await BulkOperationService.uploadToStagedTarget(targets[0], jsonlContent);
+
+      // Define the mutation for productCreate
+      const productCreateMutation = `
+        mutation productCreate($input: ProductInput!) {
+          productCreate(input: $input) {
+            product {
+              id
+              title
+              variants(first: 10) {
+                edges {
+                  node {
+                    id
+                    sku
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      // Start bulk mutation
+      const { operationId } = await BulkOperationService.startBulkMutation(
+        connection.retailerShop,
+        productCreateMutation,
+        stagedPath
+      );
+
+      // Store the operation for tracking
+      await prisma.auditLog.create({
+        data: {
+          shopId: connection.retailerShopId,
+          action: 'BULK_IMPORT_STARTED',
+          resourceType: 'Connection',
+          resourceId: connectionId,
+          metadata: {
+            operationId,
+            productCount: supplierProducts.length,
+            supplierProductIds,
+            preferences: JSON.parse(JSON.stringify(preferences)), // Ensure JSON serializable
+          },
+        },
+      });
+
+      logger.info(
+        `Bulk import operation started: ${operationId} with ${supplierProducts.length} products`
+      );
+
+      return {
+        operationId,
+        productCount: supplierProducts.length,
+        status: 'STARTED',
+      };
+    } catch (error) {
+      logger.error('Error starting bulk import:', error);
+      return {
+        operationId: '',
+        productCount: 0,
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Check bulk import status and process results when complete
+   */
+  static async checkBulkImportStatus(
+    connectionId: string,
+    operationId: string
+  ): Promise<{
+    status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+    progress?: number;
+    results?: { created: number; failed: number; mappingsCreated: number };
+    error?: string;
+  }> {
+    try {
+      const connection = await prisma.connection.findUnique({
+        where: { id: connectionId },
+        include: {
+          supplierShop: true,
+          retailerShop: true,
+        },
+      });
+
+      if (!connection) {
+        throw new Error(`Connection ${connectionId} not found`);
+      }
+
+      // Get operation status
+      const operation = await BulkOperationService.getOperation(
+        connection.retailerShop,
+        operationId
+      );
+
+      if (!operation) {
+        return { status: 'FAILED', error: 'Operation not found' };
+      }
+
+      if (operation.status === 'RUNNING' || operation.status === 'CREATED') {
+        return {
+          status: 'RUNNING',
+          progress: operation.objectCount || 0,
+        };
+      }
+
+      if (operation.status === 'FAILED') {
+        return {
+          status: 'FAILED',
+          error: operation.errorCode || 'Operation failed',
+        };
+      }
+
+      if (operation.status === 'COMPLETED' && operation.url) {
+        // Download and process results
+        const results = await this.processBulkImportResults(connection, operationId, operation.url);
+        return {
+          status: 'COMPLETED',
+          results,
+        };
+      }
+
+      return { status: 'RUNNING' };
+    } catch (error) {
+      logger.error('Error checking bulk import status:', error);
+      return {
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Process bulk import results and create product mappings
+   */
+  private static async processBulkImportResults(
+    connection: any,
+    operationId: string,
+    resultsUrl: string
+  ): Promise<{ created: number; failed: number; mappingsCreated: number }> {
+    // Get the audit log to retrieve the original product IDs
+    const auditLog = await prisma.auditLog.findFirst({
+      where: {
+        action: 'BULK_IMPORT_STARTED',
+        resourceId: connection.id,
+        metadata: {
+          path: ['operationId'],
+          equals: operationId,
+        },
+      },
+    });
+
+    const metadata = auditLog?.metadata as any;
+    const supplierProductIds: string[] = metadata?.supplierProductIds || [];
+    const preferences: ImportPreferences = metadata?.preferences || {};
+
+    // Download results
+    const results = await BulkOperationService.downloadAllResults(resultsUrl);
+
+    let created = 0;
+    let failed = 0;
+    let mappingsCreated = 0;
+
+    // Process each result
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const supplierProductId = supplierProductIds[i];
+
+      if (!supplierProductId) continue;
+
+      if (result.data?.productCreate?.product) {
+        created++;
+        const product = result.data.productCreate.product;
+        const productId = product.id.replace('gid://shopify/Product/', '');
+        const variantId = product.variants?.edges?.[0]?.node?.id?.replace(
+          'gid://shopify/ProductVariant/',
+          ''
+        );
+
+        // Get supplier product for pricing
+        const supplierProduct = await prisma.supplierProduct.findUnique({
+          where: { id: supplierProductId },
+        });
+
+        if (supplierProduct) {
+          // Parse markup value for storage
+          const markupValue = preferences.retailerMarkupValue
+            ? parseFloat(preferences.retailerMarkupValue)
+            : 0;
+
+          // Create product mapping
+          await prisma.productMapping.create({
+            data: {
+              connectionId: connection.id,
+              supplierProductId,
+              supplierShopifyProductId: supplierProduct.shopifyProductId,
+              supplierShopifyVariantId:
+                supplierProduct.shopifyVariantId || supplierProduct.shopifyProductId,
+              retailerShopifyProductId: productId,
+              retailerShopifyVariantId: variantId,
+              status: ProductMappingStatus.ACTIVE,
+              retailerMarkupType: preferences.retailerMarkupType || 'PERCENTAGE',
+              retailerMarkupValue: markupValue,
+              syncTitle: preferences.syncTitle !== false,
+              syncDescription: preferences.syncDescription !== false,
+              syncImages: preferences.syncImages !== false,
+              syncPricing: preferences.syncPricing !== false,
+              syncInventory: preferences.syncInventory !== false,
+              syncTags: preferences.syncTags !== false,
+              syncSEO: preferences.syncSEO !== false,
+              conflictMode: preferences.conflictMode || 'SUPPLIER_WINS',
+            },
+          });
+          mappingsCreated++;
+        }
+      } else {
+        failed++;
+        const errors = result.data?.productCreate?.userErrors || [];
+        logger.warn(`Bulk import product failed: ${errors[0]?.message || 'Unknown error'}`);
+      }
+    }
+
+    // Update audit log with results
+    await prisma.auditLog.create({
+      data: {
+        shopId: connection.retailerShopId,
+        action: 'BULK_IMPORT_COMPLETED',
+        resourceType: 'Connection',
+        resourceId: connection.id,
+        metadata: {
+          operationId,
+          created,
+          failed,
+          mappingsCreated,
+        },
+      },
+    });
+
+    logger.info(
+      `Bulk import completed: ${created} created, ${failed} failed, ${mappingsCreated} mappings`
+    );
+
+    return { created, failed, mappingsCreated };
+  }
+
+  /**
+   * Build product input for Shopify productCreate mutation
+   */
+  private static buildProductInput(
+    supplierProduct: any,
+    retailPrice: number,
+    preferences: ImportPreferences
+  ): any {
+    const input: any = {
+      title: preferences.syncTitle !== false ? supplierProduct.title : 'Wholesale Product',
+      productType: 'Wholesale',
+      vendor: 'Wholesale Supplier',
+      tags: ['wholesale', 'bulk-import'],
+    };
+
+    if (preferences.syncDescription !== false && supplierProduct.description) {
+      input.descriptionHtml = supplierProduct.description;
+    }
+
+    // Add variant with pricing
+    input.variants = [
+      {
+        price: preferences.syncPricing !== false ? retailPrice.toFixed(2) : '0.00',
+        sku: supplierProduct.sku || undefined,
+        inventoryQuantities:
+          preferences.syncInventory !== false
+            ? [
+                {
+                  availableQuantity: supplierProduct.inventoryQuantity || 0,
+                  locationId: 'gid://shopify/Location/1', // Will be updated based on shop's default location
+                },
+              ]
+            : undefined,
+      },
+    ];
+
+    return input;
+  }
+
+  /**
+   * Calculate retail price from wholesale price with markup
+   */
+  private static calculateRetailPrice(
+    wholesalePrice: number,
+    preferences: ImportPreferences
+  ): number {
+    if (!preferences.retailerMarkupType || !preferences.retailerMarkupValue) {
+      return wholesalePrice;
+    }
+
+    const markupValue = parseFloat(preferences.retailerMarkupValue);
+
+    switch (preferences.retailerMarkupType) {
+      case 'PERCENTAGE':
+        return wholesalePrice * (1 + markupValue / 100);
+      case 'FIXED_AMOUNT':
+        return wholesalePrice + markupValue;
+      case 'CUSTOM':
+        return markupValue; // Custom is the actual retail price
+      default:
+        return wholesalePrice;
     }
   }
 }

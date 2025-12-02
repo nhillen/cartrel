@@ -403,6 +403,25 @@ export class WebhookSubscriptionService {
   }
 
   /**
+   * Delete all webhooks for a shop
+   */
+  static async deleteAllWebhooks(shop: {
+    myshopifyDomain: string;
+    accessToken: string;
+  }): Promise<number> {
+    const webhooks = await this.listWebhooks(shop);
+    let deleted = 0;
+
+    for (const webhook of webhooks) {
+      const success = await this.deleteWebhook(shop, webhook.id);
+      if (success) deleted++;
+    }
+
+    logger.info(`Deleted ${deleted}/${webhooks.length} webhooks for ${shop.myshopifyDomain}`);
+    return deleted;
+  }
+
+  /**
    * Update shop's webhook delivery method preference
    */
   static async updateDeliveryMethod(

@@ -10,6 +10,7 @@ import { requireAdminAuth } from '../middleware/adminAuth';
 import { PLAN_LIMITS } from '../utils/planLimits';
 import { getWebhookQueue, getImportQueue, initializeQueues } from '../queues';
 import { ConnectionHealthService } from '../services/ConnectionHealthService';
+import { WebhookSubscriptionService, WEBHOOK_TOPICS } from '../services/WebhookSubscriptionService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -1060,6 +1061,200 @@ router.get('/features', async (_req, res) => {
   } catch (error) {
     logger.error('Error getting features:', error);
     res.status(500).json({ error: 'Failed to get features' });
+  }
+});
+
+// =============================================================================
+// WEBHOOK MANAGEMENT
+// =============================================================================
+
+/**
+ * GET /api/admin/shops/:id/webhooks
+ * List webhook subscriptions and configuration for a shop
+ */
+router.get('/shops/:id/webhooks', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shop = await prisma.shop.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        myshopifyDomain: true,
+        accessToken: true,
+        webhookDeliveryMethod: true,
+        eventBridgeArn: true,
+        pubsubProject: true,
+        pubsubTopic: true,
+      },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    // Get current webhook subscriptions from Shopify
+    const subscriptions = await WebhookSubscriptionService.listWebhooks(shop);
+
+    res.json({
+      config: {
+        deliveryMethod: shop.webhookDeliveryMethod,
+        eventBridgeArn: shop.eventBridgeArn,
+        pubsubProject: shop.pubsubProject,
+        pubsubTopic: shop.pubsubTopic,
+      },
+      subscriptions,
+      availableTopics: WEBHOOK_TOPICS,
+    });
+  } catch (error) {
+    logger.error('Error getting webhooks:', error);
+    res.status(500).json({ error: 'Failed to get webhooks' });
+  }
+});
+
+/**
+ * POST /api/admin/shops/:id/webhooks/configure
+ * Configure webhook delivery method for a shop
+ */
+router.post('/shops/:id/webhooks/configure', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deliveryMethod, eventBridgeArn, pubsubProject, pubsubTopic } = req.body;
+
+    // Validate delivery method
+    if (!['HTTP', 'EVENTBRIDGE', 'PUBSUB'].includes(deliveryMethod)) {
+      res.status(400).json({ error: 'Invalid delivery method' });
+      return;
+    }
+
+    // Validate required fields for non-HTTP methods
+    if (deliveryMethod === 'EVENTBRIDGE' && !eventBridgeArn) {
+      res.status(400).json({ error: 'EventBridge ARN required for EVENTBRIDGE delivery' });
+      return;
+    }
+
+    if (deliveryMethod === 'PUBSUB' && (!pubsubProject || !pubsubTopic)) {
+      res.status(400).json({ error: 'Pub/Sub project and topic required for PUBSUB delivery' });
+      return;
+    }
+
+    const shop = await prisma.shop.update({
+      where: { id },
+      data: {
+        webhookDeliveryMethod: deliveryMethod,
+        eventBridgeArn: deliveryMethod === 'EVENTBRIDGE' ? eventBridgeArn : null,
+        pubsubProject: deliveryMethod === 'PUBSUB' ? pubsubProject : null,
+        pubsubTopic: deliveryMethod === 'PUBSUB' ? pubsubTopic : null,
+      },
+      select: {
+        id: true,
+        myshopifyDomain: true,
+        webhookDeliveryMethod: true,
+        eventBridgeArn: true,
+        pubsubProject: true,
+        pubsubTopic: true,
+      },
+    });
+
+    logger.info(`Webhook delivery configured for ${shop.myshopifyDomain}: ${deliveryMethod}`);
+
+    res.json({
+      success: true,
+      config: {
+        deliveryMethod: shop.webhookDeliveryMethod,
+        eventBridgeArn: shop.eventBridgeArn,
+        pubsubProject: shop.pubsubProject,
+        pubsubTopic: shop.pubsubTopic,
+      },
+    });
+  } catch (error) {
+    logger.error('Error configuring webhooks:', error);
+    res.status(500).json({ error: 'Failed to configure webhooks' });
+  }
+});
+
+/**
+ * POST /api/admin/shops/:id/webhooks/register
+ * Register webhooks for a shop using configured delivery method
+ */
+router.post('/shops/:id/webhooks/register', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shop = await prisma.shop.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        myshopifyDomain: true,
+        accessToken: true,
+        webhookDeliveryMethod: true,
+        eventBridgeArn: true,
+        pubsubProject: true,
+        pubsubTopic: true,
+      },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const result = await WebhookSubscriptionService.registerWebhooks(shop, {
+      deliveryMethod: shop.webhookDeliveryMethod,
+      eventBridgeArn: shop.eventBridgeArn || undefined,
+      pubsubProject: shop.pubsubProject || undefined,
+      pubsubTopic: shop.pubsubTopic || undefined,
+    });
+
+    logger.info(
+      `Webhooks registered for ${shop.myshopifyDomain}: ${result.registered} registered, ${result.errors.length} errors`
+    );
+
+    res.json({
+      success: result.errors.length === 0,
+      registered: result.registered,
+      errors: result.errors,
+    });
+  } catch (error) {
+    logger.error('Error registering webhooks:', error);
+    res.status(500).json({ error: 'Failed to register webhooks' });
+  }
+});
+
+/**
+ * DELETE /api/admin/shops/:id/webhooks
+ * Delete all webhooks for a shop (useful before switching delivery methods)
+ */
+router.delete('/shops/:id/webhooks', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shop = await prisma.shop.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        myshopifyDomain: true,
+        accessToken: true,
+      },
+    });
+
+    if (!shop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const deleted = await WebhookSubscriptionService.deleteAllWebhooks(shop);
+
+    logger.info(`All webhooks deleted for ${shop.myshopifyDomain}: ${deleted} removed`);
+
+    res.json({
+      success: true,
+      deleted,
+    });
+  } catch (error) {
+    logger.error('Error deleting webhooks:', error);
+    res.status(500).json({ error: 'Failed to delete webhooks' });
   }
 });
 

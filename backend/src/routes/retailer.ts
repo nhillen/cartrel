@@ -316,10 +316,11 @@ router.post('/order', orderLimiter, async (req, res, next) => {
 
 /**
  * Get available products from supplier for import wizard
+ * Supports cursor-based pagination for large catalogs
  */
 router.get('/import/available', async (req, res, next) => {
   try {
-    const { shop, connectionId, includeImported } = req.query;
+    const { shop, connectionId, includeImported, cursor, limit, search } = req.query;
 
     if (!shop || typeof shop !== 'string' || !connectionId || typeof connectionId !== 'string') {
       res.status(400).json({ error: 'Missing required parameters' });
@@ -347,10 +348,12 @@ router.get('/import/available', async (req, res, next) => {
     }
 
     const { ProductImportService } = await import('../services/ProductImportService');
-    const result = await ProductImportService.getAvailableProducts(
-      connectionId,
-      includeImported === 'true'
-    );
+    const result = await ProductImportService.getAvailableProducts(connectionId, {
+      includeImported: includeImported === 'true',
+      cursor: typeof cursor === 'string' ? cursor : undefined,
+      limit: typeof limit === 'string' ? parseInt(limit, 10) : 50,
+      search: typeof search === 'string' ? search : undefined,
+    });
 
     res.json(result);
   } catch (error) {
@@ -1880,6 +1883,131 @@ router.get('/orders', async (req, res, next) => {
     res.json({ orders: formattedOrders });
   } catch (error) {
     logger.error('Error loading retailer orders:', error);
+    next(error);
+  }
+});
+
+/**
+ * Start a bulk import operation using Shopify's Bulk Operations API
+ * This is more efficient for large catalogs (1000+ products)
+ */
+router.post('/import/bulk-operation', async (req, res, next) => {
+  try {
+    const { shop, connectionId, productIds, preferences } = req.body;
+
+    if (!shop || !connectionId || !productIds || !Array.isArray(productIds)) {
+      res.status(400).json({ error: 'Missing required parameters' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      include: { retailerShop: true },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const result = await ProductImportService.bulkImportProducts(
+      connectionId,
+      productIds,
+      preferences || {}
+    );
+
+    logger.info(
+      `Bulk operation started for ${shop}: operationId=${result.operationId}, ${productIds.length} products`
+    );
+
+    // Log audit event
+    await prisma.auditLog.create({
+      data: {
+        shopId: retailerShop.id,
+        action: 'BULK_IMPORT_STARTED',
+        resourceType: 'BulkOperation',
+        resourceId: result.operationId || connectionId,
+        metadata: {
+          productCount: productIds.length,
+          connectionId,
+        },
+      },
+    });
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error starting bulk import operation:', error);
+    next(error);
+  }
+});
+
+/**
+ * Check status of a bulk import operation
+ */
+router.get('/import/bulk-operation/:operationId', async (req, res, next) => {
+  try {
+    const { operationId } = req.params;
+    const shop = req.query.shop as string;
+    const connectionId = req.query.connectionId as string;
+
+    if (!shop || !operationId || !connectionId) {
+      res.status(400).json({ error: 'Missing required parameters (shop, connectionId)' });
+      return;
+    }
+
+    // Verify retailer owns this connection
+    const retailerShop = await prisma.shop.findUnique({
+      where: { myshopifyDomain: shop },
+    });
+
+    if (!retailerShop) {
+      res.status(404).json({ error: 'Shop not found' });
+      return;
+    }
+
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || connection.retailerShopId !== retailerShop.id) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { ProductImportService } = await import('../services/ProductImportService');
+    const result = await ProductImportService.checkBulkImportStatus(connectionId, operationId);
+
+    // If completed, log audit event
+    if (result.status === 'COMPLETED' && result.results) {
+      await prisma.auditLog.create({
+        data: {
+          shopId: retailerShop.id,
+          action: 'BULK_IMPORT_COMPLETED',
+          resourceType: 'BulkOperation',
+          resourceId: operationId,
+          metadata: {
+            created: result.results.created,
+            failed: result.results.failed,
+            mappingsCreated: result.results.mappingsCreated,
+          },
+        },
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error checking bulk import status:', error);
     next(error);
   }
 });
