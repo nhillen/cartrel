@@ -29,7 +29,7 @@
     "@bull-board/express": "^5.10.0",
     "@manabot/slack-reporter": "file:../../manabot/packages/slack-reporter",
     "@prisma/client": "^5.7.0",
-    "@shopify/shopify-api": "^12.1.2",
+    "@shopify/shopify-api": "12.1.2",
     "bull": "^4.12.0",
     "connect-redis": "^7.1.0",
     "cookie-parser": "^1.4.7",
