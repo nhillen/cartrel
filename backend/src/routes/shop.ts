@@ -165,19 +165,10 @@ router.post('/role', async (req, res, next) => {
       return;
     }
 
-    // Get current shop to check for downgrades
+    // Get current shop to track previous role
     const existingShop = await prisma.shop.findUnique({
       where: { myshopifyDomain: shop },
     });
-
-    // Prevent downgrades (BOTH -> SUPPLIER/RETAILER)
-    if (existingShop && existingShop.role === 'BOTH' && role !== 'BOTH') {
-      res.status(400).json({
-        error:
-          'Cannot downgrade from BOTH role. Please contact support if you need to change your role.',
-      });
-      return;
-    }
 
     const previousRole = existingShop?.role;
 
