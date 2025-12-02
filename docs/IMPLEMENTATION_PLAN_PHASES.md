@@ -53,9 +53,9 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - “Available now” vs “Coming soon” labels (collection sync, price rules, extended metafields, auto on-hold support, per-connection billing).
 - Update website/pricing/FAQs per `WEB_DOCS_PRICING_UPDATE.md`.
 
-## Phase 10: Billing/Enforcement
-- Enforce caps per tier (connections/products/orders/metafield defs/order forwards).
-- Handle per-connection billing option (if enabled) and retention/inactivity rules.
+## Phase 10: Billing/Enforcement ✅
+- ✅ Enforce caps per tier (connections/products/orders/metafield defs/order forwards).
+- ✅ Handle per-connection billing option (if enabled) and retention/inactivity rules.
 
 ## Shopify API Optimizations (threaded throughout)
 - Use GraphQL Bulk/staged uploads for products/media/metafields; batching inventory updates.
