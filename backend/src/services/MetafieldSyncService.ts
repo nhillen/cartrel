@@ -864,6 +864,7 @@ class MetafieldSyncServiceClass {
 
   /**
    * Bulk sync all metafields for a connection (24h batch job)
+   * Optimized to batch metafields across multiple products into fewer API calls
    */
   async bulkSyncConnection(connectionId: string): Promise<{
     totalProducts: number;
@@ -903,52 +904,56 @@ class MetafieldSyncServiceClass {
       },
     });
 
+    // Get enabled metafield configs
+    const enabledConfigs = await prisma.metafieldConfig.findMany({
+      where: { connectionId, syncEnabled: true, isSupported: true },
+      select: { namespace: true, key: true, type: true },
+    });
+
+    if (enabledConfigs.length === 0) {
+      logger.info(`No enabled metafield configs for connection ${connectionId}`);
+      return { totalProducts: mappings.length, syncedProducts: 0, totalMetafields: 0, errors: [] };
+    }
+
     const errors: string[] = [];
     let syncedProducts = 0;
     let totalMetafields = 0;
 
-    // Process in batches to respect rate limits
-    const batchSize = 10;
-    for (let i = 0; i < mappings.length; i += batchSize) {
-      const batch = mappings.slice(i, i + batchSize);
+    // Use optimized batch sync that combines metafields across products
+    const productBatchSize = 5; // Process 5 products at a time
+    for (let i = 0; i < mappings.length; i += productBatchSize) {
+      const productBatch = mappings.slice(i, i + productBatchSize);
 
       // Check rate limits before processing batch
       const delay = await RateLimitService.getRequiredDelay(
         connection.retailerShop.myshopifyDomain
       );
       if (delay > 0) {
-        logger.info(`Rate limit delay: ${delay}ms before batch ${i / batchSize + 1}`);
+        logger.info(`Rate limit delay: ${delay}ms before batch ${i / productBatchSize + 1}`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      for (const mapping of batch) {
-        try {
-          const result = await this.syncProductMetafields(
-            connectionId,
-            mapping.supplierShopifyProductId,
-            mapping.retailerShopifyProductId!
-          );
+      try {
+        const result = await this.batchSyncProductsMetafields(
+          connection,
+          productBatch,
+          enabledConfigs
+        );
 
-          if (result.synced > 0) {
-            syncedProducts++;
-            totalMetafields += result.synced;
-          }
-
-          if (result.errors.length > 0) {
-            errors.push(
-              ...result.errors.map((e) => `Product ${mapping.retailerShopifyProductId}: ${e}`)
-            );
-          }
-        } catch (error) {
-          errors.push(
-            `Product ${mapping.retailerShopifyProductId}: ${error instanceof Error ? error.message : 'Unknown'}`
-          );
+        syncedProducts += result.syncedProducts;
+        totalMetafields += result.synced;
+        if (result.errors.length > 0) {
+          errors.push(...result.errors);
         }
+      } catch (error) {
+        errors.push(
+          `Batch ${i / productBatchSize + 1}: ${error instanceof Error ? error.message : 'Unknown'}`
+        );
       }
 
       // Log progress
       logger.info(
-        `Bulk metafield sync progress: ${Math.min(i + batchSize, mappings.length)}/${mappings.length}`
+        `Bulk metafield sync progress: ${Math.min(i + productBatchSize, mappings.length)}/${mappings.length}`
       );
     }
 
@@ -976,6 +981,161 @@ class MetafieldSyncServiceClass {
       totalMetafields,
       errors,
     };
+  }
+
+  /**
+   * Batch sync metafields for multiple products in fewer API calls
+   * Combines metafields across products into single metafieldsSet calls (up to 25 per call)
+   */
+  private async batchSyncProductsMetafields(
+    connection: any,
+    mappings: Array<{ supplierShopifyProductId: string; retailerShopifyProductId: string | null }>,
+    enabledConfigs: Array<{ namespace: string; key: string; type: string }>
+  ): Promise<{ synced: number; syncedProducts: number; errors: string[] }> {
+    const supplierClient = createShopifyGraphQLClient(
+      connection.supplierShop.myshopifyDomain,
+      connection.supplierShop.accessToken
+    );
+    const retailerClient = createShopifyGraphQLClient(
+      connection.retailerShop.myshopifyDomain,
+      connection.retailerShop.accessToken
+    );
+
+    const errors: string[] = [];
+    const allMetafields: Array<{
+      ownerId: string;
+      namespace: string;
+      key: string;
+      value: string;
+      type: string;
+    }> = [];
+    const productIds = new Set<string>();
+
+    // Step 1: Bulk query source metafields for all products
+    const sourceProductIds = mappings.map((m) => {
+      const id = m.supplierShopifyProductId;
+      return id.startsWith('gid://') ? id : `gid://shopify/Product/${id}`;
+    });
+
+    const sourceQuery = `
+      query getProductsMetafields($ids: [ID!]!) {
+        nodes(ids: $ids) {
+          ... on Product {
+            id
+            metafields(first: 50) {
+              edges {
+                node {
+                  namespace
+                  key
+                  value
+                  type
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let sourceResponse: any;
+    try {
+      sourceResponse = await supplierClient.request(sourceQuery, {
+        variables: { ids: sourceProductIds },
+      });
+    } catch (error) {
+      errors.push(
+        `Failed to query source metafields: ${error instanceof Error ? error.message : 'Unknown'}`
+      );
+      return { synced: 0, syncedProducts: 0, errors };
+    }
+
+    // Build source metafield map: sourceProductGid -> metafields[]
+    const sourceMetafieldsMap = new Map<string, any[]>();
+    for (const node of sourceResponse.data?.nodes || []) {
+      if (!node?.id || !node.metafields) continue;
+      const metafields = node.metafields.edges?.map((e: any) => e.node) || [];
+      sourceMetafieldsMap.set(node.id, metafields);
+    }
+
+    // Step 2: Collect all metafields to write to retailer
+    for (const mapping of mappings) {
+      if (!mapping.retailerShopifyProductId) continue;
+
+      const sourceGid = mapping.supplierShopifyProductId.startsWith('gid://')
+        ? mapping.supplierShopifyProductId
+        : `gid://shopify/Product/${mapping.supplierShopifyProductId}`;
+
+      const destGid = mapping.retailerShopifyProductId.startsWith('gid://')
+        ? mapping.retailerShopifyProductId
+        : `gid://shopify/Product/${mapping.retailerShopifyProductId}`;
+
+      const sourceMetafields = sourceMetafieldsMap.get(sourceGid) || [];
+
+      // Filter to only enabled configs
+      for (const config of enabledConfigs) {
+        const match = sourceMetafields.find(
+          (m: any) => m.namespace === config.namespace && m.key === config.key
+        );
+        if (match && match.value) {
+          allMetafields.push({
+            ownerId: destGid,
+            namespace: match.namespace,
+            key: match.key,
+            value: match.value,
+            type: match.type,
+          });
+          productIds.add(destGid);
+        }
+      }
+    }
+
+    if (allMetafields.length === 0) {
+      return { synced: 0, syncedProducts: 0, errors };
+    }
+
+    // Step 3: Batch write metafields (up to 25 per call)
+    const mutation = `
+      mutation setMetafields($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    let synced = 0;
+    const batchSize = 25; // Shopify limit for metafieldsSet
+
+    for (let i = 0; i < allMetafields.length; i += batchSize) {
+      const batch = allMetafields.slice(i, i + batchSize);
+
+      try {
+        const response: any = await retailerClient.request(mutation, {
+          variables: { metafields: batch },
+        });
+
+        if (response.data?.metafieldsSet?.userErrors?.length > 0) {
+          for (const error of response.data.metafieldsSet.userErrors) {
+            errors.push(`${error.field}: ${error.message}`);
+          }
+        }
+
+        synced += response.data?.metafieldsSet?.metafields?.length || 0;
+      } catch (error) {
+        errors.push(`Batch write failed: ${error instanceof Error ? error.message : 'Unknown'}`);
+      }
+    }
+
+    logger.info(
+      `Batch synced ${synced} metafields across ${productIds.size} products (${allMetafields.length} total)`
+    );
+
+    return { synced, syncedProducts: productIds.size, errors };
   }
 
   /**

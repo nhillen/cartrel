@@ -578,6 +578,101 @@ class PriceRuleServiceClass {
   }
 
   /**
+   * Bulk update variant prices grouped by product
+   * Uses productVariantsBulkUpdate for efficiency (up to 100 variants per product)
+   */
+  async bulkUpdateVariantPrices(
+    shop: any,
+    updates: Array<{
+      productId: string;
+      variantId: string;
+      price: number;
+      compareAtPrice: number | null;
+    }>
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
+    if (updates.length === 0) {
+      return { success: 0, failed: 0, errors: [] };
+    }
+
+    const client = createShopifyGraphQLClient(shop.myshopifyDomain, shop.accessToken);
+    const errors: string[] = [];
+    let success = 0;
+    let failed = 0;
+
+    // Group updates by product
+    const byProduct = new Map<string, typeof updates>();
+    for (const update of updates) {
+      const productGid = update.productId.startsWith('gid://')
+        ? update.productId
+        : `gid://shopify/Product/${update.productId}`;
+      const existing = byProduct.get(productGid) || [];
+      existing.push(update);
+      byProduct.set(productGid, existing);
+    }
+
+    const mutation = `
+      mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+        productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+          productVariants {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // Process each product's variants in bulk
+    for (const [productGid, productUpdates] of byProduct) {
+      const variants = productUpdates.map((u) => {
+        const variantGid = u.variantId.startsWith('gid://')
+          ? u.variantId
+          : `gid://shopify/ProductVariant/${u.variantId}`;
+
+        const variant: any = {
+          id: variantGid,
+          price: u.price.toFixed(2),
+        };
+
+        if (u.compareAtPrice !== null) {
+          variant.compareAtPrice = u.compareAtPrice.toFixed(2);
+        }
+
+        return variant;
+      });
+
+      try {
+        const response: any = await client.request(mutation, {
+          variables: {
+            productId: productGid,
+            variants,
+          },
+        });
+
+        if (response.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+          for (const error of response.data.productVariantsBulkUpdate.userErrors) {
+            errors.push(`${productGid}: ${error.field} - ${error.message}`);
+          }
+          failed += productUpdates.length;
+        } else {
+          success += response.data?.productVariantsBulkUpdate?.productVariants?.length || 0;
+        }
+      } catch (error) {
+        errors.push(`${productGid}: ${error instanceof Error ? error.message : 'Unknown'}`);
+        failed += productUpdates.length;
+      }
+    }
+
+    logger.info(
+      `Bulk updated ${success} variant prices across ${byProduct.size} products (${failed} failed)`
+    );
+
+    return { success, failed, errors };
+  }
+
+  /**
    * Check currency compatibility between shops
    */
   async checkCurrencyCompatibility(connectionId: string): Promise<{

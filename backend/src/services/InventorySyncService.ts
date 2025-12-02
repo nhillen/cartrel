@@ -785,6 +785,7 @@ export class InventorySyncService {
 
   /**
    * Process a batch of updates for a single shop
+   * Uses bulk GraphQL queries and batched inventorySetQuantities for efficiency
    */
   private static async processShopBatch(
     shopId: string,
@@ -814,15 +815,162 @@ export class InventorySyncService {
       await new Promise((resolve) => setTimeout(resolve, requiredDelay));
     }
 
-    // Process each update (could be optimized with bulk mutations)
-    for (const update of updates) {
-      try {
-        await this.updateRetailerInventory(shop, update.retailerVariantId, update.quantity);
-        logger.info(`Batch processed inventory for variant ${update.retailerVariantId}`);
-      } catch (error) {
-        logger.error(`Failed to update inventory for variant ${update.retailerVariantId}:`, error);
+    // Use batched inventory update for efficiency
+    try {
+      await this.batchUpdateRetailerInventory(shop, updates);
+      logger.info(`Batch processed ${updates.length} inventory updates for shop ${shopId}`);
+    } catch (error) {
+      logger.error(`Failed batch inventory update for shop ${shopId}:`, error);
+      // Re-queue failed updates for retry
+      this.pendingUpdates.push(...updates);
+    }
+  }
+
+  /**
+   * Batch update inventory for multiple variants in a single API call
+   * Much more efficient than individual updates
+   */
+  private static async batchUpdateRetailerInventory(
+    retailerShop: any,
+    updates: PendingInventoryUpdate[]
+  ): Promise<void> {
+    if (updates.length === 0) return;
+
+    const client = createShopifyGraphQLClient(
+      retailerShop.myshopifyDomain,
+      retailerShop.accessToken
+    );
+
+    // Step 1: Get location ID (cache per shop)
+    const locationsQuery = `
+      query {
+        locations(first: 1) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    `;
+
+    const locationsResponse: any = await client.request(locationsQuery);
+    const locationId = locationsResponse.data?.locations?.edges?.[0]?.node?.id;
+
+    if (!locationId) {
+      throw new Error(`No locations found for shop ${retailerShop.myshopifyDomain}`);
+    }
+
+    // Step 2: Bulk query all variant inventory item IDs using nodes query
+    const variantGids = updates
+      .filter((u) => u.retailerVariantId)
+      .map((u) => {
+        const id = u.retailerVariantId!;
+        return id.startsWith('gid://') ? id : `gid://shopify/ProductVariant/${id}`;
+      });
+
+    if (variantGids.length === 0) {
+      logger.warn('No valid variant IDs in batch update');
+      return;
+    }
+
+    // Query up to 250 nodes at once (Shopify limit)
+    const nodesQuery = `
+      query getVariantInventoryItems($ids: [ID!]!) {
+        nodes(ids: $ids) {
+          ... on ProductVariant {
+            id
+            inventoryItem {
+              id
+            }
+          }
+        }
+      }
+    `;
+
+    const nodesResponse: any = await client.request(nodesQuery, {
+      variables: { ids: variantGids.slice(0, 250) },
+    });
+
+    // Build map of variant GID -> inventory item ID
+    const inventoryItemMap = new Map<string, string>();
+    for (const node of nodesResponse.data?.nodes || []) {
+      if (node?.id && node?.inventoryItem?.id) {
+        inventoryItemMap.set(node.id, node.inventoryItem.id);
       }
     }
+
+    // Step 3: Build quantities array for batch update
+    const quantities: Array<{
+      inventoryItemId: string;
+      locationId: string;
+      quantity: number;
+    }> = [];
+
+    for (const update of updates) {
+      if (!update.retailerVariantId) continue;
+
+      const variantGid = update.retailerVariantId.startsWith('gid://')
+        ? update.retailerVariantId
+        : `gid://shopify/ProductVariant/${update.retailerVariantId}`;
+
+      const inventoryItemId = inventoryItemMap.get(variantGid);
+      if (!inventoryItemId) {
+        logger.warn(`No inventory item found for variant ${update.retailerVariantId}`);
+        continue;
+      }
+
+      quantities.push({
+        inventoryItemId,
+        locationId: update.locationId || locationId,
+        quantity: update.quantity,
+      });
+    }
+
+    if (quantities.length === 0) {
+      logger.warn('No valid inventory items to update in batch');
+      return;
+    }
+
+    // Step 4: Send single batched inventorySetQuantities mutation
+    // Shopify supports multiple quantities in one call
+    const mutation = `
+      mutation inventorySetQuantities($input: InventorySetQuantitiesInput!) {
+        inventorySetQuantities(input: $input) {
+          inventoryAdjustmentGroup {
+            reason
+            changes {
+              name
+              delta
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const response: any = await client.request(mutation, {
+      variables: {
+        input: {
+          reason: 'correction',
+          name: 'available',
+          quantities,
+        },
+      },
+    });
+
+    if (response.data?.inventorySetQuantities?.userErrors?.length > 0) {
+      const errors = response.data.inventorySetQuantities.userErrors;
+      logger.error(`Shopify batch inventory update errors:`, errors);
+      throw new Error(`Shopify batch inventory update failed: ${errors[0].message}`);
+    }
+
+    logger.info(
+      `Successfully batch updated ${quantities.length} inventory items for ${retailerShop.myshopifyDomain}`
+    );
   }
 
   // ============================================================================
