@@ -210,7 +210,7 @@ class PayoutServiceClass {
     }
 
     // Get orders already included in payouts (to exclude)
-    let excludedOrderIds = new Set<string>();
+    const excludedOrderIds = new Set<string>();
     if (filters?.excludeInPayout) {
       const existingPayouts = await prisma.payout.findMany({
         where: {
@@ -310,9 +310,7 @@ class PayoutServiceClass {
           }
 
           // Find mapping for commission override
-          const mapping = mappings.find(
-            (m) => m.retailerShopifyProductId === productId
-          );
+          const mapping = mappings.find((m) => m.retailerShopifyProductId === productId);
 
           const unitPrice = parseFloat(line.originalUnitPriceSet?.shopMoney?.amount || '0');
 
@@ -453,15 +451,14 @@ class PayoutServiceClass {
     }
 
     // Get settings
-    const settings = await this.getSettings(
-      connection.retailerShopId,
-      connection.supplierShopId
-    );
+    const settings = await this.getSettings(connection.retailerShopId, connection.supplierShopId);
 
     // Fetch order details
     const payableOrders = await this.getPayableOrders(connectionId);
-    const selectedOrders = payableOrders.filter((o) =>
-      orderIds.includes(o.orderId) || orderIds.includes(o.orderId.replace('gid://shopify/Order/', ''))
+    const selectedOrders = payableOrders.filter(
+      (o) =>
+        orderIds.includes(o.orderId) ||
+        orderIds.includes(o.orderId.replace('gid://shopify/Order/', ''))
     );
 
     if (selectedOrders.length === 0) {
@@ -512,7 +509,9 @@ class PayoutServiceClass {
       },
     });
 
-    logger.info(`Created payout ${payoutNumber} for connection ${connectionId}: $${calculation.total}`);
+    logger.info(
+      `Created payout ${payoutNumber} for connection ${connectionId}: $${calculation.total}`
+    );
 
     return {
       success: true,
@@ -823,7 +822,8 @@ class PayoutServiceClass {
         break;
     }
 
-    const total = subtotal + shippingFees - processingFees - commissionAmount + Number(payout.adjustments);
+    const total =
+      subtotal + shippingFees - processingFees - commissionAmount + Number(payout.adjustments);
 
     await prisma.payout.update({
       where: { id: payoutId },
@@ -840,7 +840,9 @@ class PayoutServiceClass {
   /**
    * Refresh a payout to incorporate order edits (for unpaid payouts)
    */
-  async refreshPayout(payoutId: string): Promise<{ success: boolean; changes?: string[]; error?: string }> {
+  async refreshPayout(
+    payoutId: string
+  ): Promise<{ success: boolean; changes?: string[]; error?: string }> {
     const payout = await prisma.payout.findUnique({
       where: { id: payoutId },
       include: {
@@ -864,8 +866,10 @@ class PayoutServiceClass {
     // Re-fetch orders from Shopify
     const orderIds = payout.includedOrderIds as string[];
     const payableOrders = await this.getPayableOrders(payout.connectionId);
-    const currentOrders = payableOrders.filter((o) =>
-      orderIds.includes(o.orderId) || orderIds.includes(o.orderId.replace('gid://shopify/Order/', ''))
+    const currentOrders = payableOrders.filter(
+      (o) =>
+        orderIds.includes(o.orderId) ||
+        orderIds.includes(o.orderId.replace('gid://shopify/Order/', ''))
     );
 
     // Check for changes
@@ -882,9 +886,13 @@ class PayoutServiceClass {
         if (!existing) {
           changes.push(`New line item added: ${line.productTitle}`);
         } else if (existing.quantity !== line.quantity) {
-          changes.push(`Quantity changed for ${line.productTitle}: ${existing.quantity} -> ${line.quantity}`);
+          changes.push(
+            `Quantity changed for ${line.productTitle}: ${existing.quantity} -> ${line.quantity}`
+          );
         } else if (Number(existing.lineTotal) !== line.lineTotal) {
-          changes.push(`Price changed for ${line.productTitle}: $${existing.lineTotal} -> $${line.lineTotal}`);
+          changes.push(
+            `Price changed for ${line.productTitle}: $${existing.lineTotal} -> $${line.lineTotal}`
+          );
         }
       }
     }
@@ -917,11 +925,7 @@ class PayoutServiceClass {
       await this.recalculatePayout(payoutId);
 
       // Add comment about refresh
-      await this.addComment(
-        payoutId,
-        'system',
-        `Payout refreshed. Changes: ${changes.join('; ')}`
-      );
+      await this.addComment(payoutId, 'system', `Payout refreshed. Changes: ${changes.join('; ')}`);
     }
 
     logger.info(`Refreshed payout ${payout.payoutNumber}: ${changes.length} changes`);

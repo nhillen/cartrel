@@ -50,7 +50,7 @@ router.get('/suppliers', async (req, res, next) => {
     logger.debug(`Found ${connections.length} active connections for retailer ${shop}`);
 
     const suppliers = connections.map((conn) => {
-      const perks = conn.perksConfig as any || {};
+      const perks = (conn.perksConfig as any) || {};
       return {
         id: conn.supplierShopId,
         name: conn.supplierShop.myshopifyDomain,
@@ -132,7 +132,12 @@ router.get('/catalog/:supplierId', async (req, res, next) => {
         image: p.imageUrl || null,
         isImported: !!mapping,
         mappingId: mapping?.id,
-        retailPrice: mapping ? (parseFloat(p.wholesalePrice.toFixed(2)) * (1 + mapping.retailerMarkupValue.toNumber() / 100)).toFixed(2) : null,
+        retailPrice: mapping
+          ? (
+              parseFloat(p.wholesalePrice.toFixed(2)) *
+              (1 + mapping.retailerMarkupValue.toNumber() / 100)
+            ).toFixed(2)
+          : null,
         lastSynced: p.lastSyncedAt,
       };
     });
@@ -226,10 +231,7 @@ router.post('/order', orderLimiter, async (req, res, next) => {
     }
 
     // Calculate total
-    const subtotal = items.reduce(
-      (sum: number, item: any) => sum + item.price * item.quantity,
-      0
-    );
+    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
 
     // Generate PO number
     const poNumber = `PO-${Date.now()}`;
@@ -252,9 +254,7 @@ router.post('/order', orderLimiter, async (req, res, next) => {
       },
     });
 
-    logger.info(
-      `Created PO ${po.id} from ${shop} to ${supplierShop.myshopifyDomain}`
-    );
+    logger.info(`Created PO ${po.id} from ${shop} to ${supplierShop.myshopifyDomain}`);
 
     // Forward order to supplier's Shopify using OrderForwardingService
     try {
@@ -507,9 +507,7 @@ router.patch('/import/preferences', async (req, res, next) => {
       },
     });
 
-    const unauthorized = mappings.some(
-      (m) => m.connection.retailerShopId !== retailerShop.id
-    );
+    const unauthorized = mappings.some((m) => m.connection.retailerShopId !== retailerShop.id);
 
     if (unauthorized) {
       res.status(403).json({ error: 'Unauthorized' });
@@ -549,7 +547,14 @@ router.post('/import', async (req, res, next) => {
       syncImages = false,
     } = req.body;
 
-    if (!shop || !supplierId || !productId || !variantId || !markupType || markupValue === undefined) {
+    if (
+      !shop ||
+      !supplierId ||
+      !productId ||
+      !variantId ||
+      !markupType ||
+      markupValue === undefined
+    ) {
       res.status(400).json({ error: 'Missing required parameters' });
       return;
     }
@@ -613,7 +618,10 @@ router.post('/import', async (req, res, next) => {
     }
 
     // Create product in retailer's Shopify via GraphQL
-    const client = createShopifyGraphQLClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+    const client = createShopifyGraphQLClient(
+      retailerShop.myshopifyDomain,
+      retailerShop.accessToken
+    );
     const productInput: any = {
       title: supplierProduct.title,
       descriptionHtml: supplierProduct.description || '',
@@ -713,14 +721,16 @@ router.post('/import', async (req, res, next) => {
     if (error?.response?.code === 401 || error?.message?.includes('Invalid API key')) {
       res.status(401).json({
         error: 'Invalid access token. Please try uninstalling and reinstalling the app.',
-        requiresReinstall: true
+        requiresReinstall: true,
       });
       return;
     }
 
     // Check for GraphQL errors
     if (error?.response?.errors) {
-      res.status(400).json({ error: error.response.errors[0]?.message || 'Error creating product in Shopify' });
+      res
+        .status(400)
+        .json({ error: error.response.errors[0]?.message || 'Error creating product in Shopify' });
       return;
     }
 
@@ -787,7 +797,10 @@ router.post('/reimport', async (req, res, next) => {
     }
 
     // Create product in retailer's Shopify
-    const client = createShopifyGraphQLClient(retailerShop.myshopifyDomain, retailerShop.accessToken);
+    const client = createShopifyGraphQLClient(
+      retailerShop.myshopifyDomain,
+      retailerShop.accessToken
+    );
     const productInput: any = {
       title: supplierProduct.title,
       descriptionHtml: supplierProduct.description || '',
@@ -862,14 +875,16 @@ router.post('/reimport', async (req, res, next) => {
     if (error?.response?.code === 401 || error?.message?.includes('Invalid API key')) {
       res.status(401).json({
         error: 'Invalid access token. Please try uninstalling and reinstalling the app.',
-        requiresReinstall: true
+        requiresReinstall: true,
       });
       return;
     }
 
     // Check for GraphQL errors
     if (error?.response?.errors) {
-      res.status(400).json({ error: error.response.errors[0]?.message || 'Error creating product in Shopify' });
+      res
+        .status(400)
+        .json({ error: error.response.errors[0]?.message || 'Error creating product in Shopify' });
       return;
     }
 
@@ -1098,7 +1113,9 @@ router.post('/import/async', async (req, res, next) => {
       batchId,
     });
 
-    logger.info(`Queued async import for ${shop}: ${productIds.length} products (batch ${batchId})`);
+    logger.info(
+      `Queued async import for ${shop}: ${productIds.length} products (batch ${batchId})`
+    );
 
     res.json({
       success: true,
@@ -1150,9 +1167,10 @@ router.get('/import/status/:batchId', async (req, res, next) => {
     }
 
     // Calculate progress percentage
-    const progress = batchStatus.totalProducts > 0
-      ? Math.round((batchStatus.completed / batchStatus.totalProducts) * 100)
-      : 0;
+    const progress =
+      batchStatus.totalProducts > 0
+        ? Math.round((batchStatus.completed / batchStatus.totalProducts) * 100)
+        : 0;
 
     res.json({
       batchId: batchStatus.batchId,
@@ -1225,10 +1243,7 @@ router.get('/health', async (req, res, next) => {
         connection: {
           retailerShopId: retailerShop.id,
         },
-        OR: [
-          { status: 'DISCONTINUED' },
-          { retailerShopifyProductId: null },
-        ],
+        OR: [{ status: 'DISCONTINUED' }, { retailerShopifyProductId: null }],
       },
       include: {
         supplierProduct: {
@@ -1513,9 +1528,7 @@ router.post('/shadow/promote', async (req, res, next) => {
     const { ShadowModeService } = await import('../services/ShadowModeService');
     const result = await ShadowModeService.promoteShadowImports(connectionId, mappingIds);
 
-    logger.info(
-      `Promoted ${result.success} shadow imports for ${shop} (${result.failed} failed)`
-    );
+    logger.info(`Promoted ${result.success} shadow imports for ${shop} (${result.failed} failed)`);
 
     res.json({
       success: true,
@@ -1630,7 +1643,12 @@ router.get('/variants/mappings', async (req, res, next) => {
   try {
     const { shop, productMappingId } = req.query;
 
-    if (!shop || typeof shop !== 'string' || !productMappingId || typeof productMappingId !== 'string') {
+    if (
+      !shop ||
+      typeof shop !== 'string' ||
+      !productMappingId ||
+      typeof productMappingId !== 'string'
+    ) {
       res.status(400).json({ error: 'Missing required parameters' });
       return;
     }

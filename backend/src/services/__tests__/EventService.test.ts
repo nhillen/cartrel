@@ -31,9 +31,7 @@ jest.mock('ioredis', () => {
     get: jest.fn((key: string) => Promise.resolve(storage.get(key) || null)),
     keys: jest.fn((pattern: string) => {
       const prefix = pattern.replace('*', '');
-      return Promise.resolve(
-        Array.from(storage.keys()).filter((k) => k.startsWith(prefix))
-      );
+      return Promise.resolve(Array.from(storage.keys()).filter((k) => k.startsWith(prefix)));
     }),
     del: jest.fn((key: string) => {
       storage.delete(key);
@@ -58,19 +56,9 @@ describe('EventService', () => {
     it('should generate deterministic keys for same input', () => {
       const payload = { id: 123, title: 'Test Product', variants: [] };
 
-      const key1 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key1 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
-      const key2 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key2 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
       expect(key1).toBe(key2);
     });
@@ -78,19 +66,9 @@ describe('EventService', () => {
     it('should generate different keys for different shops', () => {
       const payload = { id: 123, title: 'Test Product', variants: [] };
 
-      const key1 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key1 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
-      const key2 = EventService.generateIdempotencyKey(
-        'shop2',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key2 = EventService.generateIdempotencyKey('shop2', 'PRODUCTS_UPDATE', '123', payload);
 
       expect(key1).not.toBe(key2);
     });
@@ -98,19 +76,9 @@ describe('EventService', () => {
     it('should generate different keys for different topics', () => {
       const payload = { id: 123, title: 'Test Product', variants: [] };
 
-      const key1 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_CREATE',
-        '123',
-        payload
-      );
+      const key1 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_CREATE', '123', payload);
 
-      const key2 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key2 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
       expect(key1).not.toBe(key2);
     });
@@ -118,19 +86,9 @@ describe('EventService', () => {
     it('should generate different keys for different resource IDs', () => {
       const payload = { id: 123, title: 'Test Product', variants: [] };
 
-      const key1 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const key1 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
-      const key2 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '456',
-        payload
-      );
+      const key2 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '456', payload);
 
       expect(key1).not.toBe(key2);
     });
@@ -139,19 +97,9 @@ describe('EventService', () => {
       const payload1 = { id: 123, title: 'Test Product', variants: [] };
       const payload2 = { id: 123, title: 'Updated Product', variants: [] };
 
-      const key1 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload1
-      );
+      const key1 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload1);
 
-      const key2 = EventService.generateIdempotencyKey(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload2
-      );
+      const key2 = EventService.generateIdempotencyKey('shop1', 'PRODUCTS_UPDATE', '123', payload2);
 
       expect(key1).not.toBe(key2);
     });
@@ -259,12 +207,7 @@ describe('EventService', () => {
     it('should create a normalized event with correct fields', () => {
       const payload = { id: 123, title: 'Test Product', variants: [] };
 
-      const event = EventService.normalizeEvent(
-        'shop1',
-        'PRODUCTS_UPDATE',
-        '123',
-        payload
-      );
+      const event = EventService.normalizeEvent('shop1', 'PRODUCTS_UPDATE', '123', payload);
 
       expect(event.shopId).toBe('shop1');
       expect(event.topic).toBe('PRODUCTS_UPDATE');
@@ -283,7 +226,12 @@ describe('EventService', () => {
       const productEvent = EventService.normalizeEvent('shop1', 'PRODUCTS_UPDATE', '1', payload);
       expect(productEvent.resourceType).toBe('PRODUCT');
 
-      const inventoryEvent = EventService.normalizeEvent('shop1', 'INVENTORY_LEVELS_UPDATE', '1', payload);
+      const inventoryEvent = EventService.normalizeEvent(
+        'shop1',
+        'INVENTORY_LEVELS_UPDATE',
+        '1',
+        payload
+      );
       expect(inventoryEvent.resourceType).toBe('INVENTORY');
 
       const orderEvent = EventService.normalizeEvent('shop1', 'ORDERS_CREATE', '1', payload);
@@ -336,12 +284,11 @@ describe('EventService', () => {
 
   describe('processWithIdempotency', () => {
     it('should process new events', async () => {
-      const event = EventService.normalizeEvent(
-        'shop-test-1',
-        'PRODUCTS_UPDATE',
-        'product-1',
-        { id: 1, title: 'Test', variants: [] }
-      );
+      const event = EventService.normalizeEvent('shop-test-1', 'PRODUCTS_UPDATE', 'product-1', {
+        id: 1,
+        title: 'Test',
+        variants: [],
+      });
 
       let processorCalled = false;
       const result = await EventService.processWithIdempotency(event, async () => {
@@ -356,12 +303,11 @@ describe('EventService', () => {
     });
 
     it('should skip duplicate events', async () => {
-      const event = EventService.normalizeEvent(
-        'shop-test-2',
-        'PRODUCTS_UPDATE',
-        'product-2',
-        { id: 2, title: 'Test', variants: [] }
-      );
+      const event = EventService.normalizeEvent('shop-test-2', 'PRODUCTS_UPDATE', 'product-2', {
+        id: 2,
+        title: 'Test',
+        variants: [],
+      });
 
       // Process first time
       await EventService.processWithIdempotency(event, async () => ({ first: true }));
@@ -379,12 +325,11 @@ describe('EventService', () => {
     });
 
     it('should not mark as processed on error', async () => {
-      const event = EventService.normalizeEvent(
-        'shop-test-3',
-        'PRODUCTS_UPDATE',
-        'product-3',
-        { id: 3, title: 'Test', variants: [] }
-      );
+      const event = EventService.normalizeEvent('shop-test-3', 'PRODUCTS_UPDATE', 'product-3', {
+        id: 3,
+        title: 'Test',
+        variants: [],
+      });
 
       // First attempt fails
       const result1 = await EventService.processWithIdempotency(event, async () => {

@@ -17,14 +17,14 @@ function getEncryptionKey(): Buffer {
   if (!keyHex) {
     throw new Error(
       'ENCRYPTION_KEY environment variable is required. ' +
-      'Generate one with: node -e "console.log(crypto.randomBytes(32).toString(\'hex\'))"'
+        'Generate one with: node -e "console.log(crypto.randomBytes(32).toString(\'hex\'))"'
     );
   }
 
   if (keyHex.length !== 64) {
     throw new Error(
       'ENCRYPTION_KEY must be a 64-character hex string (32 bytes). ' +
-      `Current length: ${keyHex.length}`
+        `Current length: ${keyHex.length}`
     );
   }
 
@@ -115,7 +115,7 @@ export function isEncrypted(value: string): boolean {
 
   // Validate that each part is valid base64
   const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-  return parts.every(part => base64Regex.test(part));
+  return parts.every((part) => base64Regex.test(part));
 }
 
 /**

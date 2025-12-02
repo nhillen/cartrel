@@ -16,7 +16,12 @@ import { ConnectionHealthService } from './ConnectionHealthService';
 import { RateLimitService } from './RateLimitService';
 
 // Price rule types
-export type PriceRuleType = 'MIRROR' | 'MARKUP_PERCENT' | 'MARKDOWN_PERCENT' | 'MARKUP_FIXED' | 'MARKDOWN_FIXED';
+export type PriceRuleType =
+  | 'MIRROR'
+  | 'MARKUP_PERCENT'
+  | 'MARKDOWN_PERCENT'
+  | 'MARKUP_FIXED'
+  | 'MARKDOWN_FIXED';
 
 export interface PriceRule {
   type: PriceRuleType;
@@ -247,9 +252,8 @@ class PriceRuleServiceClass {
         const sourcePrice = parseFloat(variant.price);
         const calculatedPrice = this.calculatePrice(sourcePrice, rule);
         const priceChange = calculatedPrice - sourcePrice;
-        const priceChangePercent = sourcePrice > 0
-          ? Math.round((priceChange / sourcePrice) * 100 * 10) / 10
-          : 0;
+        const priceChangePercent =
+          sourcePrice > 0 ? Math.round((priceChange / sourcePrice) * 100 * 10) / 10 : 0;
 
         previews.push({
           productId: mapping.supplierShopifyProductId,
@@ -362,9 +366,9 @@ class PriceRuleServiceClass {
         }
 
         // Find the variant
-        const sourceVariant = sourceData.variants.find(
-          (v) => v.id.includes(mapping.retailerShopifyVariantId || '')
-        ) || sourceData.variants[0];
+        const sourceVariant =
+          sourceData.variants.find((v) => v.id.includes(mapping.retailerShopifyVariantId || '')) ||
+          sourceData.variants[0];
 
         const sourcePrice = parseFloat(sourceVariant.price);
         const newPrice = this.calculatePrice(sourcePrice, rule);

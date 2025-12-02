@@ -35,8 +35,14 @@ export interface ImportBatchStatus {
  * Process an async product import job
  */
 export async function processImport(job: Job<ImportJob>) {
-  const { connectionId, retailerShopId, supplierProductIds, preferences, createInShopify, batchId } =
-    job.data;
+  const {
+    connectionId,
+    retailerShopId,
+    supplierProductIds,
+    preferences,
+    createInShopify,
+    batchId,
+  } = job.data;
 
   logger.info(
     `Processing import batch ${batchId}: ${supplierProductIds.length} products for connection ${connectionId}`
@@ -83,7 +89,9 @@ export async function processImport(job: Job<ImportJob>) {
     for (let i = 0; i < supplierProductIds.length; i += BATCH_SIZE) {
       const batch = supplierProductIds.slice(i, i + BATCH_SIZE);
 
-      logger.info(`Processing batch ${i / BATCH_SIZE + 1} of ${Math.ceil(supplierProductIds.length / BATCH_SIZE)}`);
+      logger.info(
+        `Processing batch ${i / BATCH_SIZE + 1} of ${Math.ceil(supplierProductIds.length / BATCH_SIZE)}`
+      );
 
       try {
         const result = await ProductImportService.importProducts(
@@ -131,7 +139,9 @@ export async function processImport(job: Job<ImportJob>) {
         logger.error(`Error processing batch ${i / BATCH_SIZE + 1}:`, error);
         failed += batch.length;
         completed += batch.length;
-        errors.push(`Batch ${i / BATCH_SIZE + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        errors.push(
+          `Batch ${i / BATCH_SIZE + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
 
         // Update progress even on error
         await prisma.importBatchStatus.update({
@@ -158,9 +168,7 @@ export async function processImport(job: Job<ImportJob>) {
       },
     });
 
-    logger.info(
-      `Import batch ${batchId} completed: ${successful} success, ${failed} failed`
-    );
+    logger.info(`Import batch ${batchId} completed: ${successful} success, ${failed} failed`);
 
     // Log audit event
     await prisma.auditLog.create({

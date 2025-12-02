@@ -125,7 +125,9 @@ class MetafieldSyncServiceClass {
   /**
    * Check if connection has reached metafield definition cap
    */
-  async hasReachedCap(connectionId: string): Promise<{ reached: boolean; current: number; cap: number }> {
+  async hasReachedCap(
+    connectionId: string
+  ): Promise<{ reached: boolean; current: number; cap: number }> {
     const connection = await prisma.connection.findUnique({
       where: { id: connectionId },
       include: { supplierShop: true },
@@ -201,10 +203,11 @@ class MetafieldSyncServiceClass {
         variables: { ownerType },
       });
 
-      const definitions = response.metafieldDefinitions?.edges?.map((edge: any) => ({
-        ...edge.node,
-        ownerType,
-      })) || [];
+      const definitions =
+        response.metafieldDefinitions?.edges?.map((edge: any) => ({
+          ...edge.node,
+          ownerType,
+        })) || [];
 
       // Store discovered definitions in our config table
       for (const def of definitions) {
@@ -320,7 +323,9 @@ class MetafieldSyncServiceClass {
       },
     });
 
-    logger.info(`Enabled metafield sync for ${config.namespace}.${config.key} on connection ${config.connectionId}`);
+    logger.info(
+      `Enabled metafield sync for ${config.namespace}.${config.key} on connection ${config.connectionId}`
+    );
 
     return {
       success: true,
@@ -401,7 +406,9 @@ class MetafieldSyncServiceClass {
     );
 
     if (existingDef) {
-      logger.info(`Found existing definition ${existingDef} on destination for ${config.namespace}.${config.key}`);
+      logger.info(
+        `Found existing definition ${existingDef} on destination for ${config.namespace}.${config.key}`
+      );
       return existingDef;
     }
 
@@ -518,7 +525,7 @@ class MetafieldSyncServiceClass {
     // Expensive operation - log warning and skip for now
     logger.warn(
       `Bulk value deletion not yet implemented for ${config.namespace}.${config.key}. ` +
-      `Consider deleting the definition to cascade delete values.`
+        `Consider deleting the definition to cascade delete values.`
     );
   }
 
@@ -680,9 +687,7 @@ class MetafieldSyncServiceClass {
 
     try {
       // Ensure product ID is in GID format
-      const gid = productId.startsWith('gid://')
-        ? productId
-        : `gid://shopify/Product/${productId}`;
+      const gid = productId.startsWith('gid://') ? productId : `gid://shopify/Product/${productId}`;
 
       const response: any = await client.request(query, {
         variables: { id: gid, identifiers },
@@ -752,9 +757,7 @@ class MetafieldSyncServiceClass {
     const errors: string[] = [];
     let synced = 0;
 
-    const gid = productId.startsWith('gid://')
-      ? productId
-      : `gid://shopify/Product/${productId}`;
+    const gid = productId.startsWith('gid://') ? productId : `gid://shopify/Product/${productId}`;
 
     // Use metafieldsSet mutation for efficiency
     const mutation = `
@@ -879,7 +882,12 @@ class MetafieldSyncServiceClass {
     });
 
     if (!connection) {
-      return { totalProducts: 0, syncedProducts: 0, totalMetafields: 0, errors: ['Connection not found'] };
+      return {
+        totalProducts: 0,
+        syncedProducts: 0,
+        totalMetafields: 0,
+        errors: ['Connection not found'],
+      };
     }
 
     // Get all active mappings
@@ -905,7 +913,9 @@ class MetafieldSyncServiceClass {
       const batch = mappings.slice(i, i + batchSize);
 
       // Check rate limits before processing batch
-      const delay = await RateLimitService.getRequiredDelay(connection.retailerShop.myshopifyDomain);
+      const delay = await RateLimitService.getRequiredDelay(
+        connection.retailerShop.myshopifyDomain
+      );
       if (delay > 0) {
         logger.info(`Rate limit delay: ${delay}ms before batch ${i / batchSize + 1}`);
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -925,15 +935,21 @@ class MetafieldSyncServiceClass {
           }
 
           if (result.errors.length > 0) {
-            errors.push(...result.errors.map((e) => `Product ${mapping.retailerShopifyProductId}: ${e}`));
+            errors.push(
+              ...result.errors.map((e) => `Product ${mapping.retailerShopifyProductId}: ${e}`)
+            );
           }
         } catch (error) {
-          errors.push(`Product ${mapping.retailerShopifyProductId}: ${error instanceof Error ? error.message : 'Unknown'}`);
+          errors.push(
+            `Product ${mapping.retailerShopifyProductId}: ${error instanceof Error ? error.message : 'Unknown'}`
+          );
         }
       }
 
       // Log progress
-      logger.info(`Bulk metafield sync progress: ${Math.min(i + batchSize, mappings.length)}/${mappings.length}`);
+      logger.info(
+        `Bulk metafield sync progress: ${Math.min(i + batchSize, mappings.length)}/${mappings.length}`
+      );
     }
 
     // Record activity
@@ -951,7 +967,7 @@ class MetafieldSyncServiceClass {
 
     logger.info(
       `Bulk metafield sync complete for ${connectionId}: ` +
-      `${totalMetafields} metafields on ${syncedProducts}/${mappings.length} products, ${errors.length} errors`
+        `${totalMetafields} metafields on ${syncedProducts}/${mappings.length} products, ${errors.length} errors`
     );
 
     return {
@@ -1030,7 +1046,11 @@ class MetafieldSyncServiceClass {
 
     try {
       // Sync product metafields
-      const productResult = await this.syncProductMetafields(connectionId, sourceProductId, destProductId);
+      const productResult = await this.syncProductMetafields(
+        connectionId,
+        sourceProductId,
+        destProductId
+      );
 
       if (productResult.errors.length > 0) {
         logger.warn(`Product metafield sync errors for ${destProductId}:`, productResult.errors);
@@ -1046,7 +1066,10 @@ class MetafieldSyncServiceClass {
           );
 
           if (variantResult.errors.length > 0) {
-            logger.warn(`Variant metafield sync errors for ${vm.destVariantId}:`, variantResult.errors);
+            logger.warn(
+              `Variant metafield sync errors for ${vm.destVariantId}:`,
+              variantResult.errors
+            );
           }
         }
       }

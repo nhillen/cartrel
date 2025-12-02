@@ -278,8 +278,8 @@ export function canCreateInvite(
 
 export const ADD_ON_PRICING = {
   connections: { qty: 10, price: 30 }, // +10 connections for $30/month
-  orders: { qty: 1000, price: 25 },    // +1,000 orders for $25/month
-  team: { shops: 3, price: 199 },      // Team plan (3 shops, pooled caps) for $199/month
+  orders: { qty: 1000, price: 25 }, // +1,000 orders for $25/month
+  team: { shops: 3, price: 199 }, // Team plan (3 shops, pooled caps) for $199/month
 };
 
 /**
@@ -292,9 +292,11 @@ export function getEffectiveLimits(shop: {
 }) {
   const baseLimits = getPlanLimits(shop.plan);
   return {
-    connections: baseLimits.maxConnections + (shop.addOnConnections || 0) * ADD_ON_PRICING.connections.qty,
+    connections:
+      baseLimits.maxConnections + (shop.addOnConnections || 0) * ADD_ON_PRICING.connections.qty,
     products: baseLimits.maxProducts,
-    ordersPerMonth: baseLimits.maxPurchaseOrdersPerMonth + (shop.addOnOrders || 0) * ADD_ON_PRICING.orders.qty,
+    ordersPerMonth:
+      baseLimits.maxPurchaseOrdersPerMonth + (shop.addOnOrders || 0) * ADD_ON_PRICING.orders.qty,
   };
 }
 

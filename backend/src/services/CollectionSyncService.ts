@@ -61,7 +61,9 @@ class CollectionSyncServiceClass {
   /**
    * Check if connection has reached collection cap
    */
-  async hasReachedCap(connectionId: string): Promise<{ reached: boolean; current: number; cap: number }> {
+  async hasReachedCap(
+    connectionId: string
+  ): Promise<{ reached: boolean; current: number; cap: number }> {
     const connection = await prisma.connection.findUnique({
       where: { id: connectionId },
       include: { supplierShop: true },
@@ -400,7 +402,7 @@ class CollectionSyncServiceClass {
 
       logger.info(
         `Synced collection ${sourceCollection.title} to ${destCollectionId}, ` +
-        `${productsResult.added} products added, ${productsResult.removed} removed`
+          `${productsResult.added} products added, ${productsResult.removed} removed`
       );
 
       return {

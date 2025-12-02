@@ -25,7 +25,9 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(32),
 
   // Encryption
-  ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be exactly 64 characters (32 bytes hex)'),
+  ENCRYPTION_KEY: z
+    .string()
+    .length(64, 'ENCRYPTION_KEY must be exactly 64 characters (32 bytes hex)'),
 
   // Optional: Email
   EMAIL_FROM: z.string().email().optional(),
@@ -37,7 +39,10 @@ const envSchema = z.object({
   // Optional: S3/MinIO
   S3_ENDPOINT: z.string().optional(),
   S3_PORT: z.string().transform(Number).pipe(z.number().int().positive()).optional(),
-  S3_USE_SSL: z.string().transform((val) => val === 'true').optional(),
+  S3_USE_SSL: z
+    .string()
+    .transform((val) => val === 'true')
+    .optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   S3_BUCKET: z.string().optional(),
@@ -82,7 +87,7 @@ export const config = {
   shopify: {
     apiKey: env.SHOPIFY_API_KEY,
     apiSecret: env.SHOPIFY_API_SECRET,
-    scopes: env.SHOPIFY_SCOPES.split(',').map(s => s.trim()),
+    scopes: env.SHOPIFY_SCOPES.split(',').map((s) => s.trim()),
     appUrl: env.SHOPIFY_APP_URL,
     hostName: new URL(env.SHOPIFY_APP_URL).hostname,
   },
@@ -91,30 +96,36 @@ export const config = {
   sessionSecret: env.SESSION_SECRET,
 
   // Email (optional)
-  email: env.EMAIL_FROM ? {
-    from: env.EMAIL_FROM,
-    smtp: {
-      host: env.SMTP_HOST!,
-      port: env.SMTP_PORT!,
-      user: env.SMTP_USER!,
-      password: env.SMTP_PASSWORD!,
-    },
-  } : undefined,
+  email: env.EMAIL_FROM
+    ? {
+        from: env.EMAIL_FROM,
+        smtp: {
+          host: env.SMTP_HOST!,
+          port: env.SMTP_PORT!,
+          user: env.SMTP_USER!,
+          password: env.SMTP_PASSWORD!,
+        },
+      }
+    : undefined,
 
   // S3/MinIO (optional)
-  s3: env.S3_ENDPOINT ? {
-    endpoint: env.S3_ENDPOINT,
-    port: env.S3_PORT!,
-    useSSL: env.S3_USE_SSL || false,
-    accessKey: env.S3_ACCESS_KEY!,
-    secretKey: env.S3_SECRET_KEY!,
-    bucket: env.S3_BUCKET!,
-  } : undefined,
+  s3: env.S3_ENDPOINT
+    ? {
+        endpoint: env.S3_ENDPOINT,
+        port: env.S3_PORT!,
+        useSSL: env.S3_USE_SSL || false,
+        accessKey: env.S3_ACCESS_KEY!,
+        secretKey: env.S3_SECRET_KEY!,
+        bucket: env.S3_BUCKET!,
+      }
+    : undefined,
 
   // Internal admin auth
   adminApiKey: env.ADMIN_API_KEY,
 
-  alerts: env.ALERT_WEBHOOK_URL ? {
-    webhookUrl: env.ALERT_WEBHOOK_URL,
-  } : undefined,
+  alerts: env.ALERT_WEBHOOK_URL
+    ? {
+        webhookUrl: env.ALERT_WEBHOOK_URL,
+      }
+    : undefined,
 } as const;

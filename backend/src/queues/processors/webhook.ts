@@ -242,7 +242,10 @@ async function handleInventoryUpdate(
   }
 
   logger.info(`Inventory update handled for item ${payload.inventory_item_id}`);
-  return { inventoryItemId: payload.inventory_item_id.toString(), propagated: connections.length > 0 };
+  return {
+    inventoryItemId: payload.inventory_item_id.toString(),
+    propagated: connections.length > 0,
+  };
 }
 
 async function handleOrderUpdate(

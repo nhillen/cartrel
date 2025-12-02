@@ -37,9 +37,7 @@ export class VariantMappingService {
   /**
    * Auto-match supplier variants to retailer variants based on option values
    */
-  static async autoMatchVariants(
-    productMappingId: string
-  ): Promise<VariantMatchResult[]> {
+  static async autoMatchVariants(productMappingId: string): Promise<VariantMatchResult[]> {
     try {
       logger.info(`Auto-matching variants for product mapping ${productMappingId}`);
 
@@ -250,10 +248,7 @@ export class VariantMappingService {
   /**
    * Sync inventory for a specific variant
    */
-  static async syncVariantInventory(
-    variantMappingId: string,
-    quantity: number
-  ): Promise<void> {
+  static async syncVariantInventory(variantMappingId: string, quantity: number): Promise<void> {
     try {
       const variantMapping = await prisma.variantMapping.findUnique({
         where: { id: variantMappingId },
@@ -372,10 +367,7 @@ export class VariantMappingService {
   /**
    * Fetch all variants for a product from Shopify
    */
-  private static async fetchProductVariants(
-    client: any,
-    productId: string
-  ): Promise<any[]> {
+  private static async fetchProductVariants(client: any, productId: string): Promise<any[]> {
     const query = `
       query getProduct($id: ID!) {
         product(id: $id) {
@@ -478,9 +470,7 @@ export class VariantMappingService {
       const retailerOpt = retailerOptions.find((r) => r.name === supplierOpt.name);
 
       if (retailerOpt) {
-        if (
-          retailerOpt.value.toLowerCase().trim() === supplierOpt.value.toLowerCase().trim()
-        ) {
+        if (retailerOpt.value.toLowerCase().trim() === supplierOpt.value.toLowerCase().trim()) {
           exactMatches++;
         } else {
           partialMatches++;

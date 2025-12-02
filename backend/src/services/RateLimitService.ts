@@ -252,7 +252,10 @@ class RateLimitServiceClass {
    */
   calculateBackoff(errorCount: number): number {
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, capped at 60s
-    const exponentialDelay = Math.min(BASE_BACKOFF_MS * Math.pow(2, errorCount - 1), MAX_BACKOFF_MS);
+    const exponentialDelay = Math.min(
+      BASE_BACKOFF_MS * Math.pow(2, errorCount - 1),
+      MAX_BACKOFF_MS
+    );
 
     // Add jitter (±25%)
     const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);

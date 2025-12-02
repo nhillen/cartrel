@@ -54,10 +54,7 @@ export class InventorySyncService {
    * Update supplier product inventory from webhook payload
    * Phase 6: Captures location ID for multi-location support
    */
-  static async updateSupplierInventory(
-    shopId: string,
-    payload: any
-  ): Promise<void> {
+  static async updateSupplierInventory(shopId: string, payload: any): Promise<void> {
     try {
       const inventoryLevel = payload as InventoryLevel;
       const inventoryItemId = inventoryLevel.inventory_item_id.toString();
@@ -229,8 +226,7 @@ export class InventorySyncService {
         variables: { id: `gid://shopify/ProductVariant/${retailerVariantId}` },
       });
 
-      const inventoryItemId =
-        variantResponse.data?.productVariant?.inventoryItem?.id;
+      const inventoryItemId = variantResponse.data?.productVariant?.inventoryItem?.id;
 
       if (!inventoryItemId) {
         logger.error(`Could not find inventory item for variant ${retailerVariantId}`);
@@ -291,10 +287,7 @@ export class InventorySyncService {
 
       if (response.data?.inventorySetQuantities?.userErrors?.length > 0) {
         const errors = response.data.inventorySetQuantities.userErrors;
-        logger.error(
-          `Shopify inventory update errors for retailer ${retailerShop.id}:`,
-          errors
-        );
+        logger.error(`Shopify inventory update errors for retailer ${retailerShop.id}:`, errors);
         throw new Error(`Shopify inventory update failed: ${errors[0].message}`);
       }
 
@@ -302,10 +295,7 @@ export class InventorySyncService {
         `Updated inventory for retailer ${retailerShop.id} variant ${retailerVariantId}: ${quantity}`
       );
     } catch (error) {
-      logger.error(
-        `Error updating retailer inventory for ${retailerShop.myshopifyDomain}:`,
-        error
-      );
+      logger.error(`Error updating retailer inventory for ${retailerShop.myshopifyDomain}:`, error);
       throw error;
     }
   }
@@ -314,9 +304,7 @@ export class InventorySyncService {
    * Handle bulk inventory sync for a supplier product
    * Useful for initial sync or manual sync
    */
-  static async syncProductInventory(
-    supplierProductId: string
-  ): Promise<void> {
+  static async syncProductInventory(supplierProductId: string): Promise<void> {
     try {
       const supplierProduct = await prisma.supplierProduct.findUnique({
         where: { id: supplierProductId },
@@ -428,12 +416,7 @@ export class InventorySyncService {
 
         // Process line items
         for (const item of lineItems) {
-          await this.applyOrderInventoryDelta(
-            connection,
-            item,
-            event,
-            payload
-          );
+          await this.applyOrderInventoryDelta(connection, item, event, payload);
         }
       }
 
@@ -522,7 +505,9 @@ export class InventorySyncService {
     });
 
     if (!mapping) {
-      logger.debug(`No active mapping found for variant ${variantId} in connection ${connection.id}`);
+      logger.debug(
+        `No active mapping found for variant ${variantId} in connection ${connection.id}`
+      );
       return;
     }
 
@@ -558,9 +543,7 @@ export class InventorySyncService {
       return;
     }
 
-    logger.info(
-      `Applying inventory delta ${delta} for variant ${variantId} (${reason})`
-    );
+    logger.info(`Applying inventory delta ${delta} for variant ${variantId} (${reason})`);
 
     // Update supplier product inventory
     const currentQty = mapping.supplierProduct?.inventoryQuantity || 0;
@@ -575,12 +558,7 @@ export class InventorySyncService {
     });
 
     // Propagate to retailers with buffer applied
-    await this.propagateInventoryWithBuffer(
-      connection,
-      mapping,
-      newQty,
-      reason
-    );
+    await this.propagateInventoryWithBuffer(connection, mapping, newQty, reason);
   }
 
   /**
@@ -790,7 +768,9 @@ export class InventorySyncService {
       byShop.set(update.retailerShopId, shopUpdates);
     }
 
-    logger.info(`Processing batch of ${batch.length} inventory updates across ${byShop.size} shops`);
+    logger.info(
+      `Processing batch of ${batch.length} inventory updates across ${byShop.size} shops`
+    );
 
     for (const [shopId, updates] of byShop) {
       try {
@@ -878,9 +858,7 @@ export class InventorySyncService {
         continue;
       }
 
-      logger.info(
-        `Restocking ${quantity} units of variant ${variantId} (type: ${restockType})`
-      );
+      logger.info(`Restocking ${quantity} units of variant ${variantId} (type: ${restockType})`);
 
       await this.applyInventoryDelta(shopId, variantId, quantity, 'RESTOCK');
     }
@@ -962,9 +940,7 @@ export class InventorySyncService {
       data: { inventoryLocationId: newLocationId },
     });
 
-    logger.info(
-      `Location change complete: zeroed ${zeroed} items, synced ${synced} items`
-    );
+    logger.info(`Location change complete: zeroed ${zeroed} items, synced ${synced} items`);
 
     return { zeroed, synced };
   }
@@ -1049,8 +1025,6 @@ export class InventorySyncService {
       throw new Error(`Shopify error: ${errors[0].message}`);
     }
 
-    logger.info(
-      `Set inventory for variant ${variantId} at location ${locationId}: ${quantity}`
-    );
+    logger.info(`Set inventory for variant ${variantId} at location ${locationId}: ${quantity}`);
   }
 }

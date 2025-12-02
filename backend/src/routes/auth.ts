@@ -38,7 +38,7 @@ router.get('/shopify', async (req, res, next): Promise<void> => {
 
     // Intercept response to fix OAuth cookie SameSite
     const originalSetHeader = res.setHeader.bind(res);
-    res.setHeader = function(name: string, value: any) {
+    res.setHeader = function (name: string, value: any) {
       if (name.toLowerCase() === 'set-cookie') {
         // Fix SameSite for OAuth cookies
         const cookies = Array.isArray(value) ? value : [value];
@@ -147,7 +147,9 @@ router.get('/shopify/callback', async (req, res, _next): Promise<void> => {
             const limitCheck = canCreateConnection(currentConnections, supplier.plan);
 
             if (!limitCheck.allowed) {
-              logger.warn(`Connection blocked by plan limit: ${supplier.myshopifyDomain} (${currentConnections} connections)`);
+              logger.warn(
+                `Connection blocked by plan limit: ${supplier.myshopifyDomain} (${currentConnections} connections)`
+              );
               // Don't create connection, but don't fail OAuth either
               // Supplier will see upgrade prompt in their dashboard
               return;
@@ -269,7 +271,10 @@ async function registerWebhooks(shop: string, accessToken: string) {
     { topic: 'PRODUCTS_CREATE', address: `${config.appUrl}/webhooks/shopify/products/create` },
     { topic: 'PRODUCTS_UPDATE', address: `${config.appUrl}/webhooks/shopify/products/update` },
     { topic: 'PRODUCTS_DELETE', address: `${config.appUrl}/webhooks/shopify/products/delete` },
-    { topic: 'INVENTORY_LEVELS_UPDATE', address: `${config.appUrl}/webhooks/shopify/inventory/update` },
+    {
+      topic: 'INVENTORY_LEVELS_UPDATE',
+      address: `${config.appUrl}/webhooks/shopify/inventory/update`,
+    },
     { topic: 'ORDERS_CREATE', address: `${config.appUrl}/webhooks/shopify/orders/create` },
     { topic: 'ORDERS_UPDATED', address: `${config.appUrl}/webhooks/shopify/orders/update` },
     { topic: 'APP_UNINSTALLED', address: `${config.appUrl}/webhooks/shopify/app/uninstalled` },
@@ -306,8 +311,8 @@ async function registerWebhooks(shop: string, accessToken: string) {
 
       if (result?.userErrors?.length > 0) {
         // "Address for this topic has already been taken" is not a real error
-        const isAlreadyRegistered = result.userErrors.some(
-          (e: { message: string }) => e.message.includes('already been taken')
+        const isAlreadyRegistered = result.userErrors.some((e: { message: string }) =>
+          e.message.includes('already been taken')
         );
         if (isAlreadyRegistered) {
           logger.debug(`Webhook already registered: ${webhook.topic} for ${shop}`);

@@ -267,7 +267,12 @@ class BillingEnforcementServiceClass {
 
     const currentCount = await this.getMonthlyOrderPushCount(shopId, startOfMonth);
 
-    return this.buildUsageResult(currentCount, caps.orderPushesPerMonth, 'order pushes this month', tier);
+    return this.buildUsageResult(
+      currentCount,
+      caps.orderPushesPerMonth,
+      'order pushes this month',
+      tier
+    );
   }
 
   /**
@@ -303,7 +308,12 @@ class BillingEnforcementServiceClass {
       },
     });
 
-    return this.buildUsageResult(currentCount, caps.metafieldDefinitions, 'metafield definitions', tier);
+    return this.buildUsageResult(
+      currentCount,
+      caps.metafieldDefinitions,
+      'metafield definitions',
+      tier
+    );
   }
 
   /**
@@ -350,56 +360,74 @@ class BillingEnforcementServiceClass {
     startOfMonth.setHours(0, 0, 0, 0);
 
     // Gather all usage data in parallel
-    const [
-      connectionCount,
-      productCount,
-      orderCount,
-      pushCount,
-      metafieldCount,
-    ] = await Promise.all([
-      prisma.connection.count({
-        where: {
-          supplierShopId: shopId,
-          status: { not: 'TERMINATED' },
-        },
-      }),
-      prisma.productMapping.count({
-        where: {
-          connection: {
+    const [connectionCount, productCount, orderCount, pushCount, metafieldCount] =
+      await Promise.all([
+        prisma.connection.count({
+          where: {
             supplierShopId: shopId,
             status: { not: 'TERMINATED' },
           },
-          status: 'ACTIVE',
-        },
-      }),
-      this.getMonthlyOrderCount(shopId, startOfMonth),
-      this.getMonthlyOrderPushCount(shopId, startOfMonth),
-      prisma.metafieldConfig.count({
-        where: {
-          connection: {
-            supplierShopId: shopId,
+        }),
+        prisma.productMapping.count({
+          where: {
+            connection: {
+              supplierShopId: shopId,
+              status: { not: 'TERMINATED' },
+            },
+            status: 'ACTIVE',
           },
-          syncEnabled: true,
-        },
-      }),
-    ]);
+        }),
+        this.getMonthlyOrderCount(shopId, startOfMonth),
+        this.getMonthlyOrderPushCount(shopId, startOfMonth),
+        prisma.metafieldConfig.count({
+          where: {
+            connection: {
+              supplierShopId: shopId,
+            },
+            syncEnabled: true,
+          },
+        }),
+      ]);
 
-    const connections = this.buildUsageResult(connectionCount, caps.connections, 'connections', tier);
+    const connections = this.buildUsageResult(
+      connectionCount,
+      caps.connections,
+      'connections',
+      tier
+    );
     const products = this.buildUsageResult(productCount, caps.products, 'products', tier);
     const ordersThisMonth = this.buildUsageResult(orderCount, caps.ordersPerMonth, 'orders', tier);
-    const orderPushesThisMonth = this.buildUsageResult(pushCount, caps.orderPushesPerMonth, 'order pushes', tier);
-    const metafieldDefinitions = this.buildUsageResult(metafieldCount, caps.metafieldDefinitions, 'metafield definitions', tier);
+    const orderPushesThisMonth = this.buildUsageResult(
+      pushCount,
+      caps.orderPushesPerMonth,
+      'order pushes',
+      tier
+    );
+    const metafieldDefinitions = this.buildUsageResult(
+      metafieldCount,
+      caps.metafieldDefinitions,
+      'metafield definitions',
+      tier
+    );
 
     // Collect warnings
     const warnings: string[] = [];
-    if (connections.percentUsed >= 80) warnings.push(`Connection usage at ${connections.percentUsed}%`);
+    if (connections.percentUsed >= 80)
+      warnings.push(`Connection usage at ${connections.percentUsed}%`);
     if (products.percentUsed >= 80) warnings.push(`Product usage at ${products.percentUsed}%`);
-    if (ordersThisMonth.percentUsed >= 80) warnings.push(`Monthly order usage at ${ordersThisMonth.percentUsed}%`);
-    if (orderPushesThisMonth.percentUsed >= 80) warnings.push(`Monthly order push usage at ${orderPushesThisMonth.percentUsed}%`);
+    if (ordersThisMonth.percentUsed >= 80)
+      warnings.push(`Monthly order usage at ${ordersThisMonth.percentUsed}%`);
+    if (orderPushesThisMonth.percentUsed >= 80)
+      warnings.push(`Monthly order push usage at ${orderPushesThisMonth.percentUsed}%`);
 
     // Determine overall status
     let overallStatus: 'OK' | 'WARNING' | 'BLOCKED' = 'OK';
-    if (connections.isOverLimit || products.isOverLimit || ordersThisMonth.isOverLimit || orderPushesThisMonth.isOverLimit) {
+    if (
+      connections.isOverLimit ||
+      products.isOverLimit ||
+      ordersThisMonth.isOverLimit ||
+      orderPushesThisMonth.isOverLimit
+    ) {
       overallStatus = 'BLOCKED';
     } else if (warnings.length > 0) {
       overallStatus = 'WARNING';
@@ -423,11 +451,7 @@ class BillingEnforcementServiceClass {
    * Record usage in WebhookLog for order tracking
    * Uses existing WebhookLog to count monthly orders/pushes
    */
-  async recordOrderPush(
-    shopId: string,
-    orderId: string,
-    _connectionId: string
-  ): Promise<void> {
+  async recordOrderPush(shopId: string, orderId: string, _connectionId: string): Promise<void> {
     // Order pushes are tracked via PurchaseOrder creation
     // This method can be used for additional audit logging if needed
     logger.info(`Recorded order push for shop ${shopId}, order ${orderId}`);
@@ -446,10 +470,12 @@ class BillingEnforcementServiceClass {
     for (let i = currentIndex + 1; i < tiers.length; i++) {
       const tierCaps = TIER_CAPS[tiers[i]];
       // Check if any cap in this tier can handle the current usage
-      if (tierCaps.connections >= current ||
-          tierCaps.products >= current ||
-          tierCaps.ordersPerMonth >= current ||
-          tierCaps.orderPushesPerMonth >= current) {
+      if (
+        tierCaps.connections >= current ||
+        tierCaps.products >= current ||
+        tierCaps.ordersPerMonth >= current ||
+        tierCaps.orderPushesPerMonth >= current
+      ) {
         return tiers[i];
       }
     }
@@ -575,7 +601,10 @@ class BillingEnforcementServiceClass {
   /**
    * Enforce product limit before mapping
    */
-  async enforceProductLimit(shopId: string, count: number = 1): Promise<{ allowed: boolean; error?: string }> {
+  async enforceProductLimit(
+    shopId: string,
+    count: number = 1
+  ): Promise<{ allowed: boolean; error?: string }> {
     const result = await this.canAddProducts(shopId, count);
     if (!result.allowed) {
       logger.warn(`Product limit enforced for shop ${shopId}: ${result.reason}`);

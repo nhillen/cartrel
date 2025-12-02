@@ -5,11 +5,7 @@
 import express from 'express';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
-import {
-  createSubscription,
-  hasActiveSubscription,
-  cancelSubscription,
-} from '../services/billing';
+import { createSubscription, hasActiveSubscription, cancelSubscription } from '../services/billing';
 import { PLAN_LIMITS } from '../utils/planLimits';
 
 const router = express.Router();
@@ -112,7 +108,9 @@ router.get('/confirm', async (req, res) => {
 
     // Verify charge ID matches
     if (shopRecord.pendingChargeId !== charge_id) {
-      logger.error(`Charge ID mismatch for ${shop}: expected ${shopRecord.pendingChargeId}, got ${charge_id}`);
+      logger.error(
+        `Charge ID mismatch for ${shop}: expected ${shopRecord.pendingChargeId}, got ${charge_id}`
+      );
       res.status(400).send('Invalid charge ID');
       return;
     }
@@ -179,10 +177,7 @@ router.post('/cancel', async (req, res) => {
     }
 
     // Cancel subscription in Shopify
-    await cancelSubscription(
-      shopRecord.myshopifyDomain,
-      shopRecord.accessToken
-    );
+    await cancelSubscription(shopRecord.myshopifyDomain, shopRecord.accessToken);
 
     // Update shop to FREE plan
     await prisma.shop.update({

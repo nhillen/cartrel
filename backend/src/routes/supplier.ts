@@ -38,7 +38,7 @@ router.get('/products', async (req, res, next) => {
       logger.warn(`Shop ${shop} has no access token, needs OAuth`);
       res.status(401).json({
         error: 'Invalid access token. Please reinstall the app.',
-        requiresReauth: true
+        requiresReauth: true,
       });
       return;
     }
@@ -97,9 +97,7 @@ router.get('/products', async (req, res, next) => {
       },
     });
 
-    const wholesaleProductIds = new Set(
-      wholesaleProducts.map((p) => p.shopifyProductId)
-    );
+    const wholesaleProductIds = new Set(wholesaleProducts.map((p) => p.shopifyProductId));
 
     // Combine data
     const products = shopifyProducts.map((p: any) => {
@@ -233,9 +231,9 @@ router.post('/products/wholesale', async (req, res, next) => {
         create: {
           supplierShopId: shopRecord.id,
           shopifyProductId: productId,
-            shopifyVariantId: product.variants?.nodes?.[0]?.id
-              ? fromShopifyGid(product.variants.nodes[0].id)
-              : productId,
+          shopifyVariantId: product.variants?.nodes?.[0]?.id
+            ? fromShopifyGid(product.variants.nodes[0].id)
+            : productId,
           title: product.title,
           description: product.descriptionHtml || null,
           vendor: product.vendor || null,
@@ -268,9 +266,7 @@ router.post('/products/wholesale', async (req, res, next) => {
         },
       });
 
-      logger.info(
-        `Product ${productId} marked as wholesale for shop: ${shop}`
-      );
+      logger.info(`Product ${productId} marked as wholesale for shop: ${shop}`);
 
       // Log audit event
       await prisma.auditLog.create({
@@ -293,9 +289,7 @@ router.post('/products/wholesale', async (req, res, next) => {
         },
       });
 
-      logger.info(
-        `Product ${productId} unmarked as wholesale for shop: ${shop}`
-      );
+      logger.info(`Product ${productId} unmarked as wholesale for shop: ${shop}`);
     }
 
     res.json({ success: true });
@@ -586,7 +580,14 @@ router.get('/partners', async (req, res, next) => {
 router.patch('/connections/:connectionId', async (req, res, next) => {
   try {
     const { connectionId } = req.params;
-    const { shop, paymentTermsType, minOrderAmount, status, defaultMarkupType, defaultMarkupValue } = req.body;
+    const {
+      shop,
+      paymentTermsType,
+      minOrderAmount,
+      status,
+      defaultMarkupType,
+      defaultMarkupValue,
+    } = req.body;
 
     if (!shop) {
       res.status(400).json({ error: 'Missing shop parameter' });
@@ -624,12 +625,15 @@ router.patch('/connections/:connectionId', async (req, res, next) => {
 
     // Store default markup in perksConfig JSON field
     if (defaultMarkupType !== undefined || defaultMarkupValue !== undefined) {
-      const currentPerks = connection.perksConfig as any || {};
+      const currentPerks = (connection.perksConfig as any) || {};
       updateData.perksConfig = {
         ...currentPerks,
         defaultMarkup: {
           type: defaultMarkupType || currentPerks?.defaultMarkup?.type || 'PERCENTAGE',
-          value: defaultMarkupValue !== undefined ? parseFloat(defaultMarkupValue) : (currentPerks?.defaultMarkup?.value || 50),
+          value:
+            defaultMarkupValue !== undefined
+              ? parseFloat(defaultMarkupValue)
+              : currentPerks?.defaultMarkup?.value || 50,
         },
       };
     }
@@ -819,9 +823,7 @@ router.get('/connection-invites', async (req, res, next) => {
 
     // Auto-expire old invites
     const now = new Date();
-    const expiredInvites = invites.filter(
-      (inv) => inv.status === 'ACTIVE' && inv.expiresAt < now
-    );
+    const expiredInvites = invites.filter((inv) => inv.status === 'ACTIVE' && inv.expiresAt < now);
 
     if (expiredInvites.length > 0) {
       await prisma.connectionInvite.updateMany({
@@ -1112,9 +1114,7 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
     });
 
     const shopifyProducts = response.data?.products?.edges?.map((edge: any) => edge.node) || [];
-    const shopifyProductIds = new Set(
-      shopifyProducts.map((p: any) => fromShopifyGid(p.id))
-    );
+    const shopifyProductIds = new Set(shopifyProducts.map((p: any) => fromShopifyGid(p.id)));
 
     // Get all existing wholesale products from database
     const existingProducts = await prisma.supplierProduct.findMany({
@@ -1154,8 +1154,7 @@ router.post('/products/sync', syncLimiter, async (req, res, next) => {
             updateData.wholesalePrice = parseFloat(
               shopifyProduct.variants.nodes?.[0]?.price || '0'
             );
-            updateData.compareAtPrice = shopifyProduct.variants.nodes?.[0]
-              ?.compareAtPrice
+            updateData.compareAtPrice = shopifyProduct.variants.nodes?.[0]?.compareAtPrice
               ? parseFloat(shopifyProduct.variants.nodes[0].compareAtPrice)
               : null;
           }
@@ -1369,12 +1368,13 @@ router.get('/locations', async (req, res, next) => {
     `;
 
     const response: any = await client.request(query);
-    const locations = response.data?.locations?.edges?.map((edge: any) => ({
-      id: edge.node.id,
-      name: edge.node.name,
-      isActive: edge.node.isActive,
-      address: edge.node.address,
-    })) || [];
+    const locations =
+      response.data?.locations?.edges?.map((edge: any) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        isActive: edge.node.isActive,
+        address: edge.node.address,
+      })) || [];
 
     res.json({ locations });
   } catch (error) {
@@ -1429,7 +1429,8 @@ router.patch('/connections/:connectionId/location', async (req, res, next) => {
       where: { id: connectionId },
       data: {
         inventoryLocationId: inventoryLocationId || null,
-        safetyStockQuantity: safetyStockQuantity !== undefined ? safetyStockQuantity : connection.safetyStockQuantity,
+        safetyStockQuantity:
+          safetyStockQuantity !== undefined ? safetyStockQuantity : connection.safetyStockQuantity,
       },
     });
 

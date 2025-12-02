@@ -183,9 +183,7 @@ export class ProductSnapshotService {
     targetDate: Date
   ): Promise<{ rolledBack: string[]; errors: string[] }> {
     try {
-      logger.info(
-        `Rolling back product ${retailerProductId} to state at ${targetDate}`
-      );
+      logger.info(`Rolling back product ${retailerProductId} to state at ${targetDate}`);
 
       // Get all snapshots around the target date (within 1 minute)
       const startDate = new Date(targetDate.getTime() - 60000); // 1 min before
@@ -220,12 +218,7 @@ export class ProductSnapshotService {
       // Rollback each field
       for (const [field, snapshot] of fieldSnapshots) {
         try {
-          await this.rollbackField(
-            retailerShopId,
-            retailerProductId,
-            field,
-            snapshot.createdAt
-          );
+          await this.rollbackField(retailerShopId, retailerProductId, field, snapshot.createdAt);
           rolledBack.push(field);
         } catch (error) {
           const errorMsg = `${field}: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -318,13 +311,10 @@ export class ProductSnapshotService {
 
       return {
         totalSnapshots,
-        bySource: snapshotsBySource.reduce(
-          (acc: any, item: any) => {
-            acc[item.changedBy] = item._count;
-            return acc;
-          },
-          {}
-        ),
+        bySource: snapshotsBySource.reduce((acc: any, item: any) => {
+          acc[item.changedBy] = item._count;
+          return acc;
+        }, {}),
         topFields: snapshotsByField.map((item: any) => ({
           field: item.field,
           count: item._count,
@@ -468,10 +458,7 @@ export class ProductSnapshotService {
   /**
    * Fetch current product state from Shopify
    */
-  private static async fetchCurrentProductState(
-    client: any,
-    productId: string
-  ): Promise<any> {
+  private static async fetchCurrentProductState(client: any, productId: string): Promise<any> {
     const query = `
       query getProduct($id: ID!) {
         product(id: $id) {

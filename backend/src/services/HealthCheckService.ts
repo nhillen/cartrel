@@ -62,9 +62,7 @@ export class HealthCheckService {
       const errorRate = totalProcessed > 0 ? failedCount / totalProcessed : 0;
       const queueSize = waitingCount + activeCount;
 
-      logger.info(
-        `Webhook queue: ${queueSize} pending, ${errorRate.toFixed(3)} error rate`
-      );
+      logger.info(`Webhook queue: ${queueSize} pending, ${errorRate.toFixed(3)} error rate`);
 
       // Determine health status
       const healthy = queueSize < 500 && errorRate < 0.05;
@@ -282,7 +280,8 @@ export class HealthCheckService {
             resolvedAt: new Date(),
             updates: {
               create: {
-                message: 'System health has returned to normal. This incident has been auto-resolved.',
+                message:
+                  'System health has returned to normal. This incident has been auto-resolved.',
                 status: 'RESOLVED',
               },
             },

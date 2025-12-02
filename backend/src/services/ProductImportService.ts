@@ -103,9 +103,7 @@ export class ProductImportService {
       // Filter based on includeImported flag
       let filteredProducts = supplierProducts;
       if (!includeImported) {
-        filteredProducts = supplierProducts.filter(
-          (p) => p.productMappings.length === 0
-        );
+        filteredProducts = supplierProducts.filter((p) => p.productMappings.length === 0);
       }
 
       const products = filteredProducts.map((p) => ({
@@ -200,7 +198,9 @@ export class ProductImportService {
         const markupType =
           preferences.retailerMarkupType || existingMapping?.retailerMarkupType || 'PERCENTAGE';
         const markupValue =
-          preferences.retailerMarkupValue || existingMapping?.retailerMarkupValue?.toString() || '50';
+          preferences.retailerMarkupValue ||
+          existingMapping?.retailerMarkupValue?.toString() ||
+          '50';
 
         if (markupType === 'PERCENTAGE') {
           retailPrice = basePrice * (1 + parseFloat(markupValue) / 100);
@@ -224,8 +224,7 @@ export class ProductImportService {
         // Description
         diffs.push({
           field: 'description',
-          supplierValue:
-            supplierProduct.description?.substring(0, 100) + '...' || 'No description',
+          supplierValue: supplierProduct.description?.substring(0, 100) + '...' || 'No description',
           retailerValue: existingMapping?.retailerShopifyProductId
             ? 'Current retailer description'
             : null,
@@ -267,7 +266,8 @@ export class ProductImportService {
         // Check if would exceed limit
         const wouldExceedLimit =
           !alreadyImported &&
-          !canMarkProductWholesale(currentProductCount + previews.length, retailerShop.plan).allowed;
+          !canMarkProductWholesale(currentProductCount + previews.length, retailerShop.plan)
+            .allowed;
 
         previews.push({
           supplierProductId: productId,
@@ -323,9 +323,7 @@ export class ProductImportService {
     createInShopify: boolean = true
   ): Promise<{ results: ImportResult[]; summary: any }> {
     try {
-      logger.info(
-        `Importing ${supplierProductIds.length} products for connection ${connectionId}`
-      );
+      logger.info(`Importing ${supplierProductIds.length} products for connection ${connectionId}`);
 
       const connection = await prisma.connection.findUnique({
         where: { id: connectionId },
@@ -387,7 +385,10 @@ export class ProductImportService {
           }
 
           // Check plan limit for new imports
-          if (!existingMapping && !canMarkProductWholesale(currentProductCount + successCount, retailerShop.plan).allowed) {
+          if (
+            !existingMapping &&
+            !canMarkProductWholesale(currentProductCount + successCount, retailerShop.plan).allowed
+          ) {
             results.push({
               success: false,
               error: `Plan limit reached (${limits.products} products)`,
@@ -539,8 +540,7 @@ export class ProductImportService {
       // Build product input based on preferences
       const productInput: any = {
         title: preferences.syncTitle !== false ? supplierProduct.title : 'Wholesale Product',
-        descriptionHtml:
-          preferences.syncDescription !== false ? supplierProduct.description : '',
+        descriptionHtml: preferences.syncDescription !== false ? supplierProduct.description : '',
         productType: 'Wholesale',
         vendor: 'Wholesale Supplier',
         tags: ['wholesale'],

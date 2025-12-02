@@ -24,12 +24,7 @@ import { PurchaseOrderStatus, OrderTriggerPolicy, SyncMode } from '@prisma/clien
 export type OrderForwardingMode = 'MANUAL' | 'AUTO' | 'SHADOW';
 
 // Order push status
-export type OrderPushStatus =
-  | 'NOT_PUSHED'
-  | 'SHADOWED'
-  | 'PUSHED'
-  | 'FAILED'
-  | 'EXCLUDED';
+export type OrderPushStatus = 'NOT_PUSHED' | 'SHADOWED' | 'PUSHED' | 'FAILED' | 'EXCLUDED';
 
 // Push failure reasons
 export type PushFailureReason =
@@ -93,9 +88,7 @@ export class OrderForwardingService {
   /**
    * Create a draft order in the supplier's Shopify when retailer submits a PO
    */
-  static async createDraftOrderInSupplierShop(
-    purchaseOrderId: string
-  ): Promise<string> {
+  static async createDraftOrderInSupplierShop(purchaseOrderId: string): Promise<string> {
     try {
       logger.info(`Creating draft order for PO ${purchaseOrderId}`);
 
@@ -198,9 +191,7 @@ export class OrderForwardingService {
       const draftOrder = response.data.draftOrderCreate.draftOrder;
       const draftOrderId = draftOrder.id.split('/').pop();
 
-      logger.info(
-        `Draft order created in supplier shop: ${draftOrder.name} (ID: ${draftOrderId})`
-      );
+      logger.info(`Draft order created in supplier shop: ${draftOrder.name} (ID: ${draftOrderId})`);
 
       // Update PurchaseOrder with draft order ID
       await prisma.purchaseOrder.update({
@@ -367,9 +358,7 @@ export class OrderForwardingService {
         },
       });
 
-      logger.info(
-        `PurchaseOrder ${po.id} updated: status=${poStatus}, tracking=${trackingNumber}`
-      );
+      logger.info(`PurchaseOrder ${po.id} updated: status=${poStatus}, tracking=${trackingNumber}`);
 
       // TODO: Notify retailer via email/webhook about fulfillment
       logger.info(`Retailer ${po.retailerShopId} should be notified about fulfillment`);
@@ -523,13 +512,15 @@ export class OrderForwardingService {
       const exclusionCheck = this.checkOrderExclusions(orderPayload);
       if (exclusionCheck.excluded) {
         logger.info(`Order ${shopifyOrderId} excluded: ${exclusionCheck.reason}`);
-        return [{
-          success: false,
-          orderId: shopifyOrderId,
-          status: 'EXCLUDED',
-          failureReason: exclusionCheck.failureReason,
-          error: exclusionCheck.reason,
-        }];
+        return [
+          {
+            success: false,
+            orderId: shopifyOrderId,
+            status: 'EXCLUDED',
+            failureReason: exclusionCheck.failureReason,
+            error: exclusionCheck.reason,
+          },
+        ];
       }
 
       // Get active connections for this retailer
@@ -581,9 +572,7 @@ export class OrderForwardingService {
         );
 
         if (!shouldPush.push) {
-          logger.info(
-            `Skipping order push for connection ${connectionId}: ${shouldPush.reason}`
-          );
+          logger.info(`Skipping order push for connection ${connectionId}: ${shouldPush.reason}`);
           continue;
         }
 
@@ -622,13 +611,15 @@ export class OrderForwardingService {
       return results;
     } catch (error) {
       logger.error(`Error processing order ${shopifyOrderId} for forwarding:`, error);
-      return [{
-        success: false,
-        orderId: shopifyOrderId,
-        status: 'FAILED',
-        failureReason: 'API_ERROR',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }];
+      return [
+        {
+          success: false,
+          orderId: shopifyOrderId,
+          status: 'FAILED',
+          failureReason: 'API_ERROR',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      ];
     }
   }
 
@@ -653,10 +644,11 @@ export class OrderForwardingService {
     // Check for local pickup
     const fulfillmentStatus = orderPayload.fulfillment_status;
     const shippingLines = orderPayload.shipping_lines || [];
-    const hasLocalPickup = shippingLines.some((line: any) =>
-      line.title?.toLowerCase().includes('local pickup') ||
-      line.title?.toLowerCase().includes('in-store pickup') ||
-      line.code?.toLowerCase().includes('pickup')
+    const hasLocalPickup = shippingLines.some(
+      (line: any) =>
+        line.title?.toLowerCase().includes('local pickup') ||
+        line.title?.toLowerCase().includes('in-store pickup') ||
+        line.code?.toLowerCase().includes('pickup')
     );
 
     if (hasLocalPickup) {
@@ -907,7 +899,10 @@ export class OrderForwardingService {
         tags,
         customAttributes: [
           { key: 'cartrel_source_order_id', value: orderId },
-          { key: 'cartrel_source_order_number', value: orderPayload.order_number?.toString() || '' },
+          {
+            key: 'cartrel_source_order_number',
+            value: orderPayload.order_number?.toString() || '',
+          },
           { key: 'cartrel_retailer_shop', value: connection.retailerShop.myshopifyDomain },
           { key: 'cartrel_connection_id', value: connection.id },
         ],
@@ -1187,10 +1182,7 @@ export class OrderForwardingService {
     for (const orderId of orderIds) {
       try {
         // Fetch order details from Shopify
-        const orderPayload = await this.fetchOrderDetails(
-          connection.retailerShop,
-          orderId
-        );
+        const orderPayload = await this.fetchOrderDetails(connection.retailerShop, orderId);
 
         if (!orderPayload) {
           results.push({
@@ -1204,10 +1196,9 @@ export class OrderForwardingService {
         }
 
         // Group line items for this connection
-        const lineItemsMap = await this.groupLineItemsBySupplier(
-          orderPayload.line_items || [],
-          [connection]
-        );
+        const lineItemsMap = await this.groupLineItemsBySupplier(orderPayload.line_items || [], [
+          connection,
+        ]);
 
         const lineItems = lineItemsMap.get(connectionId) || [];
 
@@ -1258,10 +1249,7 @@ export class OrderForwardingService {
   /**
    * Fetch order details from Shopify
    */
-  private static async fetchOrderDetails(
-    retailerShop: any,
-    orderId: string
-  ): Promise<any | null> {
+  private static async fetchOrderDetails(retailerShop: any, orderId: string): Promise<any | null> {
     try {
       const client = createShopifyGraphQLClient(
         retailerShop.myshopifyDomain,
@@ -1314,9 +1302,7 @@ export class OrderForwardingService {
         }
       `;
 
-      const orderGid = orderId.startsWith('gid://')
-        ? orderId
-        : `gid://shopify/Order/${orderId}`;
+      const orderGid = orderId.startsWith('gid://') ? orderId : `gid://shopify/Order/${orderId}`;
 
       const response: any = await client.request(query, {
         variables: { id: orderGid },
@@ -1337,12 +1323,13 @@ export class OrderForwardingService {
         note: order.note,
         shipping_address: order.shippingAddress,
         shipping_lines: order.shippingLines?.edges?.map((e: any) => e.node) || [],
-        line_items: order.lineItems?.edges?.map((e: any) => ({
-          id: e.node.id.split('/').pop(),
-          variant_id: e.node.variant?.id?.split('/').pop(),
-          quantity: e.node.quantity,
-          price: e.node.originalUnitPrice?.shopMoney?.amount || '0',
-        })) || [],
+        line_items:
+          order.lineItems?.edges?.map((e: any) => ({
+            id: e.node.id.split('/').pop(),
+            variant_id: e.node.variant?.id?.split('/').pop(),
+            quantity: e.node.quantity,
+            price: e.node.originalUnitPrice?.shopMoney?.amount || '0',
+          })) || [],
       };
     } catch (error) {
       logger.error(`Error fetching order ${orderId}:`, error);
@@ -1353,10 +1340,7 @@ export class OrderForwardingService {
   /**
    * Promote shadow order to real push
    */
-  static async promoteShadowOrder(
-    connectionId: string,
-    orderId: string
-  ): Promise<OrderPushResult> {
+  static async promoteShadowOrder(connectionId: string, orderId: string): Promise<OrderPushResult> {
     logger.info(`Promoting shadow order ${orderId} for connection ${connectionId}`);
 
     const connection = await prisma.connection.findUnique({
@@ -1385,10 +1369,9 @@ export class OrderForwardingService {
     }
 
     // Group line items
-    const lineItemsMap = await this.groupLineItemsBySupplier(
-      orderPayload.line_items || [],
-      [connection]
-    );
+    const lineItemsMap = await this.groupLineItemsBySupplier(orderPayload.line_items || [], [
+      connection,
+    ]);
 
     const lineItems = lineItemsMap.get(connectionId) || [];
 
@@ -1409,9 +1392,7 @@ export class OrderForwardingService {
     fulfillmentPayload: any
   ): Promise<void> {
     try {
-      logger.info(
-        `Syncing fulfillment for supplier order ${supplierOrderId} to retailer`
-      );
+      logger.info(`Syncing fulfillment for supplier order ${supplierOrderId} to retailer`);
 
       // Find the connection and original order
       const po = await prisma.purchaseOrder.findFirst({

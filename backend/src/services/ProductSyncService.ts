@@ -148,10 +148,7 @@ export class ProductSyncService {
   /**
    * Propagate product changes to connected retailers
    */
-  static async propagateToRetailers(
-    shopId: string,
-    shopifyProductId: string
-  ): Promise<void> {
+  static async propagateToRetailers(shopId: string, shopifyProductId: string): Promise<void> {
     try {
       const productIdClean = shopifyProductId.split('/').pop() || shopifyProductId;
 
@@ -211,18 +208,13 @@ export class ProductSyncService {
    * - Connection sync mode (CATALOG_ONLY skips inventory)
    * - Field-level sync preferences (mapping + connection scope)
    */
-  private static async syncToRetailer(
-    supplierProduct: any,
-    mapping: any
-  ): Promise<void> {
+  private static async syncToRetailer(supplierProduct: any, mapping: any): Promise<void> {
     const { connection, conflictMode } = mapping;
     const retailerShop = connection.retailerShop;
 
     // Check for SKU drift - block sync until resolved
     if (mapping.skuDriftDetected) {
-      logger.warn(
-        `SKU drift detected for mapping ${mapping.id} - sync blocked until resolved`
-      );
+      logger.warn(`SKU drift detected for mapping ${mapping.id} - sync blocked until resolved`);
       await this.recordSyncError(
         mapping.id,
         connection.id,
@@ -259,9 +251,7 @@ export class ProductSyncService {
 
     // SUPPLIER_WINS mode - proceed with sync
     if (!mapping.retailerShopifyProductId) {
-      logger.warn(
-        `No retailer product ID for mapping ${mapping.id} - product not imported yet`
-      );
+      logger.warn(`No retailer product ID for mapping ${mapping.id} - product not imported yet`);
       return;
     }
 
@@ -588,10 +578,7 @@ export class ProductSyncService {
   /**
    * Mark product as deleted (soft delete)
    */
-  static async handleProductDelete(
-    shopId: string,
-    shopifyProductId: string
-  ): Promise<void> {
+  static async handleProductDelete(shopId: string, shopifyProductId: string): Promise<void> {
     try {
       const productIdClean = shopifyProductId.split('/').pop() || shopifyProductId;
 

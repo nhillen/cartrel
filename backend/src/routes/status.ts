@@ -78,8 +78,8 @@ router.get('/api/status', async (_req, res) => {
     let overallMessage = 'All systems are functioning normally';
 
     if (activeIncidents.length > 0) {
-      const hasCritical = activeIncidents.some(i => i.impact === 'CRITICAL');
-      const hasMajor = activeIncidents.some(i => i.impact === 'MAJOR');
+      const hasCritical = activeIncidents.some((i) => i.impact === 'CRITICAL');
+      const hasMajor = activeIncidents.some((i) => i.impact === 'MAJOR');
 
       if (hasCritical) {
         overallStatus = 'DOWN';
@@ -105,7 +105,7 @@ router.get('/api/status', async (_req, res) => {
         message: overallMessage,
       },
       components: componentStatus,
-      incidents: [...activeIncidents, ...recentResolvedIncidents].map(incident => ({
+      incidents: [...activeIncidents, ...recentResolvedIncidents].map((incident) => ({
         id: incident.id,
         title: incident.title,
         component: incident.component,
@@ -113,7 +113,7 @@ router.get('/api/status', async (_req, res) => {
         impact: incident.impact,
         createdAt: incident.createdAt,
         resolvedAt: incident.resolvedAt,
-        updates: incident.updates.map(update => ({
+        updates: incident.updates.map((update) => ({
           message: update.message,
           status: update.status,
           createdAt: update.createdAt,
@@ -146,8 +146,8 @@ async function getComponentStatus(activeIncidents: any[]): Promise<any[]> {
     { id: 'WEBHOOKS', name: 'Webhook Processing' },
   ];
 
-  return components.map(component => {
-    const componentIncidents = activeIncidents.filter(i => i.component === component.id);
+  return components.map((component) => {
+    const componentIncidents = activeIncidents.filter((i) => i.component === component.id);
 
     if (componentIncidents.length === 0) {
       return {
@@ -158,8 +158,8 @@ async function getComponentStatus(activeIncidents: any[]): Promise<any[]> {
       };
     }
 
-    const hasCritical = componentIncidents.some(i => i.impact === 'CRITICAL');
-    const hasMajor = componentIncidents.some(i => i.impact === 'MAJOR');
+    const hasCritical = componentIncidents.some((i) => i.impact === 'CRITICAL');
+    const hasMajor = componentIncidents.some((i) => i.impact === 'MAJOR');
 
     if (hasCritical) {
       return {
@@ -227,7 +227,8 @@ async function calculateUptime(): Promise<{
 
     // Calculate uptime percentage
     const totalMinutesInPeriod = days * 24 * 60;
-    const uptimePercentage = ((totalMinutesInPeriod - totalDowntimeMinutes) / totalMinutesInPeriod) * 100;
+    const uptimePercentage =
+      ((totalMinutesInPeriod - totalDowntimeMinutes) / totalMinutesInPeriod) * 100;
 
     // Round to 1 decimal place
     return Math.round(uptimePercentage * 10) / 10;

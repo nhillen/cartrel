@@ -165,10 +165,11 @@ class MapperServiceClass {
       }
 
       // Check for hidden tag
-      const productTags = await this.getProductTags(supplierProduct.supplierShopId, supplierProduct.shopifyProductId);
-      const hasHiddenTag = productTags.some((tag) =>
-        HIDDEN_TAGS.includes(tag.toLowerCase())
+      const productTags = await this.getProductTags(
+        supplierProduct.supplierShopId,
+        supplierProduct.shopifyProductId
       );
+      const hasHiddenTag = productTags.some((tag) => HIDDEN_TAGS.includes(tag.toLowerCase()));
 
       if (hasHiddenTag) {
         conflicts.push({
@@ -372,12 +373,14 @@ class MapperServiceClass {
    * Detect SKU drift for existing mappings
    * Returns mappings where the supplier SKU has changed since creation
    */
-  async detectSkuDrift(connectionId: string): Promise<Array<{
-    mappingId: string;
-    originalSku: string;
-    currentSku: string;
-    supplierProductId: string;
-  }>> {
+  async detectSkuDrift(connectionId: string): Promise<
+    Array<{
+      mappingId: string;
+      originalSku: string;
+      currentSku: string;
+      supplierProductId: string;
+    }>
+  > {
     const drifted: Array<{
       mappingId: string;
       originalSku: string;
@@ -433,10 +436,7 @@ class MapperServiceClass {
   /**
    * Handle hidden tag detection on synced products
    */
-  async handleHiddenTag(
-    mappingId: string,
-    action: HiddenTagAction
-  ): Promise<void> {
+  async handleHiddenTag(mappingId: string, action: HiddenTagAction): Promise<void> {
     const mapping = await prisma.productMapping.findUnique({
       where: { id: mappingId },
       include: { connection: true },
@@ -587,10 +587,7 @@ class MapperServiceClass {
     }
 
     // Re-validate (to update any status based on current state)
-    await this.validateProduct(
-      mapping.supplierProductId,
-      mapping.connectionId
-    );
+    await this.validateProduct(mapping.supplierProductId, mapping.connectionId);
 
     // Update SKU drift status
     if (mapping.supplierProduct && mapping.originalSupplierSku) {
@@ -893,9 +890,7 @@ class MapperServiceClass {
    * Check retailer product variant count and validate against source
    * Called after import to ensure variants synced correctly
    */
-  async validateRetailerVariants(
-    mappingId: string
-  ): Promise<{ valid: boolean; issues: string[] }> {
+  async validateRetailerVariants(mappingId: string): Promise<{ valid: boolean; issues: string[] }> {
     const issues: string[] = [];
 
     const mapping = await prisma.productMapping.findUnique({

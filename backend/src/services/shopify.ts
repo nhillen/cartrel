@@ -37,13 +37,13 @@ class SimpleSessionStorage implements ISessionStorage {
   }
 
   async deleteSessions(ids: string[]): Promise<boolean> {
-    ids.forEach(id => this.sessions.delete(id));
+    ids.forEach((id) => this.sessions.delete(id));
     logger.debug(`Deleted ${ids.length} sessions`);
     return true;
   }
 
   async findSessionsByShop(shop: string): Promise<Session[]> {
-    const sessions = Array.from(this.sessions.values()).filter(s => s.shop === shop);
+    const sessions = Array.from(this.sessions.values()).filter((s) => s.shop === shop);
     logger.debug(`Found ${sessions.length} sessions for shop: ${shop}`);
     return sessions;
   }
@@ -63,7 +63,11 @@ export const shopify = shopifyApi({
 /**
  * Save shop to database after OAuth
  */
-export async function saveShop(shop: string, accessToken: string, role: 'SUPPLIER' | 'RETAILER' | 'BOTH' = 'BOTH') {
+export async function saveShop(
+  shop: string,
+  accessToken: string,
+  role: 'SUPPLIER' | 'RETAILER' | 'BOTH' = 'BOTH'
+) {
   try {
     // Encrypt access token before storing
     const encryptedToken = encryptAccessToken(accessToken);

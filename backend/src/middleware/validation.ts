@@ -77,9 +77,7 @@ export const shopDomainSchema = z
   .regex(/^[a-z0-9-]+\.myshopify\.com$/, 'Invalid shop domain format');
 
 // Shopify ID validation (numeric string)
-export const shopifyIdSchema = z
-  .string()
-  .regex(/^\d+$/, 'Invalid Shopify ID format');
+export const shopifyIdSchema = z.string().regex(/^\d+$/, 'Invalid Shopify ID format');
 
 // Email validation
 export const emailSchema = z.string().email('Invalid email format');

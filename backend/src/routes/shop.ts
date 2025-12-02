@@ -100,8 +100,10 @@ router.get('/usage', async (req, res, next) => {
 
     // NEW - Add product count and add-on info to usage response
     const limits = getPlanLimits(shopRecord.plan);
-    const effectiveConnectionLimit = limits.maxConnections + (shopRecord.addOnConnections || 0) * 10;
-    const effectiveOrderLimit = limits.maxPurchaseOrdersPerMonth + (shopRecord.addOnOrders || 0) * 1000;
+    const effectiveConnectionLimit =
+      limits.maxConnections + (shopRecord.addOnConnections || 0) * 10;
+    const effectiveOrderLimit =
+      limits.maxPurchaseOrdersPerMonth + (shopRecord.addOnOrders || 0) * 1000;
 
     res.json({
       ...usage,
@@ -171,7 +173,8 @@ router.post('/role', async (req, res, next) => {
     // Prevent downgrades (BOTH -> SUPPLIER/RETAILER)
     if (existingShop && existingShop.role === 'BOTH' && role !== 'BOTH') {
       res.status(400).json({
-        error: 'Cannot downgrade from BOTH role. Please contact support if you need to change your role.'
+        error:
+          'Cannot downgrade from BOTH role. Please contact support if you need to change your role.',
       });
       return;
     }
@@ -189,7 +192,9 @@ router.post('/role', async (req, res, next) => {
       },
     });
 
-    logger.info(`Shop role ${previousRole ? 'changed' : 'set'}: ${shop} ${previousRole ? `${previousRole} ->` : '->'} ${role}`);
+    logger.info(
+      `Shop role ${previousRole ? 'changed' : 'set'}: ${shop} ${previousRole ? `${previousRole} ->` : '->'} ${role}`
+    );
 
     // Log role change in audit log if this was an upgrade
     if (existingShop && previousRole !== role) {

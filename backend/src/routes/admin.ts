@@ -410,9 +410,7 @@ router.get('/stats', async (_req, res) => {
       totalConnections,
       totalProducts,
       totalOrders,
-      shopsByPlan: Object.fromEntries(
-        shopsByPlan.map((group) => [group.plan, group._count])
-      ),
+      shopsByPlan: Object.fromEntries(shopsByPlan.map((group) => [group.plan, group._count])),
       version: deployInfo.version || null,
       commitHash: deployInfo.commitHash || null,
       buildDate: deployInfo.buildDate || null,
@@ -676,7 +674,7 @@ router.get('/health', async (_req, res) => {
 
     // Get latest system health metrics (last 24 hours) - if table exists
     let healthMetrics: any[] = [];
-    let latestByComponent: Record<string, any> = {};
+    const latestByComponent: Record<string, any> = {};
     try {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -793,14 +791,14 @@ router.get('/audit-logs', async (req, res) => {
     });
 
     // Enrich with shop info
-    const shopIds = [...new Set(auditLogs.map(log => log.shopId))];
+    const shopIds = [...new Set(auditLogs.map((log) => log.shopId))];
     const shops = await prisma.shop.findMany({
       where: { id: { in: shopIds } },
       select: { id: true, myshopifyDomain: true, companyName: true },
     });
-    const shopMap = new Map(shops.map(s => [s.id, s]));
+    const shopMap = new Map(shops.map((s) => [s.id, s]));
 
-    const enrichedLogs = auditLogs.map(log => ({
+    const enrichedLogs = auditLogs.map((log) => ({
       ...log,
       shop: shopMap.get(log.shopId) || null,
     }));
@@ -829,7 +827,7 @@ router.get('/failed-jobs', async (req, res) => {
 
     const failedJobs = await webhookQueue.getFailed(0, parseInt(limit as string, 10));
 
-    const jobs = failedJobs.map(job => ({
+    const jobs = failedJobs.map((job) => ({
       id: job.id,
       name: job.name,
       data: {

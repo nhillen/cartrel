@@ -611,9 +611,7 @@ export class ShadowModeService {
         }
       }
 
-      logger.info(
-        `Shadow import promotion complete: ${success} success, ${failed} failed`
-      );
+      logger.info(`Shadow import promotion complete: ${success} success, ${failed} failed`);
 
       return { success, failed, errors };
     } catch (error) {

@@ -105,10 +105,7 @@ export async function createSubscription(
 /**
  * Check if a shop has an active subscription
  */
-export async function hasActiveSubscription(
-  shop: string,
-  accessToken: string
-): Promise<boolean> {
+export async function hasActiveSubscription(shop: string, accessToken: string): Promise<boolean> {
   try {
     const client = createShopifyGraphQLClient(shop, accessToken);
 
@@ -138,10 +135,7 @@ export async function hasActiveSubscription(
 /**
  * Cancel a shop's subscription (downgrade to FREE)
  */
-export async function cancelSubscription(
-  shop: string,
-  accessToken: string
-): Promise<void> {
+export async function cancelSubscription(shop: string, accessToken: string): Promise<void> {
   try {
     const client = createShopifyGraphQLClient(shop, accessToken);
 

@@ -65,30 +65,39 @@ redisClient.on('connect', () => {
 });
 
 // Security: Helmet - sets various HTTP security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'cdn.shopify.com'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com', 'unpkg.com'],
-      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
-      imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
-      connectSrc: ["'self'", 'https://cartrel.com', 'https://*.shopify.com', 'https://monorail-edge.shopifysvc.com'],
-      frameSrc: ["'self'", 'https://*.myshopify.com'],
-      frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
-      formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
-      navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'cdn.shopify.com'],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'cdn.shopify.com', 'unpkg.com'],
+        scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers (onclick, etc)
+        imgSrc: ["'self'", 'data:', 'https:', 'cdn.shopify.com'],
+        connectSrc: [
+          "'self'",
+          'https://cartrel.com',
+          'https://*.shopify.com',
+          'https://monorail-edge.shopifysvc.com',
+        ],
+        frameSrc: ["'self'", 'https://*.myshopify.com'],
+        frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
+        formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
+        navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow resources from different origins
-}));
+    crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow resources from different origins
+  })
+);
 
 // Security: CORS configuration
-app.use(cors({
-  origin: [config.appUrl, 'https://admin.cartrel.com'],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: [config.appUrl, 'https://admin.cartrel.com'],
+    credentials: true,
+  })
+);
 
 // Cookie parser - needed for Shopify OAuth flow
 app.use(cookieParser());
@@ -109,25 +118,27 @@ app.use('/api', generalApiLimiter);
 app.use('/auth', generalApiLimiter);
 
 // Security: Secure session configuration with Redis store
-app.use(session({
-  store: new RedisStore({
-    client: redisClient,
-    prefix: 'cartrel:sess:',
-    ttl: 24 * 60 * 60, // 24 hours in seconds
-  }),
-  secret: config.sessionSecret,
-  name: 'cartrel.sid', // Custom session name (don't use default 'connect.sid')
-  resave: false,
-  saveUninitialized: false, // Don't create session until something stored (better security)
-  rolling: true, // Reset maxAge on every request (keep session alive while active)
-  cookie: {
-    secure: config.isProduction, // HTTPS only in production
-    httpOnly: true, // Prevent JavaScript access (XSS protection)
-    sameSite: config.isProduction ? 'none' : 'lax', // Required for embedded apps
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    domain: config.isProduction ? '.cartrel.com' : undefined, // Restrict to domain
-  },
-}));
+app.use(
+  session({
+    store: new RedisStore({
+      client: redisClient,
+      prefix: 'cartrel:sess:',
+      ttl: 24 * 60 * 60, // 24 hours in seconds
+    }),
+    secret: config.sessionSecret,
+    name: 'cartrel.sid', // Custom session name (don't use default 'connect.sid')
+    resave: false,
+    saveUninitialized: false, // Don't create session until something stored (better security)
+    rolling: true, // Reset maxAge on every request (keep session alive while active)
+    cookie: {
+      secure: config.isProduction, // HTTPS only in production
+      httpOnly: true, // Prevent JavaScript access (XSS protection)
+      sameSite: config.isProduction ? 'none' : 'lax', // Required for embedded apps
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      domain: config.isProduction ? '.cartrel.com' : undefined, // Restrict to domain
+    },
+  })
+);
 
 // Exit iframe route - breaks out of Shopify admin iframe for OAuth
 app.get('/exitiframe', (req, res): void => {
@@ -142,7 +153,8 @@ app.get('/exitiframe', (req, res): void => {
   try {
     const url = new URL(redirectUri);
     const isOwnDomain = url.hostname === new URL(config.appUrl).hostname;
-    const isShopifyDomain = url.hostname === 'admin.shopify.com' || url.hostname.endsWith('.myshopify.com');
+    const isShopifyDomain =
+      url.hostname === 'admin.shopify.com' || url.hostname.endsWith('.myshopify.com');
 
     if (!isOwnDomain && !isShopifyDomain) {
       res.status(400).send('Invalid redirect URI');

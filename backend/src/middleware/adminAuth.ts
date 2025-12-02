@@ -8,10 +8,7 @@ import { jwtVerify } from 'jose';
 import { logger } from '../utils/logger';
 
 // Whitelist of allowed admin emails (must match admin dashboard config)
-const ALLOWED_EMAILS = [
-  'gabe@manafoldgames.com',
-  'nathan@manafoldgames.com',
-];
+const ALLOWED_EMAILS = ['gabe@manafoldgames.com', 'nathan@manafoldgames.com'];
 
 /**
  * Middleware to validate NextAuth JWT tokens
@@ -77,7 +74,9 @@ export async function requireAdminAuth(req: Request, res: Response, next: NextFu
     logger.info(`Admin authenticated: ${email} from ${req.ip}`);
     next();
   } catch (error) {
-    logger.warn(`Admin auth failed: ${error instanceof Error ? error.message : 'Unknown error'} from ${req.ip}`);
+    logger.warn(
+      `Admin auth failed: ${error instanceof Error ? error.message : 'Unknown error'} from ${req.ip}`
+    );
     res.status(401).json({ error: 'Unauthorized' });
   }
 }
