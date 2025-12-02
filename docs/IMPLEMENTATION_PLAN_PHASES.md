@@ -35,10 +35,10 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - ✅ Shadow mode (preview) and bulk push for errors/on-hold orders; feature-flag auto support for Shopify "On Hold."
 - ✅ Fulfillment/track sync back; idempotency; POS/local pickup exclusion.
 
-## Phase 6: Metafields Sync
-- Definition selection UI/logic; supported types; caps enforcement per tier.
-- Value sync triggers (import/update/order/resync) + 24h batch; bulk resync job.
-- Unsupported types surfaced; feature flags for collection/reference metafields (roadmap).
+## Phase 6: Metafields Sync ✅
+- ✅ Definition selection UI/logic; supported types; caps enforcement per tier.
+- ✅ Value sync triggers (import/update/order/resync) + 24h batch; bulk resync job.
+- ✅ Unsupported types surfaced; feature flags for collection/reference metafields (roadmap).
 
 ## Phase 7: Collections & Price Rules (Roadmap/Flags)
 - Collection sync (custom collections): create/update/delete, membership via mapped products/tags; overwrite vs preserve local edits; handle clashes; tier caps.
