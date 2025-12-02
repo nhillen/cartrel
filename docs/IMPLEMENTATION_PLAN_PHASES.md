@@ -48,10 +48,10 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - ✅ Payouts: commission/fee config per store/product, payout lifecycle (unpaid/paid/received), notifications/comments, manual refresh, optional auto-refresh (flag).
 - Partner network: profiles, search/filter, invites; consented re-share governance; tie to tier gating. (Data models exist, UI deferred)
 
-## Phase 9: UI/Docs
-- Surface health/logs/errors (rate limits, mapping conflicts, forwarding failures).
-- “Available now” vs “Coming soon” labels (collection sync, price rules, extended metafields, auto on-hold support, per-connection billing).
-- Update website/pricing/FAQs per `WEB_DOCS_PRICING_UPDATE.md`.
+## Phase 9: UI/Docs ✅
+- ✅ Surface health/logs/errors (rate limits, mapping conflicts, forwarding failures) - admin dashboard HealthTab with real connection health data.
+- ✅ "Available now" vs "Coming soon" labels - /api/admin/features endpoint with full feature catalog.
+- Update website/pricing/FAQs per `WEB_DOCS_PRICING_UPDATE.md`. (External website updates - deferred)
 
 ## Phase 10: Billing/Enforcement ✅
 - ✅ Enforce caps per tier (connections/products/orders/metafield defs/order forwards).

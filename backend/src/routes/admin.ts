@@ -9,6 +9,7 @@ import { logger } from '../utils/logger';
 import { requireAdminAuth } from '../middleware/adminAuth';
 import { PLAN_LIMITS } from '../utils/planLimits';
 import { getWebhookQueue, getImportQueue, initializeQueues } from '../queues';
+import { ConnectionHealthService } from '../services/ConnectionHealthService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -847,6 +848,220 @@ router.get('/failed-jobs', async (req, res) => {
   } catch (error) {
     logger.error('Error getting failed jobs:', error);
     res.status(500).json({ error: 'Failed to get failed jobs' });
+  }
+});
+
+/**
+ * GET /api/admin/connections/:id/health
+ * Get health status for a specific connection
+ */
+router.get('/connections/:id/health', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await prisma.connection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!connection) {
+      res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+
+    const health = await ConnectionHealthService.getHealth(id);
+    res.json({ health });
+  } catch (error) {
+    logger.error('Error getting connection health:', error);
+    res.status(500).json({ error: 'Failed to get connection health' });
+  }
+});
+
+/**
+ * GET /api/admin/connections/:id/activity
+ * Get activity log for a specific connection
+ */
+router.get('/connections/:id/activity', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = '50' } = req.query;
+
+    const connection = await prisma.connection.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!connection) {
+      res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+
+    const activity = await ConnectionHealthService.getActivity(id, parseInt(limit as string, 10));
+    res.json({ activity });
+  } catch (error) {
+    logger.error('Error getting connection activity:', error);
+    res.status(500).json({ error: 'Failed to get connection activity' });
+  }
+});
+
+/**
+ * GET /api/admin/connections-with-errors
+ * Get all connections with health issues
+ */
+router.get('/connections-with-errors', async (_req, res) => {
+  try {
+    const connectionsWithErrors = await ConnectionHealthService.getConnectionsWithErrors();
+
+    // Enrich with connection details
+    const connectionIds = connectionsWithErrors.map((c) => c.connectionId);
+    const connections = await prisma.connection.findMany({
+      where: { id: { in: connectionIds } },
+      include: {
+        supplierShop: { select: { myshopifyDomain: true, companyName: true } },
+        retailerShop: { select: { myshopifyDomain: true, companyName: true } },
+      },
+    });
+
+    const connectionMap = new Map(connections.map((c) => [c.id, c]));
+
+    const enrichedErrors = connectionsWithErrors.map((health) => ({
+      ...health,
+      connection: connectionMap.get(health.connectionId) || null,
+    }));
+
+    res.json({ connections: enrichedErrors });
+  } catch (error) {
+    logger.error('Error getting connections with errors:', error);
+    res.status(500).json({ error: 'Failed to get connections with errors' });
+  }
+});
+
+/**
+ * GET /api/admin/features
+ * Get feature availability status (available now vs coming soon)
+ */
+router.get('/features', async (_req, res) => {
+  try {
+    const features = {
+      available: [
+        {
+          id: 'inventory_sync',
+          name: 'Inventory Sync',
+          description: 'Real-time inventory synchronization between suppliers and retailers',
+          tier: 'FREE',
+        },
+        {
+          id: 'catalog_sync',
+          name: 'Catalog Sync',
+          description: 'Product catalog mirroring with field controls',
+          tier: 'FREE',
+        },
+        {
+          id: 'order_forwarding_manual',
+          name: 'Order Forwarding (Manual)',
+          description: 'Manually push orders from retailers to suppliers',
+          tier: 'FREE',
+        },
+        {
+          id: 'order_forwarding_auto',
+          name: 'Order Forwarding (Auto)',
+          description: 'Automatic order forwarding on create/paid',
+          tier: 'CORE',
+        },
+        {
+          id: 'shadow_mode',
+          name: 'Shadow Mode',
+          description: 'Preview order forwarding without creating draft orders',
+          tier: 'CORE',
+        },
+        {
+          id: 'catalog_field_controls',
+          name: 'Catalog Field Controls',
+          description: 'Granular control over which fields sync (title, description, images, etc.)',
+          tier: 'FREE',
+        },
+        {
+          id: 'metafields_sync',
+          name: 'Metafields Sync',
+          description: 'Sync product metafields between stores (tier-based caps)',
+          tier: 'FREE',
+          caps: { FREE: 10, STARTER: 25, CORE: 50, PRO: 100, GROWTH: 250, SCALE: 'unlimited' },
+        },
+        {
+          id: 'payouts',
+          name: 'Payouts Tracking',
+          description: 'Commission and fee tracking with payout lifecycle management',
+          tier: 'CORE',
+        },
+        {
+          id: 'multi_location',
+          name: 'Multi-Location Inventory',
+          description: 'Sync from specific locations or aggregate all locations',
+          tier: 'PRO',
+        },
+        {
+          id: 'rate_limit_observability',
+          name: 'Rate Limit Observability',
+          description: 'Per-connection API health monitoring and backpressure',
+          tier: 'FREE',
+        },
+        {
+          id: 'dual_role',
+          name: 'Dual-Role Mode',
+          description: 'Act as both supplier and retailer from the same store',
+          tier: 'GROWTH',
+        },
+      ],
+      comingSoon: [
+        {
+          id: 'collection_sync',
+          name: 'Collection Sync',
+          description: 'Sync custom collections between stores',
+          plannedTier: 'CORE',
+          roadmapStatus: 'Backend ready, UI in progress',
+        },
+        {
+          id: 'price_rules',
+          name: 'Price Rules',
+          description: 'Per-connection markup/markdown pricing',
+          plannedTier: 'CORE',
+          roadmapStatus: 'Backend ready, UI in progress',
+        },
+        {
+          id: 'extended_metafields',
+          name: 'Extended Metafields',
+          description: 'Collection metafields and reference type support',
+          plannedTier: 'PRO',
+          roadmapStatus: 'Planned',
+        },
+        {
+          id: 'on_hold_auto_support',
+          name: 'On-Hold Order Auto Support',
+          description: 'Automatic forwarding for Shopify "On Hold" orders',
+          plannedTier: 'PRO',
+          roadmapStatus: 'Planned',
+        },
+        {
+          id: 'per_connection_billing',
+          name: 'Per-Connection Billing',
+          description: 'Bill per active connection for marketplace operators',
+          plannedTier: 'MARKETPLACE',
+          roadmapStatus: 'Contact us',
+        },
+        {
+          id: 'partner_network',
+          name: 'Partner Network',
+          description: 'Discover suppliers/retailers with consented re-share',
+          plannedTier: 'GROWTH',
+          roadmapStatus: 'Data models ready, UI planned',
+        },
+      ],
+    };
+
+    res.json({ features });
+  } catch (error) {
+    logger.error('Error getting features:', error);
+    res.status(500).json({ error: 'Failed to get features' });
   }
 });
 

@@ -190,3 +190,53 @@ export interface FailedJob {
   processedOn?: number;
   finishedOn?: number;
 }
+
+// Connection health types
+export type ConnectionHealthStatus = 'HEALTHY' | 'DEGRADED' | 'ERROR' | 'OFFLINE';
+
+export interface ConnectionHealth {
+  connectionId: string;
+  status: ConnectionHealthStatus;
+  lastSyncAt: string | null;
+  lastInventorySyncAt: string | null;
+  lastCatalogSyncAt: string | null;
+  lastOrderForwardAt: string | null;
+  lastErrorAt: string | null;
+  lastError: string | null;
+  errorCount24h: number;
+  isThrottled: boolean;
+  throttledUntil: string | null;
+  pendingJobs: number;
+  failedJobs: number;
+  activeMappings: number;
+  errorMappings: number;
+  pendingMappings: number;
+}
+
+export type ActivityType =
+  | 'SYNC_SUCCESS'
+  | 'SYNC_ERROR'
+  | 'INVENTORY_UPDATE'
+  | 'CATALOG_UPDATE'
+  | 'ORDER_FORWARD'
+  | 'ORDER_PENDING'
+  | 'ORDER_SHADOWED'
+  | 'ORDER_PUSHED'
+  | 'ORDER_PUSH_FAILED'
+  | 'FULFILLMENT_SYNCED'
+  | 'RATE_LIMIT'
+  | 'MAPPING_ERROR'
+  | 'SKU_DRIFT';
+
+export type ActivityResourceType = 'PRODUCT' | 'INVENTORY' | 'ORDER' | 'CONNECTION';
+
+export interface ActivityEntry {
+  id: string;
+  connectionId: string;
+  type: ActivityType;
+  resourceType: ActivityResourceType;
+  resourceId?: string;
+  message: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+}
