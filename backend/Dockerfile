@@ -41,7 +41,7 @@ COPY slack-reporter /manabot/packages/slack-reporter
 
 # Install all dependencies (including dev)
 # Delete lockfile first - the local lockfile has paths incompatible with Docker
-RUN rm -f package-lock.json && npm install
+RUN rm -f package-lock.json && npm install && echo "Installed @shopify/shopify-api version:" && npm list @shopify/shopify-api
 
 # Copy source and config
 COPY . .
