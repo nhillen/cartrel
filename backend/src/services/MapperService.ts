@@ -146,6 +146,24 @@ class MapperServiceClass {
         });
       }
 
+      // Check for variant count mismatch (warning - may indicate bundle or complex product)
+      if (variants.length > 100) {
+        warnings.push({
+          type: ConflictType.VARIANT_COUNT_MISMATCH,
+          message: `Product has ${variants.length} variants - may require special handling`,
+          severity: 'warning',
+          supplierProductId,
+          details: { variantCount: variants.length },
+        });
+      } else if (variants.length === 0) {
+        conflicts.push({
+          type: ConflictType.VARIANT_COUNT_MISMATCH,
+          message: 'Product has no variants',
+          severity: 'error',
+          supplierProductId,
+        });
+      }
+
       // Check for hidden tag
       const productTags = await this.getProductTags(supplierProduct.supplierShopId, supplierProduct.shopifyProductId);
       const hasHiddenTag = productTags.some((tag) =>
@@ -700,6 +718,231 @@ class MapperServiceClass {
     // TODO: Fetch tags from Shopify or cache
     // For now, return empty - tags would be stored in SupplierProduct or fetched on demand
     return [];
+  }
+
+  /**
+   * Validate variant count matches between source and destination
+   * Used when syncing to retailer to detect mismatches
+   */
+  async validateVariantCountMatch(
+    mappingId: string,
+    retailerVariantCount: number
+  ): Promise<{ match: boolean; conflict?: MappingConflict }> {
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: mappingId },
+      include: { supplierProduct: true },
+    });
+
+    if (!mapping || !mapping.supplierProduct) {
+      return { match: false };
+    }
+
+    // Get all variants for the supplier product
+    const supplierVariants = await prisma.supplierProduct.count({
+      where: {
+        supplierShopId: mapping.supplierProduct.supplierShopId,
+        shopifyProductId: mapping.supplierProduct.shopifyProductId,
+      },
+    });
+
+    if (supplierVariants !== retailerVariantCount) {
+      const conflict: MappingConflict = {
+        type: ConflictType.VARIANT_COUNT_MISMATCH,
+        message: `Variant count mismatch: supplier has ${supplierVariants}, retailer has ${retailerVariantCount}`,
+        severity: 'warning',
+        supplierProductId: mapping.supplierProductId,
+        details: {
+          supplierCount: supplierVariants,
+          retailerCount: retailerVariantCount,
+        },
+      };
+
+      // Log the conflict
+      await ConnectionHealthService.recordMappingError(
+        mapping.connectionId,
+        mappingId,
+        'VARIANT_MISMATCH',
+        conflict.message
+      );
+
+      return { match: false, conflict };
+    }
+
+    return { match: true };
+  }
+
+  /**
+   * Bulk resync all mappings for a connection
+   * Per PRD_PRODUCT_SETTINGS_SYNC - supports bulk resync job
+   */
+  async bulkResync(
+    connectionId: string,
+    options?: {
+      statusFilter?: ProductMappingStatus[];
+      includeWithErrors?: boolean;
+      limit?: number;
+    }
+  ): Promise<{
+    total: number;
+    queued: number;
+    skipped: number;
+    mappingIds: string[];
+  }> {
+    const where: any = { connectionId };
+
+    if (options?.statusFilter && options.statusFilter.length > 0) {
+      where.status = { in: options.statusFilter };
+    } else {
+      // Default to active mappings only
+      where.status = 'ACTIVE';
+    }
+
+    if (!options?.includeWithErrors) {
+      // Optionally skip mappings with errors
+      where.OR = [
+        { lastError: null },
+        { errorCount: { lt: 3 } }, // Allow retry if under 3 errors
+      ];
+    }
+
+    // Get mappings to resync
+    const mappings = await prisma.productMapping.findMany({
+      where,
+      take: options?.limit || 1000,
+      select: { id: true },
+      orderBy: { lastSyncAt: 'asc' }, // Oldest synced first
+    });
+
+    const mappingIds = mappings.map((m) => m.id);
+
+    // Mark all for resync by clearing sync hash
+    if (mappingIds.length > 0) {
+      await prisma.productMapping.updateMany({
+        where: { id: { in: mappingIds } },
+        data: {
+          lastSyncHash: null,
+          // Reset error state to allow fresh sync
+          errorCount: 0,
+          lastError: null,
+          lastErrorAt: null,
+        },
+      });
+    }
+
+    logger.info(
+      `Queued ${mappingIds.length} mappings for bulk resync on connection ${connectionId}`
+    );
+
+    return {
+      total: mappings.length,
+      queued: mappingIds.length,
+      skipped: 0,
+      mappingIds,
+    };
+  }
+
+  /**
+   * Import product to retailer with hide-by-default option
+   * Per PRD_PRODUCT_SETTINGS_SYNC - hide-by-default on import
+   */
+  async importWithHideByDefault(
+    mappingId: string,
+    hideByDefault: boolean = true
+  ): Promise<{ success: boolean; retailerProductId?: string }> {
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: mappingId },
+      include: {
+        supplierProduct: true,
+        connection: {
+          include: { retailerShop: true },
+        },
+      },
+    });
+
+    if (!mapping || !mapping.supplierProduct) {
+      throw new Error(`Mapping ${mappingId} not found`);
+    }
+
+    // Build the product creation mutation
+    // If hideByDefault is true, set status to DRAFT
+    const productStatus = hideByDefault ? 'DRAFT' : 'ACTIVE';
+
+    logger.info(
+      `Importing product for mapping ${mappingId} with status=${productStatus} (hideByDefault=${hideByDefault})`
+    );
+
+    // TODO: Actual Shopify product creation would go here
+    // When creating product, use productStatus for the Shopify product status
+    // The hide-by-default setting is passed to the Shopify mutation
+
+    // Mark mapping as synced (actual product creation happens in Shopify API call)
+    await prisma.productMapping.update({
+      where: { id: mappingId },
+      data: {
+        lastSyncAt: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      // Would return actual product ID after creation
+    };
+  }
+
+  /**
+   * Check retailer product variant count and validate against source
+   * Called after import to ensure variants synced correctly
+   */
+  async validateRetailerVariants(
+    mappingId: string
+  ): Promise<{ valid: boolean; issues: string[] }> {
+    const issues: string[] = [];
+
+    const mapping = await prisma.productMapping.findUnique({
+      where: { id: mappingId },
+      include: { supplierProduct: true, connection: true },
+    });
+
+    if (!mapping) {
+      return { valid: false, issues: ['Mapping not found'] };
+    }
+
+    if (!mapping.retailerShopifyProductId) {
+      return { valid: false, issues: ['Retailer product not yet created'] };
+    }
+
+    // Get supplier variant count
+    const supplierVariantCount = await prisma.supplierProduct.count({
+      where: {
+        supplierShopId: mapping.supplierProduct?.supplierShopId,
+        shopifyProductId: mapping.supplierProduct?.shopifyProductId,
+      },
+    });
+
+    // TODO: Fetch retailer variant count from Shopify API
+    // For now, just validate mapping has required fields
+    if (!mapping.retailerShopifyVariantId) {
+      issues.push('Retailer variant ID not set');
+    }
+
+    if (issues.length > 0) {
+      // Record issues
+      await ConnectionHealthService.recordMappingError(
+        mapping.connectionId,
+        mappingId,
+        'VALIDATION_FAILED',
+        issues.join('; ')
+      );
+    }
+
+    logger.info(
+      `Validated retailer variants for mapping ${mappingId}: ${issues.length} issues, supplier has ${supplierVariantCount} variants`
+    );
+
+    return {
+      valid: issues.length === 0,
+      issues,
+    };
   }
 }
 

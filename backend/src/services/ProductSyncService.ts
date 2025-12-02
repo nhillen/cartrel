@@ -328,10 +328,27 @@ export class ProductSyncService {
 
       // Tag sync with mode support (APPEND vs MIRROR)
       if (effectiveScope.syncTags && supplierProduct.tags) {
-        // For MIRROR mode, we'd replace all tags
-        // For APPEND mode (default), we'd add without removing
-        // Note: This requires fetching existing tags for APPEND mode
-        updates.tags = supplierProduct.tags;
+        const tagSyncMode = effectiveScope.tagSyncMode || 'APPEND';
+
+        if (tagSyncMode === 'MIRROR') {
+          // MIRROR mode: Replace all tags with supplier tags
+          updates.tags = supplierProduct.tags;
+        } else {
+          // APPEND mode: Add supplier tags without removing existing retailer tags
+          // Fetch existing retailer tags first
+          const existingTags = await this.getRetailerProductTags(
+            retailerShop.myshopifyDomain,
+            retailerShop.accessToken,
+            mapping.retailerShopifyProductId
+          );
+
+          // Merge tags, keeping unique values
+          const supplierTagsArray = Array.isArray(supplierProduct.tags)
+            ? supplierProduct.tags
+            : (supplierProduct.tags || '').split(',').map((t: string) => t.trim());
+          const mergedTags = [...new Set([...existingTags, ...supplierTagsArray])];
+          updates.tags = mergedTags;
+        }
       }
 
       // Only update if there are changes
@@ -481,6 +498,91 @@ export class ProductSyncService {
   private static calculateSyncHash(data: any): string {
     const json = JSON.stringify(data);
     return crypto.createHash('sha256').update(json).digest('hex');
+  }
+
+  /**
+   * Get existing tags from a retailer product
+   */
+  private static async getRetailerProductTags(
+    shopDomain: string,
+    accessToken: string,
+    productId: string
+  ): Promise<string[]> {
+    try {
+      const client = createShopifyGraphQLClient(shopDomain, accessToken);
+
+      const query = `
+        query getProductTags($id: ID!) {
+          product(id: $id) {
+            tags
+          }
+        }
+      `;
+
+      const response: any = await client.request(query, {
+        variables: { id: productId },
+      });
+
+      const tags = response.data?.product?.tags || [];
+      return Array.isArray(tags) ? tags : [];
+    } catch (error) {
+      logger.warn(`Failed to fetch retailer product tags for ${productId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Log ignored inventory event in CATALOG_ONLY mode
+   * Per PRD_PRODUCT_ONLY_MODE - log ignored events for visibility
+   */
+  static async logIgnoredInventoryEvent(
+    connectionId: string,
+    productId: string,
+    eventType: string,
+    reason: string = 'CATALOG_ONLY mode - inventory sync disabled'
+  ): Promise<void> {
+    logger.info(
+      `[CATALOG_ONLY] Ignored ${eventType} event for product ${productId} on connection ${connectionId}: ${reason}`
+    );
+
+    // Record in connection health for observability
+    await ConnectionHealthService.recordSync(
+      connectionId,
+      'INVENTORY',
+      true, // Not an error, just ignored
+      `Ignored: ${reason}`
+    );
+  }
+
+  /**
+   * Process inventory event with CATALOG_ONLY mode check
+   * Returns true if event was processed, false if ignored
+   */
+  static async processInventoryEventWithModeCheck(
+    connection: any,
+    eventType: string,
+    productId: string,
+    handler: () => Promise<void>
+  ): Promise<{ processed: boolean; ignored: boolean; reason?: string }> {
+    // Check if connection is in CATALOG_ONLY mode
+    if (this.isProductOnlyMode(connection)) {
+      const reason = 'Connection is in CATALOG_ONLY mode';
+      await this.logIgnoredInventoryEvent(connection.id, productId, eventType, reason);
+
+      return {
+        processed: false,
+        ignored: true,
+        reason,
+      };
+    }
+
+    // Process the event normally
+    await handler();
+
+    return {
+      processed: true,
+      ignored: false,
+    };
   }
 
   /**

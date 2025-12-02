@@ -267,12 +267,12 @@ class ConnectionHealthServiceClass {
   }
 
   /**
-   * Record a mapping error (SKU drift, conflicts, etc.)
+   * Record a mapping error (SKU drift, conflicts, variant mismatches, etc.)
    */
   async recordMappingError(
     connectionId: string,
     mappingId: string,
-    errorType: 'SKU_DRIFT' | 'CONFLICT' | 'UNSUPPORTED',
+    errorType: 'SKU_DRIFT' | 'CONFLICT' | 'UNSUPPORTED' | 'VARIANT_MISMATCH' | 'VALIDATION_FAILED',
     message: string
   ): Promise<void> {
     await this.logActivity(connectionId, {
