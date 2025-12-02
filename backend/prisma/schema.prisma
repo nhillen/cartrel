@@ -72,6 +72,10 @@ model Shop {
   retailerPurchaseOrders PurchaseOrder[]    @relation("RetailerPurchaseOrders")
   connectionInvites      ConnectionInvite[]
 
+  // Partner network & payouts (Phase 1)
+  partnerProfile PartnerProfile?
+  payoutSettings PayoutSettings[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -87,6 +91,18 @@ enum ConnectionStatus {
   ACTIVE
   PAUSED
   TERMINATED
+}
+
+// Sync mode determines what data flows between connected stores
+enum SyncMode {
+  INVENTORY_AND_CATALOG // Full sync: inventory + product fields + order forwarding eligible
+  CATALOG_ONLY // Content replication only: no inventory writes, no order forwarding
+}
+
+// When to trigger inventory adjustments and order forwarding
+enum OrderTriggerPolicy {
+  ON_CREATE // Immediate: adjust inventory/forward when order is created
+  ON_PAID // Wait for payment: only adjust/forward when order is paid
 }
 
 enum PaymentTermsType {
@@ -112,7 +128,39 @@ model Connection {
   retailerShopId String
   retailerShop   Shop   @relation("RetailerConnections", fields: [retailerShopId], references: [id], onDelete: Cascade)
 
-  // Payment terms
+  // ============================================================================
+  // SYNC CONFIGURATION (Phase 1 - per PRDs)
+  // ============================================================================
+
+  // Sync mode: full inventory+catalog or catalog-only (PRD_PRODUCT_ONLY_MODE)
+  syncMode SyncMode @default(INVENTORY_AND_CATALOG)
+
+  // Order trigger policy: when to adjust inventory/forward orders (PRD_ORDER_PUSH_SHADOW_MODE)
+  orderTriggerPolicy OrderTriggerPolicy @default(ON_PAID)
+
+  // Order forwarding toggle (PRD_ORDER_PUSH_SHADOW_MODE)
+  orderForwardingEnabled Boolean @default(false) // Must be explicitly enabled
+  orderForwardingMode    String  @default("MANUAL") // MANUAL | AUTO | SHADOW
+
+  // Stock buffer: reserve inventory not exposed to destination (PRD_MULTI_LOCATION_SYNC)
+  stockBuffer Int @default(0) // Units to withhold from destination
+
+  // Field sync scope (PRD_PRODUCT_SETTINGS_SYNC) - granular field toggles
+  // Stored as JSON for flexibility: { title: true, description: true, images: false, ... }
+  syncScope Json? // Field-level sync preferences, overrides per-mapping defaults
+
+  // Feature flags for roadmap items (placeholders)
+  collectionSyncEnabled Boolean @default(false) // PRD_COLLECTION_SYNC (roadmap)
+  priceRulesEnabled     Boolean @default(false) // PRD_PRICE_RULES (roadmap)
+  priceRulesConfig      Json? // { strategy: "MARKUP_PERCENT", value: 50, ... }
+
+  // Metafield sync cap for this connection (respects tier limits)
+  metafieldDefinitionsCap Int @default(10) // Tier-based cap
+
+  // ============================================================================
+  // PAYMENT & TERMS (existing)
+  // ============================================================================
+
   paymentTermsType PaymentTermsType @default(PREPAY)
   creditLimit      Decimal?         @db.Decimal(10, 2)
   currency         String           @default("USD")
@@ -123,11 +171,21 @@ model Connection {
   tierRules   Json? // Array of TierRule objects
   perksConfig Json? // Perks configuration
 
-  // Multi-location inventory (Phase 6)
-  inventoryLocationId   String? // Shopify location ID to sync from (null = all locations)
-  safetyStockQuantity   Int     @default(0) // Reserve X units (don't sync to retailer)
+  // ============================================================================
+  // MULTI-LOCATION (existing + enhanced)
+  // ============================================================================
 
-  // Status
+  inventoryLocationId String? // Shopify location ID to sync from (null = all locations)
+  safetyStockQuantity Int     @default(0) // DEPRECATED: use stockBuffer instead
+
+  // Multi-location advanced (PRD_MULTI_LOCATION_SYNC) - feature flag for multiple destinations
+  multiLocationEnabled   Boolean @default(false) // Pro+ feature
+  destinationLocationIds Json? // Array of destination location IDs (when multiLocationEnabled)
+
+  // ============================================================================
+  // STATUS & METADATA
+  // ============================================================================
+
   status      ConnectionStatus @default(PENDING_INVITE)
   inviteToken String?          @unique
   invitedAt   DateTime?
@@ -137,9 +195,14 @@ model Connection {
   nickname String? // User-friendly name for this connection (e.g., "NYC Retailer", "Store #5")
   notes    String? @db.Text
 
-  // Relationships
-  productMappings ProductMapping[]
-  purchaseOrders  PurchaseOrder[]
+  // ============================================================================
+  // RELATIONSHIPS
+  // ============================================================================
+
+  productMappings  ProductMapping[]
+  purchaseOrders   PurchaseOrder[]
+  payouts          Payout[] // Commission/fee tracking
+  metafieldConfigs MetafieldConfig[] // Metafield sync configuration
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,6 +212,7 @@ model Connection {
   @@index([retailerShopId])
   @@index([inviteToken])
   @@index([status])
+  @@index([syncMode])
 }
 
 // ============================================================================
@@ -250,10 +314,14 @@ model SupplierProduct {
 // PRODUCT MAPPINGS (Supplier � Retailer)
 // ============================================================================
 
+// Product mapping states per PRD_MAPPER_CONFLICTS
 enum ProductMappingStatus {
-  ACTIVE
-  PAUSED
-  DISCONTINUED
+  ACTIVE // Normal operation, sync working
+  PAUSED // User manually paused sync
+  REPLACED // Source product type changed, requires remap (zeros destination inventory)
+  UNSUPPORTED // Product has unsupported attributes (zeros destination inventory)
+  UNSYNCED // User disconnected this mapping (keeps or deletes per preference)
+  DISCONTINUED // Source product deleted
 }
 
 enum MarkupType {
@@ -286,32 +354,70 @@ model ProductMapping {
   retailerShopifyProductId String?
   retailerShopifyVariantId String?
 
-  // Sync preferences
+  // ============================================================================
+  // SYNC PREFERENCES (can override connection-level defaults)
+  // ============================================================================
+
   syncInventory   Boolean @default(true)
   syncPricing     Boolean @default(false)
   syncDescription Boolean @default(false)
   syncImages      Boolean @default(false)
 
-  // NEW - Granular sync toggles
+  // Granular sync toggles
   syncTitle      Boolean @default(true)
   syncTags       Boolean @default(false)
   syncSEO        Boolean @default(false) // SEO title + description
   syncMetafields Json? // Array of metafield keys to sync
 
-  // NEW - Conflict detection and resolution
+  // Tag handling (PRD_PRODUCT_SETTINGS_SYNC)
+  tagSyncMode String @default("APPEND") // APPEND | MIRROR | NONE
+
+  // ============================================================================
+  // CONFLICT DETECTION & RESOLUTION (PRD_MAPPER_CONFLICTS)
+  // ============================================================================
+
   imageChecksum String? // SHA256 hash of image URLs (dedupe)
   lastSyncHash  String? // Hash of synced fields (detect changes)
   conflictMode  ConflictMode @default(SUPPLIER_WINS)
 
-  // Retailer pricing
-  retailerMarkupType  MarkupType @default(PERCENTAGE)
-  retailerMarkupValue Decimal    @db.Decimal(10, 2)
+  // SKU drift detection
+  originalSupplierSku String? // SKU at time of mapping (detect changes)
+  skuDriftDetected    Boolean @default(false) // Flag when SKU changed post-mapping
+
+  // Hidden tag handling (PRD_MAPPER_CONFLICTS)
+  sourceHiddenTag Boolean @default(false) // Source product has hidden tag
+  hiddenTagAction String? // Action taken: ZERO_INVENTORY | UNSYNC | PENDING
+
+  // ============================================================================
+  // ERROR & STATUS TRACKING (PRD_MAPPER_CONFLICTS)
+  // ============================================================================
 
   // Status
   status ProductMappingStatus @default(ACTIVE)
 
-  // Relationships
-  variantMappings VariantMapping[] // NEW - variant-level mappings
+  // Error tracking for Activity Center
+  lastError     String?   @db.Text // Last error message
+  lastErrorAt   DateTime? // When the error occurred
+  errorCount    Int       @default(0) // Consecutive error count
+  lastSuccessAt DateTime? // Last successful sync
+
+  // Sync timestamps
+  lastSyncAt      DateTime? // Last sync attempt (success or fail)
+  lastInventoryAt DateTime? // Last inventory sync
+  lastCatalogAt   DateTime? // Last catalog/field sync
+
+  // ============================================================================
+  // RETAILER PRICING
+  // ============================================================================
+
+  retailerMarkupType  MarkupType @default(PERCENTAGE)
+  retailerMarkupValue Decimal    @db.Decimal(10, 2)
+
+  // ============================================================================
+  // RELATIONSHIPS
+  // ============================================================================
+
+  variantMappings VariantMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -320,6 +426,9 @@ model ProductMapping {
   @@index([connectionId])
   @@index([supplierProductId])
   @@index([retailerShopifyProductId])
+  @@index([status])
+  @@index([skuDriftDetected])
+  @@index([lastErrorAt])
 }
 
 // ============================================================================
@@ -598,29 +707,29 @@ model OrderRouterRule {
 
 // Track progress of async product imports (for large catalogs 100+ products)
 model ImportBatchStatus {
-  id        String   @id @default(cuid())
-  batchId   String   @unique // UUID for tracking
+  id      String @id @default(cuid())
+  batchId String @unique // UUID for tracking
 
   // Owner
-  connectionId    String
-  retailerShopId  String
+  connectionId   String
+  retailerShopId String
 
   // Progress tracking
   totalProducts Int
-  completed     Int      @default(0)
-  successful    Int      @default(0)
-  failed        Int      @default(0)
+  completed     Int @default(0)
+  successful    Int @default(0)
+  failed        Int @default(0)
 
   // Status
-  status       String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  status String @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
 
   // Timestamps
-  createdAt    DateTime @default(now())
-  startedAt    DateTime?
-  completedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
 
   // Error tracking (limit to 100 errors)
-  errors       Json     @default("[]")
+  errors Json @default("[]")
 
   @@index([batchId])
   @@index([retailerShopId, createdAt])
@@ -632,50 +741,50 @@ model ImportBatchStatus {
 // ============================================================================
 
 enum IncidentStatus {
-  INVESTIGATING  // Issue identified, working on it
-  IDENTIFIED     // Root cause found
-  MONITORING     // Fix applied, monitoring results
-  RESOLVED       // Fully resolved
+  INVESTIGATING // Issue identified, working on it
+  IDENTIFIED // Root cause found
+  MONITORING // Fix applied, monitoring results
+  RESOLVED // Fully resolved
 }
 
 enum IncidentImpact {
-  NONE           // No impact (maintenance)
-  MINOR          // Minor degradation
-  MAJOR          // Significant degradation
-  CRITICAL       // Service unavailable
+  NONE // No impact (maintenance)
+  MINOR // Minor degradation
+  MAJOR // Significant degradation
+  CRITICAL // Service unavailable
 }
 
 enum SystemComponent {
-  AUTHENTICATION    // Login, OAuth
-  PRODUCT_SYNC      // Product synchronization
-  INVENTORY_SYNC    // Inventory updates
-  ORDER_FORWARDING  // Order creation and tracking
-  BILLING           // Subscriptions and payments
-  WEBHOOKS          // Webhook processing
-  API               // General API
-  DATABASE          // Database performance
+  AUTHENTICATION // Login, OAuth
+  PRODUCT_SYNC // Product synchronization
+  INVENTORY_SYNC // Inventory updates
+  ORDER_FORWARDING // Order creation and tracking
+  BILLING // Subscriptions and payments
+  WEBHOOKS // Webhook processing
+  API // General API
+  DATABASE // Database performance
 }
 
 // Track platform incidents for public status page
 model Incident {
-  id          String          @id @default(cuid())
+  id String @id @default(cuid())
 
   // Incident details
-  title       String          // "Shopify API Degradation"
-  component   SystemComponent // Which system is affected
-  status      IncidentStatus  @default(INVESTIGATING)
-  impact      IncidentImpact  @default(MINOR)
+  title     String // "Shopify API Degradation"
+  component SystemComponent // Which system is affected
+  status    IncidentStatus  @default(INVESTIGATING)
+  impact    IncidentImpact  @default(MINOR)
 
   // Automatic vs manual
-  autoDetected Boolean        @default(false) // Auto-detected by health checks
+  autoDetected Boolean @default(false) // Auto-detected by health checks
 
   // Timestamps
-  createdAt   DateTime        @default(now())
-  identifiedAt DateTime?      // When root cause found
-  resolvedAt  DateTime?       // When fully resolved
+  createdAt    DateTime  @default(now())
+  identifiedAt DateTime? // When root cause found
+  resolvedAt   DateTime? // When fully resolved
 
   // Updates
-  updates     IncidentUpdate[]
+  updates IncidentUpdate[]
 
   @@index([status, createdAt])
   @@index([component, status])
@@ -684,36 +793,310 @@ model Incident {
 
 // Status updates for an incident
 model IncidentUpdate {
-  id         String   @id @default(cuid())
+  id String @id @default(cuid())
 
   incidentId String
   incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
-  message    String   @db.Text // "Shopify API now at 50% capacity"
-  status     IncidentStatus    // Status at time of update
+  message String         @db.Text // "Shopify API now at 50% capacity"
+  status  IncidentStatus // Status at time of update
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([incidentId, createdAt])
 }
 
 // System health metrics (for automated incident detection)
 model SystemHealth {
-  id              String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  component       SystemComponent
+  component SystemComponent
 
   // Metrics
-  webhookQueueSize     Int?     // Bull queue size
-  webhookErrorRate     Float?   // % of failed webhooks
-  apiResponseTime      Int?     // ms
-  databaseResponseTime Int?     // ms
+  webhookQueueSize     Int? // Bull queue size
+  webhookErrorRate     Float? // % of failed webhooks
+  apiResponseTime      Int? // ms
+  databaseResponseTime Int? // ms
 
   // Status
-  healthy         Boolean  @default(true)
+  healthy Boolean @default(true)
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([component, createdAt])
   @@index([createdAt])
+}
+
+// ============================================================================
+// PARTNER NETWORK / MARKETPLACE (PRD_MARKETPLACE, PRD_UNIVERSAL_RESHARE)
+// ============================================================================
+
+enum PartnerProfileVisibility {
+  PUBLIC // Visible in marketplace
+  PRIVATE // Only visible via direct invite
+  HIDDEN // Completely hidden (admin disabled)
+}
+
+// Partner profile for marketplace discovery
+model PartnerProfile {
+  id String @id @default(cuid())
+
+  // Shop relationship
+  shopId String @unique
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // Profile basics
+  displayName String // Business name for discovery
+  slug        String? @unique // URL-friendly identifier
+  description String? @db.Text // About the business
+  website     String? // External website
+  socialLinks Json? // { instagram: "...", twitter: "...", ... }
+
+  // Location & category
+  location String? // City/region for filtering
+  country  String? // ISO country code
+  category String? // Business category (e.g., "Apparel", "Home Goods")
+
+  // Images (1:1 ratio, <3MB per PRD)
+  logoUrl       String?
+  coverImageUrl String?
+  galleryImages Json? // Array of up to 6 image URLs
+
+  // Visibility & status
+  visibility    PartnerProfileVisibility @default(PRIVATE)
+  verified      Boolean                  @default(false) // Verified badge
+  verifiedAt    DateTime?
+  featuredOrder Int? // For featured listings (null = not featured)
+
+  // Stats (cached for performance)
+  productCount    Int @default(0)
+  connectionCount Int @default(0)
+
+  // Moderation
+  flagged    Boolean   @default(false)
+  flagReason String?
+  flaggedAt  DateTime?
+  flaggedBy  String? // Admin who flagged
+
+  // Re-share consent (PRD_UNIVERSAL_RESHARE)
+  allowReshare    Boolean @default(false) // Default: no third-party re-share
+  reshareScope    String? // CATALOG_ONLY | INVENTORY | BOTH
+  reshareMaxDests Int     @default(0) // Max downstream destinations (0 = none)
+
+  // Relationships
+  sentInvites     MarketplaceInvite[] @relation("SentInvites")
+  receivedInvites MarketplaceInvite[] @relation("ReceivedInvites")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visibility])
+  @@index([category])
+  @@index([location])
+  @@index([verified])
+  @@index([featuredOrder])
+}
+
+enum MarketplaceInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// Marketplace invites for partner discovery
+model MarketplaceInvite {
+  id String @id @default(cuid())
+
+  // Sender (who is inviting)
+  senderProfileId String
+  senderProfile   PartnerProfile @relation("SentInvites", fields: [senderProfileId], references: [id], onDelete: Cascade)
+
+  // Recipient (who is being invited)
+  recipientProfileId String?
+  recipientProfile   PartnerProfile? @relation("ReceivedInvites", fields: [recipientProfileId], references: [id], onDelete: SetNull)
+  recipientEmail     String? // For invites to non-users
+
+  // Invite details
+  message String?                 @db.Text // Personal message
+  status  MarketplaceInviteStatus @default(PENDING)
+
+  // Connection details (pre-fill connection settings)
+  suggestedSyncMode String? // INVENTORY_AND_CATALOG | CATALOG_ONLY
+
+  // Tracking
+  viewedAt    DateTime?
+  respondedAt DateTime?
+  expiresAt   DateTime // 30 days from creation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([senderProfileId])
+  @@index([recipientProfileId])
+  @@index([recipientEmail])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// PAYOUTS (PRD_PAYOUTS)
+// ============================================================================
+
+enum PayoutStatus {
+  OPEN // Payout created, not yet sent
+  PAID // Destination marked as paid
+  RECEIVED // Source confirmed receipt
+  DELETED // Payout cancelled/deleted
+}
+
+// Payout for commission/fee tracking (no funds movement)
+model Payout {
+  id String @id @default(cuid())
+
+  // Connection (destination → source)
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Payout identification
+  payoutNumber String @unique // e.g., "PAY-2024-001"
+
+  // Amounts (calculated)
+  subtotal         Decimal @db.Decimal(12, 2) // Sum of order line items
+  shippingFees     Decimal @default(0) @db.Decimal(10, 2)
+  processingFees   Decimal @default(0) @db.Decimal(10, 2)
+  commissionAmount Decimal @default(0) @db.Decimal(10, 2)
+  adjustments      Decimal @default(0) @db.Decimal(10, 2) // Manual +/- adjustments
+  total            Decimal @db.Decimal(12, 2) // Final amount due to source
+
+  currency String @default("USD")
+
+  // Status
+  status PayoutStatus @default(OPEN)
+
+  // Included orders (JSON array of order IDs)
+  includedOrderIds Json // Array of Shopify order IDs
+
+  // Settings snapshot (at time of payout creation)
+  settingsSnapshot Json? // Copy of PayoutSettings used
+
+  // Notes & communication
+  notes    String? @db.Text // Internal notes
+  comments Json? // Array of { author, message, timestamp }
+
+  // Timestamps
+  paidAt     DateTime?
+  receivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  lines PayoutLine[]
+
+  @@index([connectionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Individual line items in a payout
+model PayoutLine {
+  id String @id @default(cuid())
+
+  payoutId String
+  payout   Payout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+
+  // Order reference
+  shopifyOrderId   String
+  shopifyOrderName String // #1001, etc.
+
+  // Line item details
+  productTitle String
+  variantTitle String?
+  sku          String?
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(10, 2)
+  lineTotal    Decimal @db.Decimal(10, 2)
+
+  // Commission override (if different from payout default)
+  commissionOverride Decimal? @db.Decimal(10, 2)
+
+  // Flags
+  excluded Boolean @default(false) // Manually excluded from payout
+
+  createdAt DateTime @default(now())
+
+  @@index([payoutId])
+  @@index([shopifyOrderId])
+}
+
+// Payout settings per store (can be overridden per product)
+model PayoutSettings {
+  id String @id @default(cuid())
+
+  // Owner (destination shop configures these)
+  shopId String
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  // Target (which source these settings apply to, null = default for all)
+  targetShopId String? // Source shop ID, null = default settings
+
+  // Base calculation
+  includesTax Boolean @default(false) // Base amount includes tax?
+
+  // Shipping fees
+  shippingFeeType String  @default("NONE") // NONE | ORDER_SHIPPING | FLAT
+  shippingFeeFlat Decimal @default(0) @db.Decimal(10, 2)
+
+  // Payment processing fees
+  processingFeeType    String  @default("NONE") // NONE | FLAT | PERCENT | FLAT_PLUS_PERCENT
+  processingFeeFlat    Decimal @default(0) @db.Decimal(10, 2)
+  processingFeePercent Decimal @default(0) @db.Decimal(5, 2)
+
+  // Commission to destination
+  commissionType  String  @default("PERCENT") // FLAT | PERCENT
+  commissionValue Decimal @default(0) @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId, targetShopId])
+  @@index([shopId])
+}
+
+// ============================================================================
+// METAFIELDS SYNC (PRD_METAFIELDS_SYNC)
+// ============================================================================
+
+// Metafield definition tracking per connection
+model MetafieldConfig {
+  id String @id @default(cuid())
+
+  // Connection
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Metafield definition details
+  namespace String // Shopify namespace
+  key       String // Shopify key
+  ownerType String // PRODUCT | VARIANT
+
+  // Type info
+  type        String // single_line_text, number_integer, etc.
+  isSupported Boolean @default(true) // Some types not supported
+
+  // Sync status
+  syncEnabled        Boolean @default(false)
+  sourceDefinitionId String? // Shopify definition ID on source
+  destDefinitionId   String? // Shopify definition ID on destination (created or linked)
+
+  // Timestamps
+  lastSyncAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, namespace, key, ownerType])
+  @@index([connectionId])
+  @@index([syncEnabled])
 }

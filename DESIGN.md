@@ -17,50 +17,59 @@ Cartrel is **infrastructure, not a marketplace**:
 - Transparent attribution
 - SaaS pricing model instead of GMV percentage
 
+### Terminology Note
+Cartrel supports both **wholesale** and **dropshipping** workflows:
+
+| Context | Inventory Owner | Order Fulfiller | Terminology |
+|---------|-----------------|-----------------|-------------|
+| Wholesale | Supplier | Supplier | Supplier → Retailer |
+| Dropshipping | Source | Source | Source → Destination |
+
+Throughout this document:
+- **Supplier/Source**: The store that owns inventory and fulfills orders
+- **Retailer/Destination**: The store that sells to end customers
+- **Sync**: The underlying infrastructure that keeps products, inventory, and orders in sync between connected stores
+
+Sync is a **feature that enables** wholesale and dropshipping—not the purpose itself.
+
 ---
 
 ## Business Model
 
 ### Revenue Strategy
 
-**Note**: Pricing model is intentionally flexible and TBD. Multiple options are being evaluated. The system is designed to support various pricing models through comprehensive instrumentation.
+**Core Principle**: Single-sided billing (supplier/source pays); retailers/destinations always FREE.
 
-#### Option A: Supplier-Side SaaS (Tiered)
+#### Tier Structure
 ```
-Starter:  $49/mo  - Up to 10 retailer connections
-Growth:   $149/mo - Up to 50 connections + tier/perks features
-Plus:     $399/mo - Unlimited + priority support + analytics
-```
-
-#### Option B: Transaction-Based with Caps
-```
-Per-transaction fee: $0.25-$1.00 per wholesale order
-Monthly cap by tier:
-  - Starter: $49 cap
-  - Growth: $149 cap
-  - Plus: No cap (waived at higher tiers)
+Free:       3 connections, 150 products, 10 order forwards/month (manual only)
+Starter:    5 connections, 500 products, 100 orders/month
+Core:       10 connections, 1,500 products, 300 orders/month
+Pro:        20 connections, 5,000 products, 800 orders/month
+Growth:     40 connections, 20,000 products, 2,000 orders/month
+Scale:      80 connections, 100,000 products, 5,000+ orders/month
 ```
 
-#### Option C: Hybrid (Connection + Transaction)
-```
-Base: $29/mo + $0.50 per order
-Caps apply based on tier
-```
+#### Bundled Features by Tier
+- **Free**: Catalog + inventory sync, basic product fields (title/desc/media/tags), manual order forwarding, metafields (10 defs)
+- **Starter**: + Auto order forwarding, price sync, metafields (25 defs)
+- **Core**: + Multi-location (single), stock buffer, payouts, metafields (50 defs)
+- **Pro**: + Advanced fields (SEO/cost/HS code), multi-location advanced, metafields (200 defs)
+- **Growth**: + Marketplace/re-share eligibility, metafields (500 defs)
+- **Scale**: + Re-share rights, unlimited metafields, custom SLA
 
-#### Option D: GMV-Based (Small Percentage)
-```
-0.5-1% of GMV flowing through Cartrel
-Much lower than Faire's ~15-25%
-Feels like "rails" not "marketplace"
-```
-
-**Retailer Pricing**: Always FREE (critical for network growth)
+#### Add-ons
+- Additional connections
+- Additional order forwards
+- (No SKU-based metering—meter on products/orders/connections only)
 
 #### Future: Premium Add-Ons
 - Credit checks and risk management
 - Advanced analytics and sell-through reporting
 - Multi-supplier catalog aggregation for retailers
 - EDI/ERP integrations
+- Collection sync (roadmap)
+- Price rules/markups (roadmap)
 
 ### Pricing Instrumentation
 
@@ -169,6 +178,40 @@ This instrumentation allows us to:
 - Database: Managed PostgreSQL
 - Redis: Managed Redis for queues
 - Storage: S3 for any future assets
+
+### Sync Infrastructure (Enabling Wholesale & Dropshipping)
+
+The following sync capabilities power both wholesale and dropshipping workflows. See `docs/INVENTORY_PRODUCT_SYNC_DESIGN.md` and individual PRDs for detailed specifications.
+
+#### Connection Settings (per connection)
+- **Sync mode**: `inventory_and_catalog` (full sync + order forwarding) or `catalog_only` (content replication without inventory)
+- **Order trigger policy**: `on_create` (immediate) or `on_paid` (wait for payment)
+- **Field scope**: Granular control over which product fields sync (title, description, images, tags, price, SEO, etc.)
+- **Stock buffer**: Reserve inventory not exposed to destinations
+- **Order forwarding**: Enable/disable per connection, manual or auto
+
+#### Core Sync Features
+| Feature | Description | PRD Reference |
+|---------|-------------|---------------|
+| Catalog sync | Product field controls, hide-by-default, resync, auto-add variants | `PRD_PRODUCT_SETTINGS_SYNC.md` |
+| Inventory sync | Webhook-driven deltas, idempotent processing, multi-location, refund/return handling | `PRD_MULTI_LOCATION_SYNC.md` |
+| Order forwarding | Manual/auto modes, shadow preview, shipping rules, $0 workaround | `PRD_ORDER_PUSH_SHADOW_MODE.md` |
+| Metafields sync | Selective definition/value sync with tier caps | `PRD_METAFIELDS_SYNC.md` |
+| Mapper service | SKU/variant validation, drift detection, conflict resolution, bulk operations | `PRD_MAPPER_CONFLICTS.md` |
+| Payouts | Commission/fee tracking (no funds movement), bundled Core+ | `PRD_PAYOUTS.md` |
+| Rate-limit handling | Batch/priority processing, backoff/DLQ, health surfacing | `PRD_RATE_LIMIT_OBSERVABILITY.md` |
+
+#### Partner Network Features
+| Feature | Description | PRD Reference |
+|---------|-------------|---------------|
+| Marketplace | Partner profiles, search, invites for discovery | `PRD_MARKETPLACE.md` |
+| Dual-role & re-share | Stores can be both source and destination; consented re-share governance | `PRD_UNIVERSAL_RESHARE.md` |
+
+#### Roadmap Features
+- **Collection sync**: Mirror collections with membership via mapped products/tags (`PRD_COLLECTION_SYNC.md`)
+- **Price rules**: Per-connection/per-market markup/markdown (`PRD_PRICE_RULES.md`)
+- **Extended metafields**: Collection and reference type support
+- **Per-connection billing**: For marketplace/dropship scenarios
 
 ---
 
