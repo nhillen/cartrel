@@ -2,6 +2,32 @@
  * Tests for BillingEnforcementService - Tier caps and usage checks
  */
 
+// Mock dependencies - must be before imports
+jest.mock('../shopify', () => ({
+  createShopifyGraphQLClient: jest.fn(),
+  shopify: {},
+}));
+
+jest.mock('../../config', () => ({
+  config: {
+    redisUrl: 'redis://localhost:6379',
+    appUrl: 'http://localhost:3000',
+    nodeEnv: 'test',
+  },
+}));
+
+jest.mock('ioredis', () => jest.fn().mockImplementation(() => ({})));
+
+jest.mock('../../index', () => ({
+  prisma: {
+    shop: { findUnique: jest.fn() },
+    connection: { count: jest.fn() },
+    productMapping: { count: jest.fn() },
+    monthlyUsage: { findUnique: jest.fn() },
+    metafieldConfig: { count: jest.fn() },
+  },
+}));
+
 import { TIER_CAPS, TierLevel } from '../BillingEnforcementService';
 
 describe('BillingEnforcementService', () => {
