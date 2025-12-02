@@ -16,6 +16,7 @@ datasource db {
 // ============================================================================
 
 enum ShopRole {
+  UNSET // New shops before role selection
   SUPPLIER
   RETAILER
   BOTH

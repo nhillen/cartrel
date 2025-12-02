@@ -66,7 +66,7 @@ export const shopify = shopifyApi({
 export async function saveShop(
   shop: string,
   accessToken: string,
-  role: 'SUPPLIER' | 'RETAILER' | 'BOTH' = 'BOTH'
+  role: 'UNSET' | 'SUPPLIER' | 'RETAILER' | 'BOTH' = 'UNSET'
 ) {
   try {
     // Encrypt access token before storing

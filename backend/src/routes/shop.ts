@@ -172,6 +172,15 @@ router.post('/role', async (req, res, next) => {
 
     const previousRole = existingShop?.role;
 
+    // Prevent downgrades from BOTH (but allow setting from UNSET during onboarding)
+    if (existingShop && previousRole === 'BOTH' && role !== 'BOTH') {
+      res.status(400).json({
+        error:
+          'Cannot downgrade from BOTH role. Please contact support if you need to change your role.',
+      });
+      return;
+    }
+
     // Upsert shop (create if doesn't exist, update if it does)
     const updatedShop = await prisma.shop.upsert({
       where: { myshopifyDomain: shop },
