@@ -35,7 +35,8 @@ RUN npm install -g npm@11
 COPY package.json package-lock.json ./
 
 # Install all dependencies (including dev)
-RUN npm ci
+# Note: Using npm install instead of npm ci due to file: dependency on slack-reporter
+RUN npm install
 
 # Copy source and config
 COPY . .
@@ -71,7 +72,8 @@ RUN mkdir -p /manabot/packages
 COPY --from=build /app/slack-reporter /manabot/packages/slack-reporter
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+# Note: Using npm install instead of npm ci due to file: dependency on slack-reporter
+RUN npm install --omit=dev
 
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
