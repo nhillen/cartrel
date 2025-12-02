@@ -51,7 +51,7 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 ## Phase 9: UI/Docs ✅
 - ✅ Surface health/logs/errors (rate limits, mapping conflicts, forwarding failures) - admin dashboard HealthTab with real connection health data.
 - ✅ "Available now" vs "Coming soon" labels - /api/admin/features endpoint with full feature catalog.
-- Update website/pricing/FAQs per `WEB_DOCS_PRICING_UPDATE.md`. (External website updates - deferred)
+- ✅ Update website/pricing/FAQs per `WEB_DOCS_PRICING_UPDATE.md` - landing, pricing, features pages updated with new naming, tier caps (150 free products), roadmap section.
 
 ## Phase 10: Billing/Enforcement ✅
 - ✅ Enforce caps per tier (connections/products/orders/metafield defs/order forwards).
