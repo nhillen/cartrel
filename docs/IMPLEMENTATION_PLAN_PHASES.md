@@ -25,10 +25,10 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - ✅ Catalog field controls: enforce scopes (title/desc/media/tags/vendor/type/price/SEO/etc.), hide-by-default, resync (per-product + bulk job), auto-add variants, tag append vs mirror.
 - ✅ Product-only mode: ignore inventory, log ignored events; content reconciliation job.
 
-## Phase 4: Inventory Engine
-- Inventory deltas: apply from orders/manual adjustments/refunds; respect order_trigger_policy (on_create vs on_paid); refund/restock rules; order edits diff.
-- Multi-location: per-connection location filter (single/all, feature-flag multi); resync on default location change; buffer/reserve application.
-- Rate-limit aware batching for inventory updates to destinations.
+## Phase 4: Inventory Engine ✅
+- ✅ Inventory deltas: apply from orders/manual adjustments/refunds; respect order_trigger_policy (on_create vs on_paid); refund/restock rules; order edits diff.
+- ✅ Multi-location: per-connection location filter (single/all, feature-flag multi); resync on default location change; buffer/reserve application.
+- ✅ Rate-limit aware batching for inventory updates to destinations.
 
 ## Phase 5: Order Forwarding
 - Manual/auto forwarding per connection; shipping rules/tags; $0 workaround; error surfaces.
