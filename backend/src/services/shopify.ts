@@ -1,4 +1,4 @@
-import { shopifyApi, LATEST_API_VERSION, Session } from '@shopify/shopify-api';
+import { shopifyApi, ApiVersion, Session } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { config } from '../config';
 import { prisma } from '../index';
@@ -55,7 +55,7 @@ export const shopify = shopifyApi({
   apiSecretKey: config.shopify.apiSecret,
   scopes: config.shopify.scopes,
   hostName: config.shopify.hostName,
-  apiVersion: LATEST_API_VERSION,
+  apiVersion: ApiVersion.October24, // 2024-10 (updated from 2024-04)
   isEmbeddedApp: false, // OAuth cookie flow with SameSite=None fix
   sessionStorage: new SimpleSessionStorage(),
 });
