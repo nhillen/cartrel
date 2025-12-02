@@ -776,6 +776,292 @@ class PriceRuleServiceClass {
       },
     ];
   }
+
+  // ============================================================================
+  // MARKETS-AWARE PRICING
+  // ============================================================================
+
+  /**
+   * Discover markets configured on a shop
+   */
+  async discoverMarkets(shop: { myshopifyDomain: string; accessToken: string }): Promise<
+    Array<{
+      id: string;
+      name: string;
+      primary: boolean;
+      currency: string;
+      regions: string[];
+    }>
+  > {
+    const client = createShopifyGraphQLClient(shop.myshopifyDomain, shop.accessToken);
+
+    const query = `
+      query getMarkets {
+        markets(first: 50) {
+          edges {
+            node {
+              id
+              name
+              primary
+              currencySettings {
+                baseCurrency {
+                  currencyCode
+                }
+              }
+              regions(first: 20) {
+                edges {
+                  node {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response: any = await client.request(query);
+
+      const markets = response.data?.markets?.edges?.map((edge: any) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        primary: edge.node.primary,
+        currency: edge.node.currencySettings?.baseCurrency?.currencyCode || 'USD',
+        regions: edge.node.regions?.edges?.map((r: any) => r.node.name) || [],
+      }));
+
+      return markets || [];
+    } catch (error) {
+      logger.error('Error discovering markets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get price lists for a shop (used for market-specific pricing)
+   */
+  async getPriceLists(shop: { myshopifyDomain: string; accessToken: string }): Promise<
+    Array<{
+      id: string;
+      name: string;
+      currency: string;
+      marketId: string | null;
+    }>
+  > {
+    const client = createShopifyGraphQLClient(shop.myshopifyDomain, shop.accessToken);
+
+    const query = `
+      query getPriceLists {
+        priceLists(first: 50) {
+          edges {
+            node {
+              id
+              name
+              currency
+              contextRule {
+                marketId
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response: any = await client.request(query);
+
+      const priceLists = response.data?.priceLists?.edges?.map((edge: any) => ({
+        id: edge.node.id,
+        name: edge.node.name,
+        currency: edge.node.currency,
+        marketId: edge.node.contextRule?.marketId || null,
+      }));
+
+      return priceLists || [];
+    } catch (error) {
+      logger.error('Error getting price lists:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Set market-specific price rules for a connection
+   */
+  async setMarketPriceRules(
+    connectionId: string,
+    marketRules: Array<{
+      marketId: string;
+      marketName: string;
+      rule: PriceRule;
+    }>
+  ): Promise<void> {
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection) {
+      throw new Error('Connection not found');
+    }
+
+    // Store as JSON in priceRulesConfig alongside base rule
+    const existingConfig = (connection.priceRulesConfig as any) || {};
+
+    const updatedConfig = {
+      ...existingConfig,
+      marketRules: marketRules.map((mr) => ({
+        marketId: mr.marketId,
+        marketName: mr.marketName,
+        rule: mr.rule,
+      })),
+    };
+
+    await prisma.connection.update({
+      where: { id: connectionId },
+      data: {
+        priceRulesConfig: updatedConfig as Prisma.InputJsonValue,
+      },
+    });
+
+    logger.info(
+      `Set ${marketRules.length} market-specific price rules for connection ${connectionId}`
+    );
+  }
+
+  /**
+   * Get market-specific price rules for a connection
+   */
+  async getMarketPriceRules(connectionId: string): Promise<MarketPriceRule[]> {
+    const connection = await prisma.connection.findUnique({
+      where: { id: connectionId },
+      select: { priceRulesConfig: true },
+    });
+
+    if (!connection?.priceRulesConfig) {
+      return [];
+    }
+
+    const config = connection.priceRulesConfig as any;
+    return config.marketRules || [];
+  }
+
+  /**
+   * Apply price rule to a price list for market-specific pricing
+   */
+  async applyPriceToMarket(
+    shop: { myshopifyDomain: string; accessToken: string },
+    priceListId: string,
+    prices: Array<{
+      variantId: string;
+      price: number;
+      compareAtPrice?: number;
+    }>
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
+    if (prices.length === 0) {
+      return { success: 0, failed: 0, errors: [] };
+    }
+
+    const client = createShopifyGraphQLClient(shop.myshopifyDomain, shop.accessToken);
+    const errors: string[] = [];
+    let success = 0;
+    let failed = 0;
+
+    // Batch prices (max 100 per call)
+    const batchSize = 100;
+
+    for (let i = 0; i < prices.length; i += batchSize) {
+      const batch = prices.slice(i, i + batchSize);
+
+      const mutation = `
+        mutation priceListFixedPricesAdd($priceListId: ID!, $prices: [PriceListPriceInput!]!) {
+          priceListFixedPricesAdd(priceListId: $priceListId, prices: $prices) {
+            prices {
+              variant {
+                id
+              }
+              price {
+                amount
+                currencyCode
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const priceInputs = batch.map((p) => {
+        const input: any = {
+          variantId: p.variantId.startsWith('gid://')
+            ? p.variantId
+            : `gid://shopify/ProductVariant/${p.variantId}`,
+          price: {
+            amount: p.price.toFixed(2),
+            currencyCode: 'USD', // TODO: Get from price list
+          },
+        };
+
+        if (p.compareAtPrice !== undefined) {
+          input.compareAtPrice = {
+            amount: p.compareAtPrice.toFixed(2),
+            currencyCode: 'USD',
+          };
+        }
+
+        return input;
+      });
+
+      try {
+        const response: any = await client.request(mutation, {
+          variables: {
+            priceListId,
+            prices: priceInputs,
+          },
+        });
+
+        if (response.data?.priceListFixedPricesAdd?.userErrors?.length > 0) {
+          for (const error of response.data.priceListFixedPricesAdd.userErrors) {
+            errors.push(`${error.field}: ${error.message}`);
+          }
+          failed += batch.length;
+        } else {
+          success += response.data?.priceListFixedPricesAdd?.prices?.length || 0;
+        }
+      } catch (error) {
+        errors.push(
+          `Batch ${i / batchSize + 1}: ${error instanceof Error ? error.message : 'Unknown'}`
+        );
+        failed += batch.length;
+      }
+    }
+
+    logger.info(`Applied ${success} prices to price list ${priceListId} (${failed} failed)`);
+
+    return { success, failed, errors };
+  }
+
+  /**
+   * Calculate price for a specific market using market-specific rules
+   */
+  calculateMarketPrice(
+    sourcePrice: number,
+    baseRule: PriceRule,
+    marketRules: MarketPriceRule[],
+    targetMarketId: string
+  ): number {
+    // Check for market-specific rule
+    const marketRule = marketRules.find((mr) => mr.marketId === targetMarketId);
+
+    if (marketRule) {
+      return this.calculatePrice(sourcePrice, marketRule.rule);
+    }
+
+    // Fall back to base rule
+    return this.calculatePrice(sourcePrice, baseRule);
+  }
 }
 
 export const PriceRuleService = new PriceRuleServiceClass();
