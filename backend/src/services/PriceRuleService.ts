@@ -956,7 +956,8 @@ class PriceRuleServiceClass {
       variantId: string;
       price: number;
       compareAtPrice?: number;
-    }>
+    }>,
+    currencyCode: string = 'USD'
   ): Promise<{ success: number; failed: number; errors: string[] }> {
     if (prices.length === 0) {
       return { success: 0, failed: 0, errors: [] };
@@ -1000,14 +1001,14 @@ class PriceRuleServiceClass {
             : `gid://shopify/ProductVariant/${p.variantId}`,
           price: {
             amount: p.price.toFixed(2),
-            currencyCode: 'USD', // TODO: Get from price list
+            currencyCode,
           },
         };
 
         if (p.compareAtPrice !== undefined) {
           input.compareAtPrice = {
             amount: p.compareAtPrice.toFixed(2),
-            currencyCode: 'USD',
+            currencyCode,
           };
         }
 

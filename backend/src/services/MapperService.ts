@@ -14,6 +14,8 @@ import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { ProductMappingStatus } from '@prisma/client';
 import { ConnectionHealthService } from './ConnectionHealthService';
+import { InventorySyncService } from './InventorySyncService';
+import { createShopifyGraphQLClient } from './shopify';
 
 // Hidden tag action values (stored as string in DB)
 type HiddenTagAction = 'ZERO_INVENTORY' | 'UNSYNC' | 'PENDING';
@@ -487,8 +489,90 @@ class MapperServiceClass {
    * Zero out inventory for a retailer product
    */
   private async zeroRetailerInventory(mapping: any): Promise<void> {
-    // TODO: Implement inventory zeroing via Shopify API
-    logger.info(`Would zero inventory for retailer product ${mapping.retailerShopifyProductId}`);
+    try {
+      const retailerShop = mapping.connection?.retailerShop;
+      if (!retailerShop) {
+        logger.warn(`No retailer shop found for mapping ${mapping.id}`);
+        return;
+      }
+
+      if (!mapping.retailerShopifyVariantId) {
+        logger.warn(`No retailer variant ID for mapping ${mapping.id}`);
+        return;
+      }
+
+      await InventorySyncService.updateRetailerInventory(
+        retailerShop,
+        mapping.retailerShopifyVariantId,
+        0
+      );
+
+      logger.info(
+        `Zeroed inventory for retailer product ${mapping.retailerShopifyProductId} (variant ${mapping.retailerShopifyVariantId})`
+      );
+    } catch (error) {
+      logger.error(`Error zeroing inventory for mapping ${mapping.id}:`, error);
+      // Don't throw - this is a best-effort operation
+    }
+  }
+
+  /**
+   * Delete a product from the retailer's Shopify store
+   */
+  private async deleteRetailerProduct(mapping: any): Promise<boolean> {
+    try {
+      const retailerShop = mapping.connection?.retailerShop;
+      if (!retailerShop) {
+        logger.warn(`No retailer shop found for mapping ${mapping.id}`);
+        return false;
+      }
+
+      if (!mapping.retailerShopifyProductId) {
+        logger.warn(`No retailer product ID for mapping ${mapping.id}`);
+        return false;
+      }
+
+      const client = createShopifyGraphQLClient(
+        retailerShop.myshopifyDomain,
+        retailerShop.accessToken
+      );
+
+      const mutation = `
+        mutation productDelete($input: ProductDeleteInput!) {
+          productDelete(input: $input) {
+            deletedProductId
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const response: any = await client.request(mutation, {
+        variables: {
+          input: {
+            id: `gid://shopify/Product/${mapping.retailerShopifyProductId}`,
+          },
+        },
+      });
+
+      if (response.data?.productDelete?.userErrors?.length > 0) {
+        const errors = response.data.productDelete.userErrors;
+        logger.warn(
+          `Error deleting retailer product ${mapping.retailerShopifyProductId}: ${errors[0].message}`
+        );
+        return false;
+      }
+
+      logger.info(
+        `Deleted retailer product ${mapping.retailerShopifyProductId} from ${retailerShop.myshopifyDomain}`
+      );
+      return true;
+    } catch (error) {
+      logger.error(`Error deleting retailer product for mapping ${mapping.id}:`, error);
+      return false;
+    }
   }
 
   /**
@@ -527,10 +611,9 @@ class MapperServiceClass {
       },
     });
 
-    // If not keeping retailer product, we'd delete it here
+    // If not keeping retailer product, delete it from Shopify
     if (!options?.keepRetailerProduct && mapping.retailerShopifyProductId) {
-      // TODO: Delete product from retailer's Shopify
-      logger.info(`Would delete retailer product ${mapping.retailerShopifyProductId}`);
+      await this.deleteRetailerProduct(mapping);
     }
 
     logger.info(`Unsynced mapping ${mappingId}`);
@@ -558,8 +641,7 @@ class MapperServiceClass {
 
     // Delete retailer product if requested
     if (options?.deleteRetailerProduct && mapping.retailerShopifyProductId) {
-      // TODO: Delete product from retailer's Shopify via API
-      logger.info(`Would delete retailer product ${mapping.retailerShopifyProductId}`);
+      await this.deleteRetailerProduct(mapping);
     }
 
     // Delete the mapping

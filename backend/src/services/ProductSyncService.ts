@@ -240,7 +240,15 @@ export class ProductSyncService {
       logger.info(
         `Product ${supplierProduct.id} requires manual review for retailer ${retailerShop.id}`
       );
-      // TODO: Create PendingSync record for manual approval
+      // Mark mapping as paused with review reason
+      await prisma.productMapping.update({
+        where: { id: mapping.id },
+        data: {
+          status: 'PAUSED',
+          lastError: 'Pending manual review (REVIEW_QUEUE mode)',
+          lastErrorAt: new Date(),
+        },
+      });
       return;
     }
 

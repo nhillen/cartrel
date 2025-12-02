@@ -195,7 +195,7 @@ export class InventorySyncService {
   /**
    * Update inventory for a single retailer variant
    */
-  private static async updateRetailerInventory(
+  static async updateRetailerInventory(
     retailerShop: any,
     retailerVariantId: string | null,
     quantity: number

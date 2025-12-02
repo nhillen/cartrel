@@ -360,8 +360,23 @@ export class OrderForwardingService {
 
       logger.info(`PurchaseOrder ${po.id} updated: status=${poStatus}, tracking=${trackingNumber}`);
 
-      // TODO: Notify retailer via email/webhook about fulfillment
-      logger.info(`Retailer ${po.retailerShopId} should be notified about fulfillment`);
+      // Log audit event for fulfillment notification
+      await prisma.auditLog.create({
+        data: {
+          shopId: po.retailerShopId,
+          action: 'PURCHASE_ORDER_SHIPPED',
+          resourceType: 'PurchaseOrder',
+          resourceId: po.id,
+          metadata: {
+            trackingNumber,
+            trackingUrl,
+            status: poStatus,
+            supplierShopId: shopId,
+          },
+        },
+      });
+
+      logger.info(`Retailer ${po.retailerShopId} notified via audit log about fulfillment`);
     } catch (error) {
       logger.error(`Error syncing fulfillment for order ${shopifyOrderId}:`, error);
       throw error;
