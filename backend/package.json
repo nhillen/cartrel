@@ -21,7 +21,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "validate": "npm run type-check && npm run lint && npm run test",
-    "prepare": "cd .. && husky backend/.husky",
+    "prepare": "node -e \"try { require('husky') } catch(e) { process.exit(0) }\" && cd .. && husky backend/.husky || true",
     "uat:plan": "tsx scripts/uat-plan-manager.ts"
   },
   "dependencies": {
