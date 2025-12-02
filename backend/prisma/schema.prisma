@@ -202,7 +202,8 @@ model Connection {
   productMappings  ProductMapping[]
   purchaseOrders   PurchaseOrder[]
   payouts          Payout[] // Commission/fee tracking
-  metafieldConfigs MetafieldConfig[] // Metafield sync configuration
+  metafieldConfigs   MetafieldConfig[]   // Metafield sync configuration
+  collectionMappings CollectionMapping[] // Collection sync mappings
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1063,6 +1064,52 @@ model PayoutSettings {
 
   @@unique([shopId, targetShopId])
   @@index([shopId])
+}
+
+// ============================================================================
+// COLLECTION SYNC (PRD_COLLECTION_SYNC)
+// ============================================================================
+
+enum CollectionSyncStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+  DELETED
+}
+
+model CollectionMapping {
+  id String @id @default(cuid())
+
+  // Connection
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Source collection (supplier)
+  sourceCollectionId String // Shopify collection GID
+  sourceHandle       String
+  sourceTitle        String
+
+  // Destination collection (retailer)
+  destCollectionId String? // Shopify collection GID (created/linked)
+  destHandle       String?
+
+  // Sync status
+  status    CollectionSyncStatus @default(ACTIVE)
+  lastError String?
+
+  // Sync tracking
+  lastSyncAt   DateTime?
+  lastSyncHash String? // Hash of synced fields for change detection
+
+  // Settings
+  preserveLocalEdits Boolean @default(false) // Don't overwrite destination changes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, sourceCollectionId])
+  @@index([connectionId])
+  @@index([status])
 }
 
 // ============================================================================

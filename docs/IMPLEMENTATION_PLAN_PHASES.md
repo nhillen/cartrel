@@ -40,9 +40,9 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - ✅ Value sync triggers (import/update/order/resync) + 24h batch; bulk resync job.
 - ✅ Unsupported types surfaced; feature flags for collection/reference metafields (roadmap).
 
-## Phase 7: Collections & Price Rules (Roadmap/Flags)
-- Collection sync (custom collections): create/update/delete, membership via mapped products/tags; overwrite vs preserve local edits; handle clashes; tier caps.
-- Price rules: per-connection/per-market markup/markdown; preview + batch apply; currency safeguards.
+## Phase 7: Collections & Price Rules ✅
+- ✅ Collection sync (custom collections): create/update/delete, membership via mapped products/tags; overwrite vs preserve local edits; handle clashes; tier caps.
+- ✅ Price rules: per-connection/per-market markup/markdown; preview + batch apply; currency safeguards.
 
 ## Phase 8: Payouts & Partner Network ✅
 - ✅ Payouts: commission/fee config per store/product, payout lifecycle (unpaid/paid/received), notifications/comments, manual refresh, optional auto-refresh (flag).
