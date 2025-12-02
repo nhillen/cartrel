@@ -8,22 +8,22 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - Align pricing enforcement plan with `PRD_PRICING_PACKAGING.md` (free 3/150/10 pushes, caps per tier, bundled forwarding/catalog controls/metafields/payouts).
 - Decide per-connection billing flag behavior (marketplace/dropship) and retention rule approach (inactive connections).
 
-## Phase 1: Data Model & Settings
-- Add per-connection config: `sync_mode`, `order_trigger_policy`, `sync_scope` (field flags), `stock_buffer`, `order_forwarding_enabled`, `inventory_location_id`, metafield caps, collection/price-rule flags (placeholders).
-- ProductMapping states: `active/replaced/unsupported/unsynced`, `status`, `last_error`, `last_sync_hash`, `conflict_mode`, hidden-tag handling.
-- Partner profile + invites (for partner network) data models; re-share consent flags.
-- Payout entities (payouts, lines, settings per store/product-level overrides).
-- Metafield definition/value tracking with caps.
+## Phase 1: Data Model & Settings ✅
+- ✅ Add per-connection config: `sync_mode`, `order_trigger_policy`, `sync_scope` (field flags), `stock_buffer`, `order_forwarding_enabled`, `inventory_location_id`, metafield caps, collection/price-rule flags (placeholders).
+- ✅ ProductMapping states: `active/replaced/unsupported/unsynced`, `status`, `last_error`, `last_sync_hash`, `conflict_mode`, hidden-tag handling.
+- ✅ Partner profile + invites (for partner network) data models; re-share consent flags.
+- ✅ Payout entities (payouts, lines, settings per store/product-level overrides).
+- ✅ Metafield definition/value tracking with caps.
 
-## Phase 2: Event Pipeline & Observability
-- Idempotent webhook ingestion: generate idempotency keys, DLQ/backoff, dedupe; store raw events and processing status.
-- Rate-limit/backpressure: capture API headers, dynamic throttling, health surfacing per connection; Shopify Plus multiplier detection.
-- Activity/Log surfacing: errors (mapping conflicts, forwarding failures, rate limits) exposed for UI consumption.
+## Phase 2: Event Pipeline & Observability ✅
+- ✅ Idempotent webhook ingestion: generate idempotency keys, DLQ/backoff, dedupe; store raw events and processing status.
+- ✅ Rate-limit/backpressure: capture API headers, dynamic throttling, health surfacing per connection; Shopify Plus multiplier detection.
+- ✅ Activity/Log surfacing: errors (mapping conflicts, forwarding failures, rate limits) exposed for UI consumption.
 
-## Phase 3: Mapping & Catalog Sync Core
-- Mapper service: bulk + individual mapping, conflict detection (duplicate/missing SKU, variant mismatch), drift detection (SKU changes), hidden-tag behavior, unsync/disconnect flows.
-- Catalog field controls: enforce scopes (title/desc/media/tags/vendor/type/price/SEO/etc.), hide-by-default, resync (per-product + bulk job), auto-add variants, tag append vs mirror.
-- Product-only mode: ignore inventory, log ignored events; content reconciliation job.
+## Phase 3: Mapping & Catalog Sync Core ✅
+- ✅ Mapper service: bulk + individual mapping, conflict detection (duplicate/missing SKU, variant mismatch), drift detection (SKU changes), hidden-tag behavior, unsync/disconnect flows.
+- ✅ Catalog field controls: enforce scopes (title/desc/media/tags/vendor/type/price/SEO/etc.), hide-by-default, resync (per-product + bulk job), auto-add variants, tag append vs mirror.
+- ✅ Product-only mode: ignore inventory, log ignored events; content reconciliation job.
 
 ## Phase 4: Inventory Engine
 - Inventory deltas: apply from orders/manual adjustments/refunds; respect order_trigger_policy (on_create vs on_paid); refund/restock rules; order edits diff.
