@@ -22,6 +22,7 @@ import { createShopifyGraphQLClient } from './shopify';
 import { ConnectionHealthService } from './ConnectionHealthService';
 import { SyncMode } from '@prisma/client';
 import crypto from 'crypto';
+import { BulkOperationService, BulkQueryTemplates } from './BulkOperationService';
 
 // Sync scope fields that can be controlled per connection
 export interface SyncScope {
@@ -613,6 +614,275 @@ export class ProductSyncService {
       logger.info(`Product ${shopifyProductId} marked as deleted`);
     } catch (error) {
       logger.error(`Error handling product delete for ${shopifyProductId}:`, error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // BULK OPERATIONS - For large catalog syncs
+  // ============================================================================
+
+  /**
+   * Export all products from a shop using Shopify's bulk operations API
+   * Much more efficient for large catalogs (1000+ products)
+   */
+  static async bulkExportProducts(
+    shop: { myshopifyDomain: string; accessToken: string },
+    options?: {
+      includeMetafields?: boolean;
+      onProgress?: (status: string, count?: number) => void;
+    }
+  ): Promise<
+    Array<{
+      id: string;
+      title: string;
+      handle: string;
+      status: string;
+      vendor: string;
+      productType: string;
+      tags: string[];
+      variants: Array<{
+        id: string;
+        sku: string;
+        price: string;
+        compareAtPrice: string | null;
+        inventoryQuantity: number;
+        inventoryItemId: string;
+      }>;
+      metafields?: Array<{
+        namespace: string;
+        key: string;
+        value: string;
+        type: string;
+      }>;
+    }>
+  > {
+    logger.info(`Starting bulk product export for ${shop.myshopifyDomain}`);
+
+    // Build query based on options
+    const query = options?.includeMetafields
+      ? BulkQueryTemplates.allProducts
+      : `
+        {
+          products {
+            edges {
+              node {
+                id
+                title
+                handle
+                status
+                vendor
+                productType
+                tags
+                variants(first: 100) {
+                  edges {
+                    node {
+                      id
+                      sku
+                      price
+                      compareAtPrice
+                      inventoryQuantity
+                      inventoryItem {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+    try {
+      // Start bulk operation
+      const { operationId } = await BulkOperationService.startBulkQuery(shop, query);
+
+      options?.onProgress?.('started', 0);
+
+      // Poll until complete
+      const operation = await BulkOperationService.pollUntilComplete(shop, operationId, {
+        maxWaitMs: 600000, // 10 minutes for large catalogs
+        pollIntervalMs: 3000,
+        onProgress: (op) => {
+          options?.onProgress?.('running', op.objectCount || 0);
+        },
+      });
+
+      if (!operation.url) {
+        throw new Error('Bulk operation completed but no URL returned');
+      }
+
+      options?.onProgress?.('downloading', operation.objectCount || 0);
+
+      // Download and process results
+      const rawResults = await BulkOperationService.downloadAllResults(operation.url);
+
+      // Transform JSONL format (nested objects) into flat structure
+      const products = this.transformBulkResults(rawResults);
+
+      logger.info(`Bulk export complete for ${shop.myshopifyDomain}: ${products.length} products`);
+
+      options?.onProgress?.('complete', products.length);
+
+      return products;
+    } catch (error) {
+      logger.error(`Bulk export failed for ${shop.myshopifyDomain}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Transform Shopify bulk operation JSONL results into structured products
+   * Shopify returns nested objects that need to be combined
+   */
+  private static transformBulkResults(rawResults: any[]): any[] {
+    const productsMap = new Map<string, any>();
+
+    for (const item of rawResults) {
+      if (item.__parentId) {
+        // This is a child object (variant, metafield, etc.)
+        const parent = productsMap.get(item.__parentId);
+        if (parent) {
+          // Determine type of child
+          if (item.sku !== undefined || item.inventoryItem) {
+            // It's a variant
+            if (!parent.variants) parent.variants = [];
+            parent.variants.push({
+              id: item.id,
+              sku: item.sku || '',
+              price: item.price || '0.00',
+              compareAtPrice: item.compareAtPrice,
+              inventoryQuantity: item.inventoryQuantity || 0,
+              inventoryItemId: item.inventoryItem?.id || '',
+            });
+          } else if (item.namespace && item.key) {
+            // It's a metafield
+            if (!parent.metafields) parent.metafields = [];
+            parent.metafields.push({
+              namespace: item.namespace,
+              key: item.key,
+              value: item.value,
+              type: item.type,
+            });
+          }
+        }
+      } else if (item.id?.includes('Product')) {
+        // This is a product
+        productsMap.set(item.id, {
+          id: item.id,
+          title: item.title,
+          handle: item.handle,
+          status: item.status,
+          vendor: item.vendor,
+          productType: item.productType,
+          tags: item.tags || [],
+          variants: [],
+          metafields: [],
+        });
+      }
+    }
+
+    return Array.from(productsMap.values());
+  }
+
+  /**
+   * Sync all products from supplier to database using bulk operations
+   * Used for initial sync or full resync of large catalogs
+   */
+  static async bulkSyncSupplierCatalog(
+    shopId: string,
+    options?: {
+      onProgress?: (status: string, count?: number) => void;
+    }
+  ): Promise<{ imported: number; updated: number; errors: string[] }> {
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+    });
+
+    if (!shop) {
+      throw new Error(`Shop ${shopId} not found`);
+    }
+
+    logger.info(`Starting bulk catalog sync for ${shop.myshopifyDomain}`);
+
+    const errors: string[] = [];
+    let imported = 0;
+    let updated = 0;
+
+    try {
+      // Export all products using bulk operation
+      const products = await this.bulkExportProducts(shop, {
+        includeMetafields: true,
+        onProgress: options?.onProgress,
+      });
+
+      // Process products in batches
+      const batchSize = 100;
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+
+        for (const product of batch) {
+          try {
+            const productIdNumeric = product.id.split('/').pop()!;
+
+            // Check if product exists
+            const existing = await prisma.supplierProduct.findFirst({
+              where: {
+                supplierShopId: shopId,
+                shopifyProductId: productIdNumeric,
+              },
+            });
+
+            // Get first variant data
+            const variant = product.variants[0];
+
+            if (existing) {
+              // Update existing
+              await prisma.supplierProduct.update({
+                where: { id: existing.id },
+                data: {
+                  title: product.title,
+                  sku: variant?.sku || null,
+                  wholesalePrice: parseFloat(variant?.price || '0'),
+                  inventoryQuantity: variant?.inventoryQuantity || 0,
+                  lastSyncedAt: new Date(),
+                },
+              });
+              updated++;
+            } else {
+              // Create new
+              await prisma.supplierProduct.create({
+                data: {
+                  supplierShopId: shopId,
+                  shopifyProductId: productIdNumeric,
+                  shopifyVariantId: variant?.id.split('/').pop() || '',
+                  title: product.title,
+                  sku: variant?.sku || null,
+                  wholesalePrice: parseFloat(variant?.price || '0'),
+                  inventoryQuantity: variant?.inventoryQuantity || 0,
+                  isWholesaleEligible: false,
+                },
+              });
+              imported++;
+            }
+          } catch (error) {
+            errors.push(
+              `Product ${product.id}: ${error instanceof Error ? error.message : 'Unknown'}`
+            );
+          }
+        }
+
+        options?.onProgress?.('syncing', imported + updated);
+      }
+
+      logger.info(
+        `Bulk catalog sync complete: ${imported} imported, ${updated} updated, ${errors.length} errors`
+      );
+
+      return { imported, updated, errors };
+    } catch (error) {
+      logger.error(`Bulk catalog sync failed:`, error);
       throw error;
     }
   }

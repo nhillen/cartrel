@@ -13,8 +13,8 @@ import { prisma } from '../index';
 import { logger } from '../utils/logger';
 import { createShopifyGraphQLClient } from './shopify';
 import { ProductMappingStatus } from '@prisma/client';
-// import crypto from 'crypto'; // Unused for now
 import { canMarkProductWholesale, getEffectiveLimits } from '../utils/planLimits';
+import { BulkOperationService } from './BulkOperationService';
 
 interface ImportPreferences {
   syncTitle?: boolean;
@@ -609,6 +609,181 @@ export class ProductImportService {
       logger.error(`Error creating product in retailer shop:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Stage upload an image and return the resource URL
+   * Used for better performance when importing products with images
+   */
+  private static async stageUploadImage(
+    shop: { myshopifyDomain: string; accessToken: string },
+    imageUrl: string
+  ): Promise<string | null> {
+    try {
+      // Download the image first
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        logger.warn(`Failed to fetch image from ${imageUrl}`);
+        return null;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+      // Determine filename from URL
+      const urlParts = new URL(imageUrl);
+      const filename = urlParts.pathname.split('/').pop() || 'image.jpg';
+
+      // Create staged upload
+      const targets = await BulkOperationService.createStagedUploads(shop, [
+        {
+          filename,
+          mimeType: contentType,
+          resource: 'IMAGE',
+          fileSize: buffer.length,
+        },
+      ]);
+
+      if (targets.length === 0) {
+        logger.warn('No staged upload target returned');
+        return null;
+      }
+
+      // Upload to staged target
+      const resourceUrl = await BulkOperationService.uploadToStagedTarget(targets[0], buffer);
+      return resourceUrl;
+    } catch (error) {
+      logger.error(`Error staging image upload:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Create product with media using staged uploads for better performance
+   * Falls back to URL-based images if staging fails
+   */
+  static async createProductWithStagedMedia(
+    retailerShop: { myshopifyDomain: string; accessToken: string },
+    productInput: any,
+    imageUrls: string[]
+  ): Promise<{ productId: string; variantId: string }> {
+    const client = createShopifyGraphQLClient(
+      retailerShop.myshopifyDomain,
+      retailerShop.accessToken
+    );
+
+    // First create the product without images
+    const createMutation = `
+      mutation productCreate($input: ProductInput!) {
+        productCreate(input: $input) {
+          product {
+            id
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const createResponse: any = await client.request(createMutation, {
+      variables: { input: productInput },
+    });
+
+    if (createResponse.data?.productCreate?.userErrors?.length > 0) {
+      const errors = createResponse.data.productCreate.userErrors;
+      throw new Error(`Product creation failed: ${errors[0].message}`);
+    }
+
+    const product = createResponse.data.productCreate.product;
+    const productId = product.id;
+    const variantId = product.variants.edges[0]?.node?.id || '';
+
+    // If we have images, add them via productCreateMedia for better async handling
+    if (imageUrls.length > 0) {
+      try {
+        // Stage upload images in parallel
+        const stagedUrls = await Promise.all(
+          imageUrls.slice(0, 10).map((url) => this.stageUploadImage(retailerShop, url))
+        );
+
+        const validStagedUrls = stagedUrls.filter((u): u is string => u !== null);
+
+        if (validStagedUrls.length > 0) {
+          // Use productCreateMedia with staged uploads
+          const mediaMutation = `
+            mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+              productCreateMedia(productId: $productId, media: $media) {
+                media {
+                  ... on MediaImage {
+                    id
+                  }
+                }
+                mediaUserErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+          const mediaInput = validStagedUrls.map((stagedUrl) => ({
+            originalSource: stagedUrl,
+            mediaContentType: 'IMAGE',
+          }));
+
+          await client.request(mediaMutation, {
+            variables: { productId, media: mediaInput },
+          });
+
+          logger.info(`Added ${validStagedUrls.length} staged images to product ${productId}`);
+        } else {
+          // Fallback to URL-based images if staging failed
+          const fallbackMutation = `
+            mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+              productCreateMedia(productId: $productId, media: $media) {
+                media {
+                  ... on MediaImage {
+                    id
+                  }
+                }
+                mediaUserErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `;
+
+          const mediaInput = imageUrls.slice(0, 10).map((url) => ({
+            originalSource: url,
+            mediaContentType: 'IMAGE',
+          }));
+
+          await client.request(fallbackMutation, {
+            variables: { productId, media: mediaInput },
+          });
+
+          logger.info(`Added ${imageUrls.length} URL-based images to product ${productId}`);
+        }
+      } catch (error) {
+        logger.warn(`Failed to add media to product ${productId}:`, error);
+        // Product was created, just without images - don't throw
+      }
+    }
+
+    return {
+      productId: productId.split('/').pop()!,
+      variantId: variantId.split('/').pop() || '',
+    };
   }
 
   /**
