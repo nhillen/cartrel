@@ -44,9 +44,9 @@ Sequence the work to align the codebase with the updated PRDs/design, covering c
 - Collection sync (custom collections): create/update/delete, membership via mapped products/tags; overwrite vs preserve local edits; handle clashes; tier caps.
 - Price rules: per-connection/per-market markup/markdown; preview + batch apply; currency safeguards.
 
-## Phase 8: Payouts & Partner Network
-- Payouts: commission/fee config per store/product, payout lifecycle (unpaid/paid/received), notifications/comments, manual refresh, optional auto-refresh (flag).
-- Partner network: profiles, search/filter, invites; consented re-share governance; tie to tier gating.
+## Phase 8: Payouts & Partner Network ✅
+- ✅ Payouts: commission/fee config per store/product, payout lifecycle (unpaid/paid/received), notifications/comments, manual refresh, optional auto-refresh (flag).
+- Partner network: profiles, search/filter, invites; consented re-share governance; tie to tier gating. (Data models exist, UI deferred)
 
 ## Phase 9: UI/Docs
 - Surface health/logs/errors (rate limits, mapping conflicts, forwarding failures).
