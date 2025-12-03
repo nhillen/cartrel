@@ -344,17 +344,19 @@ async function handleAppUninstall(shopId: string): Promise<{ shopId: string; pau
 
     logger.info(`Paused ${result.count} connections for shop ${shopId}`);
 
-    // Mark shop role as RETAILER (downgrade from SUPPLIER to prevent billing)
+    // Clear access token and reset role to UNSET
+    // This forces OAuth on reinstall and proper onboarding flow
     // Keep the shop record for data retention
     await prisma.shop.update({
       where: { id: shopId },
       data: {
-        role: 'RETAILER', // Retailers don't pay
+        accessToken: '', // Clear token to force OAuth on reinstall
+        role: 'UNSET', // Reset role so they go through onboarding
         plan: 'FREE',
       },
     });
 
-    logger.info(`Downgraded shop ${shopId} to FREE/RETAILER plan`);
+    logger.info(`Cleared token and reset shop ${shopId} to UNSET/FREE`);
     return { shopId, paused: result.count };
   } catch (error) {
     logger.error(`Error handling app uninstall for ${shopId}:`, error);
