@@ -82,7 +82,12 @@ app.use(
           'https://monorail-edge.shopifysvc.com',
         ],
         frameSrc: ["'self'", 'https://*.myshopify.com'],
-        frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com', 'https://accounts.shopify.com'],
+        frameAncestors: [
+          "'self'",
+          'https://*.myshopify.com',
+          'https://admin.shopify.com',
+          'https://accounts.shopify.com',
+        ],
         formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
         navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
       },
