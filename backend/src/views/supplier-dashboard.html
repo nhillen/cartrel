@@ -524,27 +524,222 @@
                 <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
             </div>
 
+            <!-- Wholesale Pricing -->
             <div class="card">
-                <h2>Multi-Location Inventory</h2>
+                <h2>💰 Wholesale Pricing</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
-                    <strong>NEW:</strong> Manage warehouse-specific inventory sync and safety stock. Configure per-connection in the Partners tab.
+                    Configure how wholesale prices are calculated for your retail partners.
                 </p>
 
-                <div style="background: #F0F9FF; padding: 20px; border-radius: 8px; border-left: 4px solid #0EA5E9;">
-                    <div style="font-weight: 600; color: #0C4A6E; margin-bottom: 12px;">✨ Advanced Inventory Management</div>
-                    <ul style="margin: 0; padding-left: 20px; color: #475569;">
-                        <li style="margin-bottom: 8px;">Sync from specific warehouse locations</li>
-                        <li style="margin-bottom: 8px;">Reserve safety stock (e.g., keep 10 units for emergencies)</li>
-                        <li style="margin-bottom: 8px;">Separate retail and wholesale inventory</li>
-                        <li>Location-aware sync prevents overselling</li>
-                    </ul>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Pricing Strategy</label>
+                    <select id="pricingStrategy" onchange="togglePricingOptions()" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="PRODUCT_PRICE">Use per-product wholesale prices (set in Shopify)</option>
+                        <option value="DISCOUNT_PERCENT">Discount from retail price (%)</option>
+                        <option value="DISCOUNT_FIXED">Fixed discount from retail ($)</option>
+                    </select>
                 </div>
 
-                <div style="margin-top: 20px;">
-                    <a href="#" onclick="showTab('partners'); return false;" class="btn btn-secondary">
-                        Configure in Partners Tab →
-                    </a>
+                <div id="discountValueSection" style="display: none; margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Default Discount</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="defaultDiscount" placeholder="20" style="width: 120px; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <span id="discountSuffix" style="color: #64748B;">% off retail</span>
+                    </div>
+                    <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        Example: 20% discount means $100 retail → $80 wholesale
+                    </p>
                 </div>
+
+                <div style="border-top: 1px solid #E2E8F0; padding-top: 20px; margin-top: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 12px;">Tier-Based Discounts</label>
+                    <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
+                        Give additional discounts to partners in higher tiers. These stack with your base pricing.
+                    </p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="background: #F8F9FA; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">STANDARD Tier</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="tierDiscountStandard" value="0" style="width: 60px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; text-align: center;">
+                                <span style="color: #64748B;">% additional</span>
+                            </div>
+                        </div>
+                        <div style="background: #F8F9FA; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">SILVER Tier</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="tierDiscountSilver" value="5" style="width: 60px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; text-align: center;">
+                                <span style="color: #64748B;">% additional</span>
+                            </div>
+                        </div>
+                        <div style="background: #F8F9FA; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">GOLD Tier</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="tierDiscountGold" value="10" style="width: 60px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; text-align: center;">
+                                <span style="color: #64748B;">% additional</span>
+                            </div>
+                        </div>
+                        <div style="background: #F8F9FA; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">PLATINUM Tier</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="tierDiscountPlatinum" value="15" style="width: 60px; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; text-align: center;">
+                                <span style="color: #64748B;">% additional</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="savePricingSettings()" style="margin-top: 20px;">Save Pricing Settings</button>
+            </div>
+
+            <!-- Sync Restrictions -->
+            <div class="card">
+                <h2>🔒 Sync Restrictions</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Control what data retailers can sync from your products.
+                </p>
+
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 12px;">Allow retailers to sync these fields:</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncTitle" checked style="width: 18px; height: 18px;">
+                            <span>Title</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncDescription" checked style="width: 18px; height: 18px;">
+                            <span>Description</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncImages" checked style="width: 18px; height: 18px;">
+                            <span>Images</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncPrice" checked style="width: 18px; height: 18px;">
+                            <span>Price</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncInventory" checked style="width: 18px; height: 18px;">
+                            <span>Inventory</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncTags" checked style="width: 18px; height: 18px;">
+                            <span>Tags</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncSEO" checked style="width: 18px; height: 18px;">
+                            <span>SEO (meta title/description)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #F8F9FA; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="allowSyncMetafields" checked style="width: 18px; height: 18px;">
+                            <span>Metafields</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #E2E8F0; padding-top: 20px; margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="restrictToOrderedProducts" style="width: 20px; height: 20px;">
+                        <div>
+                            <div style="font-weight: 600;">Restrict to ordered products only</div>
+                            <div style="font-size: 13px; color: #64748B;">
+                                Retailers can only sync products they've previously ordered from you
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div style="background: #FEF3C7; padding: 16px; border-radius: 8px; border-left: 4px solid #F59E0B; margin-bottom: 20px;">
+                    <div style="font-weight: 600; color: #92400E; margin-bottom: 4px;">💡 Tip</div>
+                    <div style="font-size: 14px; color: #78350F;">
+                        "Restrict to ordered products" is great for preventing competitors from accessing your full catalog.
+                        Retailers must place an order first before they can import and sync products.
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSyncRestrictions()">Save Sync Restrictions</button>
+            </div>
+
+            <!-- Collection & Metafield Access -->
+            <div class="card">
+                <h2>📦 Collection & Metafield Access</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Control which collections and metafields retailers can access.
+                </p>
+
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Collection Access</label>
+                    <select id="collectionAccess" onchange="toggleCollectionList()" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="ALL">All collections (retailers see everything)</option>
+                        <option value="SELECTED">Only selected collections</option>
+                        <option value="NONE">No collections (product-only sync)</option>
+                    </select>
+                </div>
+
+                <div id="collectionListSection" style="display: none; margin-bottom: 24px;">
+                    <div id="collectionList" style="max-height: 200px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px;">
+                        <div style="text-align: center; padding: 20px; color: #64748B;">Loading collections...</div>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #E2E8F0; padding-top: 20px; margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Metafield Access</label>
+                    <select id="metafieldAccess" onchange="toggleMetafieldList()" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="ALL">All metafields</option>
+                        <option value="SELECTED">Only selected metafields</option>
+                        <option value="NONE">No metafields</option>
+                    </select>
+                    <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        Hide sensitive metafields like cost, supplier codes, or internal notes.
+                    </p>
+                </div>
+
+                <div id="metafieldListSection" style="display: none; margin-bottom: 24px;">
+                    <div id="metafieldList" style="max-height: 200px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px;">
+                        <div style="text-align: center; padding: 20px; color: #64748B;">Loading metafields...</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveAccessSettings()">Save Access Settings</button>
+            </div>
+
+            <!-- Inventory Settings -->
+            <div class="card">
+                <h2>📍 Inventory Settings</h2>
+                <p style="color: #64748B; margin-bottom: 24px;">
+                    Configure where wholesale inventory comes from and reserve stock for your own retail.
+                </p>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Source Location</label>
+                    <select id="sourceLocation" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <option value="">All locations (combined inventory)</option>
+                        <!-- Locations loaded dynamically -->
+                    </select>
+                    <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        Which warehouse location should wholesale inventory sync from?
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">Stock Buffer (Reserve for Retail)</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="stockBuffer" value="0" min="0" style="width: 100px; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                        <span style="color: #64748B;">units per product</span>
+                    </div>
+                    <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                        Reserve this many units for your own retail. Wholesale partners see (actual - buffer).
+                    </p>
+                </div>
+
+                <div style="background: #F0F9FF; padding: 16px; border-radius: 8px; border-left: 4px solid #0EA5E9; margin-bottom: 20px;">
+                    <div style="font-weight: 600; color: #0C4A6E; margin-bottom: 8px;">📊 Example</div>
+                    <div style="font-size: 14px; color: #475569;">
+                        If you have 100 units and set a buffer of 10, wholesale partners will see 90 available.
+                        This prevents overselling while keeping stock for your direct customers.
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveInventorySettings()">Save Inventory Settings</button>
             </div>
 
             <div class="card" style="background: #F8F9FA; border: 2px solid #E2E8F0;">
@@ -656,7 +851,10 @@
                     loadPartners();
                 }
                 if (tabName === 'orders') loadOrders();
-                if (tabName === 'settings') loadCurrentRole();
+                if (tabName === 'settings') {
+                    loadCurrentRole();
+                    loadAllSettings();
+                }
             });
         });
 
@@ -942,13 +1140,38 @@
                             </div>
 
                             ${!isTerminated ? `
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <!-- Pricing & Tier Row -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; padding: 12px; background: #F8F9FA; border-radius: 6px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #64748B; display: block; margin-bottom: 4px;">Partner Tier</label>
+                                    <select
+                                        id="tier-${partner.id}"
+                                        onchange="updateConnection('${partner.id}', 'tier', this.value)"
+                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px; background: white;"
+                                        ${isPaused ? 'disabled' : ''}>
+                                        <option value="STANDARD" ${partner.tier === 'STANDARD' ? 'selected' : ''}>Standard</option>
+                                        <option value="SILVER" ${partner.tier === 'SILVER' ? 'selected' : ''}>Silver</option>
+                                        <option value="GOLD" ${partner.tier === 'GOLD' ? 'selected' : ''}>Gold</option>
+                                        <option value="PLATINUM" ${partner.tier === 'PLATINUM' ? 'selected' : ''}>Platinum</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #64748B; display: block; margin-bottom: 4px;">Price Override (%)</label>
+                                    <input
+                                        type="number"
+                                        id="priceOverride-${partner.id}"
+                                        value="${partner.priceOverride || ''}"
+                                        placeholder="Use tier"
+                                        onchange="updateConnection('${partner.id}', 'priceOverride', this.value)"
+                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px; background: white;"
+                                        ${isPaused ? 'disabled' : ''}>
+                                </div>
                                 <div>
                                     <label style="font-size: 12px; color: #64748B; display: block; margin-bottom: 4px;">Payment Terms</label>
                                     <select
                                         id="paymentTerms-${partner.id}"
                                         onchange="updateConnection('${partner.id}', 'paymentTermsType', this.value)"
-                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px;"
+                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px; background: white;"
                                         ${isPaused ? 'disabled' : ''}>
                                         <option value="PREPAY" ${partner.paymentTerms === 'PREPAY' ? 'selected' : ''}>Prepay</option>
                                         <option value="NET_15" ${partner.paymentTerms === 'NET_15' ? 'selected' : ''}>Net 15</option>
@@ -963,26 +1186,27 @@
                                         id="minOrder-${partner.id}"
                                         value="${partner.minOrderAmount}"
                                         onchange="updateConnection('${partner.id}', 'minOrderAmount', this.value)"
-                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px;"
+                                        style="width: 100%; padding: 8px; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 14px; background: white;"
                                         ${isPaused ? 'disabled' : ''}>
                                 </div>
-                                <div style="display: flex; gap: 8px; align-items: end;">
-                                    ${!isPaused ? `
-                                        <button onclick="updateConnection('${partner.id}', 'status', 'PAUSED')"
-                                                style="flex: 1; padding: 8px 12px; background: #F59E0B; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
-                                            Pause
-                                        </button>
-                                    ` : `
-                                        <button onclick="updateConnection('${partner.id}', 'status', 'ACTIVE')"
-                                                style="flex: 1; padding: 8px 12px; background: #10B981; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
-                                            Activate
-                                        </button>
-                                    `}
-                                    <button onclick="if(confirm('Are you sure you want to remove this connection?')) updateConnection('${partner.id}', 'status', 'TERMINATED')"
-                                            style="flex: 1; padding: 8px 12px; background: #EF4444; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
-                                        Remove
+                            </div>
+                            <!-- Actions Row -->
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                ${!isPaused ? `
+                                    <button onclick="updateConnection('${partner.id}', 'status', 'PAUSED')"
+                                            style="padding: 8px 16px; background: #F59E0B; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
+                                        Pause
                                     </button>
-                                </div>
+                                ` : `
+                                    <button onclick="updateConnection('${partner.id}', 'status', 'ACTIVE')"
+                                            style="padding: 8px 16px; background: #10B981; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
+                                        Activate
+                                    </button>
+                                `}
+                                <button onclick="if(confirm('Are you sure you want to remove this connection?')) updateConnection('${partner.id}', 'status', 'TERMINATED')"
+                                        style="padding: 8px 16px; background: #EF4444; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
+                                    Remove
+                                </button>
                             </div>
                             ` : `
                             <div style="padding: 12px; background: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px; font-size: 14px; color: #92400E;">
@@ -1343,6 +1567,291 @@
                 console.error('Error saving settings:', error);
                 alert('Error saving settings. Please try again.');
             }
+        }
+
+        // ============================================================================
+        // WHOLESALE PRICING SETTINGS
+        // ============================================================================
+
+        function togglePricingOptions() {
+            const strategy = document.getElementById('pricingStrategy').value;
+            const discountSection = document.getElementById('discountValueSection');
+            const suffix = document.getElementById('discountSuffix');
+
+            if (strategy === 'PRODUCT_PRICE') {
+                discountSection.style.display = 'none';
+            } else {
+                discountSection.style.display = 'block';
+                suffix.textContent = strategy === 'DISCOUNT_PERCENT' ? '% off retail' : '$ off retail';
+            }
+        }
+
+        async function loadPricingSettings() {
+            try {
+                const response = await fetch(`/api/supplier/pricing-settings?shop=${shop}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('pricingStrategy').value = data.pricingStrategy || 'PRODUCT_PRICE';
+                    document.getElementById('defaultDiscount').value = data.defaultDiscount || '';
+                    document.getElementById('tierDiscountStandard').value = data.tierDiscounts?.STANDARD || 0;
+                    document.getElementById('tierDiscountSilver').value = data.tierDiscounts?.SILVER || 5;
+                    document.getElementById('tierDiscountGold').value = data.tierDiscounts?.GOLD || 10;
+                    document.getElementById('tierDiscountPlatinum').value = data.tierDiscounts?.PLATINUM || 15;
+                    togglePricingOptions();
+                }
+            } catch (error) {
+                console.error('Error loading pricing settings:', error);
+            }
+        }
+
+        async function savePricingSettings() {
+            const settings = {
+                shop,
+                pricingStrategy: document.getElementById('pricingStrategy').value,
+                defaultDiscount: parseFloat(document.getElementById('defaultDiscount').value) || 0,
+                tierDiscounts: {
+                    STANDARD: parseFloat(document.getElementById('tierDiscountStandard').value) || 0,
+                    SILVER: parseFloat(document.getElementById('tierDiscountSilver').value) || 0,
+                    GOLD: parseFloat(document.getElementById('tierDiscountGold').value) || 0,
+                    PLATINUM: parseFloat(document.getElementById('tierDiscountPlatinum').value) || 0,
+                }
+            };
+
+            try {
+                const response = await fetch('/api/supplier/pricing-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('Pricing settings saved successfully!');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to save pricing settings'));
+                }
+            } catch (error) {
+                console.error('Error saving pricing settings:', error);
+                alert('Error saving pricing settings. Please try again.');
+            }
+        }
+
+        // ============================================================================
+        // SYNC RESTRICTIONS
+        // ============================================================================
+
+        async function loadSyncRestrictions() {
+            try {
+                const response = await fetch(`/api/supplier/sync-restrictions?shop=${shop}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('allowSyncTitle').checked = data.allowedFields?.title !== false;
+                    document.getElementById('allowSyncDescription').checked = data.allowedFields?.description !== false;
+                    document.getElementById('allowSyncImages').checked = data.allowedFields?.images !== false;
+                    document.getElementById('allowSyncPrice').checked = data.allowedFields?.price !== false;
+                    document.getElementById('allowSyncInventory').checked = data.allowedFields?.inventory !== false;
+                    document.getElementById('allowSyncTags').checked = data.allowedFields?.tags !== false;
+                    document.getElementById('allowSyncSEO').checked = data.allowedFields?.seo !== false;
+                    document.getElementById('allowSyncMetafields').checked = data.allowedFields?.metafields !== false;
+                    document.getElementById('restrictToOrderedProducts').checked = data.restrictToOrderedProducts || false;
+                }
+            } catch (error) {
+                console.error('Error loading sync restrictions:', error);
+            }
+        }
+
+        async function saveSyncRestrictions() {
+            const settings = {
+                shop,
+                allowedFields: {
+                    title: document.getElementById('allowSyncTitle').checked,
+                    description: document.getElementById('allowSyncDescription').checked,
+                    images: document.getElementById('allowSyncImages').checked,
+                    price: document.getElementById('allowSyncPrice').checked,
+                    inventory: document.getElementById('allowSyncInventory').checked,
+                    tags: document.getElementById('allowSyncTags').checked,
+                    seo: document.getElementById('allowSyncSEO').checked,
+                    metafields: document.getElementById('allowSyncMetafields').checked,
+                },
+                restrictToOrderedProducts: document.getElementById('restrictToOrderedProducts').checked,
+            };
+
+            try {
+                const response = await fetch('/api/supplier/sync-restrictions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('Sync restrictions saved successfully!');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to save sync restrictions'));
+                }
+            } catch (error) {
+                console.error('Error saving sync restrictions:', error);
+                alert('Error saving sync restrictions. Please try again.');
+            }
+        }
+
+        // ============================================================================
+        // COLLECTION & METAFIELD ACCESS
+        // ============================================================================
+
+        function toggleCollectionList() {
+            const access = document.getElementById('collectionAccess').value;
+            const section = document.getElementById('collectionListSection');
+            section.style.display = access === 'SELECTED' ? 'block' : 'none';
+            if (access === 'SELECTED') {
+                loadCollections();
+            }
+        }
+
+        function toggleMetafieldList() {
+            const access = document.getElementById('metafieldAccess').value;
+            const section = document.getElementById('metafieldListSection');
+            section.style.display = access === 'SELECTED' ? 'block' : 'none';
+            if (access === 'SELECTED') {
+                loadMetafields();
+            }
+        }
+
+        async function loadCollections() {
+            const container = document.getElementById('collectionList');
+            try {
+                const response = await fetch(`/api/supplier/collections?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.collections && data.collections.length > 0) {
+                    container.innerHTML = data.collections.map(c => `
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-bottom: 1px solid #F1F5F9;">
+                            <input type="checkbox" class="collection-checkbox" value="${c.id}" ${c.allowed ? 'checked' : ''} style="width: 16px; height: 16px;">
+                            <span>${c.title}</span>
+                            <span style="color: #64748B; font-size: 12px; margin-left: auto;">${c.productCount} products</span>
+                        </label>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748B;">No collections found</div>';
+                }
+            } catch (error) {
+                console.error('Error loading collections:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #EF4444;">Error loading collections</div>';
+            }
+        }
+
+        async function loadMetafields() {
+            const container = document.getElementById('metafieldList');
+            try {
+                const response = await fetch(`/api/supplier/metafields?shop=${shop}`);
+                const data = await response.json();
+
+                if (data.metafields && data.metafields.length > 0) {
+                    container.innerHTML = data.metafields.map(m => `
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-bottom: 1px solid #F1F5F9;">
+                            <input type="checkbox" class="metafield-checkbox" value="${m.namespace}.${m.key}" ${m.allowed ? 'checked' : ''} style="width: 16px; height: 16px;">
+                            <span>${m.name || m.key}</span>
+                            <span style="color: #64748B; font-size: 12px; margin-left: auto;">${m.namespace}</span>
+                        </label>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748B;">No metafields found</div>';
+                }
+            } catch (error) {
+                console.error('Error loading metafields:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #EF4444;">Error loading metafields</div>';
+            }
+        }
+
+        async function saveAccessSettings() {
+            const collectionCheckboxes = document.querySelectorAll('.collection-checkbox:checked');
+            const metafieldCheckboxes = document.querySelectorAll('.metafield-checkbox:checked');
+
+            const settings = {
+                shop,
+                collectionAccess: document.getElementById('collectionAccess').value,
+                allowedCollections: Array.from(collectionCheckboxes).map(cb => cb.value),
+                metafieldAccess: document.getElementById('metafieldAccess').value,
+                allowedMetafields: Array.from(metafieldCheckboxes).map(cb => cb.value),
+            };
+
+            try {
+                const response = await fetch('/api/supplier/access-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('Access settings saved successfully!');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to save access settings'));
+                }
+            } catch (error) {
+                console.error('Error saving access settings:', error);
+                alert('Error saving access settings. Please try again.');
+            }
+        }
+
+        // ============================================================================
+        // INVENTORY SETTINGS
+        // ============================================================================
+
+        async function loadInventorySettings() {
+            try {
+                // Load locations
+                const locResponse = await fetch(`/api/supplier/locations?shop=${shop}`);
+                if (locResponse.ok) {
+                    const locData = await locResponse.json();
+                    const select = document.getElementById('sourceLocation');
+                    select.innerHTML = '<option value="">All locations (combined inventory)</option>' +
+                        locData.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                }
+
+                // Load settings
+                const response = await fetch(`/api/supplier/inventory-settings?shop=${shop}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('sourceLocation').value = data.sourceLocationId || '';
+                    document.getElementById('stockBuffer').value = data.stockBuffer || 0;
+                }
+            } catch (error) {
+                console.error('Error loading inventory settings:', error);
+            }
+        }
+
+        async function saveInventorySettings() {
+            const settings = {
+                shop,
+                sourceLocationId: document.getElementById('sourceLocation').value || null,
+                stockBuffer: parseInt(document.getElementById('stockBuffer').value) || 0,
+            };
+
+            try {
+                const response = await fetch('/api/supplier/inventory-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('Inventory settings saved successfully!');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to save inventory settings'));
+                }
+            } catch (error) {
+                console.error('Error saving inventory settings:', error);
+                alert('Error saving inventory settings. Please try again.');
+            }
+        }
+
+        // Load all settings when settings tab is opened
+        function loadAllSettings() {
+            loadPricingSettings();
+            loadSyncRestrictions();
+            loadInventorySettings();
         }
 
         // Load current role
