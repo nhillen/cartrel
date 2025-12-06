@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Page,
   Layout,
@@ -44,7 +44,6 @@ interface ConnectionDetailData extends Connection {
 
 export function ConnectionDetail() {
   const { connectionId } = useParams<{ connectionId: string }>();
-  const navigate = useNavigate();
 
   const [connection, setConnection] = useState<ConnectionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -389,7 +388,7 @@ export function ConnectionDetail() {
         </Layout.Section>
 
         {/* Price Rules Configuration */}
-        <Layout.Section variant="twoThirds">
+        <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
@@ -757,7 +756,7 @@ export function ConnectionDetail() {
             onAction: () => setShowPreviewModal(false),
           },
         ]}
-        large
+        size="large"
       >
         <Modal.Section>
           {pricePreview.length > 0 ? (

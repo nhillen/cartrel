@@ -299,7 +299,7 @@ export function ImportWizard() {
                     </BlockStack>
                     <InlineStack gap="200" blockAlign="center">
                       <Badge>
-                        {supplier.defaultMarkup.value}% markup
+                        {`${supplier.defaultMarkup.value}% markup`}
                       </Badge>
                       {selectedSupplier?.connectionId === supplier.connectionId && (
                         <Icon source={CheckIcon} tone="success" />
@@ -386,6 +386,7 @@ export function ImportWizard() {
               renderItem={(product) => (
                 <ResourceItem
                   id={product.id}
+                  onClick={() => {}}
                   accessibilityLabel={`Select ${product.title}`}
                   media={
                     <Thumbnail
@@ -402,7 +403,7 @@ export function ImportWizard() {
                         </Text>
                         {product.hasOrdered && (
                           <Badge tone="success">
-                            Ordered {product.orderCount}x
+                            {`Ordered ${product.orderCount}x`}
                           </Badge>
                         )}
                       </InlineStack>
@@ -577,9 +578,9 @@ export function ImportWizard() {
           ) : preview ? (
             <>
               <InlineStack gap="400">
-                <Badge tone="success">{preview.summary.newImports} new products</Badge>
-                <Badge tone="info">{preview.summary.updates} updates</Badge>
-                <Badge>{preview.summary.total} total</Badge>
+                <Badge tone="success">{`${preview.summary.newImports} new products`}</Badge>
+                <Badge tone="attention">{`${preview.summary.updates} updates`}</Badge>
+                <Badge>{`${preview.summary.total} total`}</Badge>
               </InlineStack>
 
               <Divider />
@@ -653,9 +654,9 @@ export function ImportWizard() {
 
           {importResult && (
             <InlineStack gap="400">
-              <Badge tone="success">{importResult.summary.success} imported</Badge>
+              <Badge tone="success">{`${importResult.summary.success} imported`}</Badge>
               {importResult.summary.errors > 0 && (
-                <Badge tone="critical">{importResult.summary.errors} failed</Badge>
+                <Badge tone="critical">{`${importResult.summary.errors} failed`}</Badge>
               )}
             </InlineStack>
           )}
@@ -772,7 +773,7 @@ export function ImportWizard() {
                   onClick={executeImport}
                   disabled={!canProceed}
                 >
-                  Import {selectedProductIds.length} Products
+                  {`Import ${selectedProductIds.length} Products`}
                 </Button>
               ) : (
                 <Button

@@ -7,19 +7,16 @@ import {
   Text,
   BlockStack,
   InlineStack,
-  Badge,
   Button,
   Spinner,
   Banner,
   ResourceList,
   ResourceItem,
-  Select,
   Divider,
   Box,
   Modal,
   DataTable,
   Icon,
-  TextField,
   Filters,
 } from '@shopify/polaris';
 import {
@@ -30,7 +27,6 @@ import {
 } from '@shopify/polaris-icons';
 import { api } from '../lib/api';
 import type {
-  ProductSnapshot,
   ProductHistory,
 } from '../lib/api';
 
@@ -255,7 +251,7 @@ export function ProductHistoryPage() {
         open={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         title={selectedProduct?.productTitle || 'Product History'}
-        large
+        size="large"
       >
         <Modal.Section>
           {selectedProduct && (
@@ -303,7 +299,7 @@ export function ProductHistoryPage() {
                           <Box minWidth="45%">
                             <BlockStack gap="100">
                               <Text as="p" variant="bodySm" tone="subdued">Previous value:</Text>
-                              <Box padding="200" background="bg-surface-critical-subdued" borderRadius="100">
+                              <Box padding="200" background="bg-surface-critical" borderRadius="100">
                                 <Text as="p" variant="bodySm">
                                   {formatValue(snapshot.oldValue)}
                                 </Text>
@@ -313,7 +309,7 @@ export function ProductHistoryPage() {
                           <Box minWidth="45%">
                             <BlockStack gap="100">
                               <Text as="p" variant="bodySm" tone="subdued">New value:</Text>
-                              <Box padding="200" background="bg-surface-success-subdued" borderRadius="100">
+                              <Box padding="200" background="bg-surface-success" borderRadius="100">
                                 <Text as="p" variant="bodySm">
                                   {formatValue(snapshot.newValue)}
                                 </Text>

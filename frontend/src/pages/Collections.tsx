@@ -244,9 +244,9 @@ export function Collections() {
                 />
               </Box>
               <InlineStack gap="400">
-                <Badge tone="success">{syncedCount} synced</Badge>
-                <Badge tone="attention">{pendingCount} pending</Badge>
-                <Badge>{enabledCount} enabled</Badge>
+                <Badge tone="success">{`${syncedCount} synced`}</Badge>
+                <Badge tone="attention">{`${pendingCount} pending`}</Badge>
+                <Badge>{`${enabledCount} enabled`}</Badge>
               </InlineStack>
             </InlineStack>
           </Card>
@@ -283,6 +283,7 @@ export function Collections() {
                   renderItem={(collection) => (
                     <ResourceItem
                       id={collection.id}
+                      onClick={() => {}}
                       accessibilityLabel={`Collection ${collection.sourceTitle}`}
                     >
                       <InlineStack align="space-between" blockAlign="center">

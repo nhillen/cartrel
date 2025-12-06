@@ -116,8 +116,6 @@ export function InventoryLocations() {
     }
   }, [selectedConnectionId, settings]);
 
-  const selectedConnection = connections.find(c => c.id === selectedConnectionId);
-
   if (loading && sourceLocations.length === 0) {
     return (
       <Page title="Inventory Locations" backAction={{ content: 'Settings', url: '/settings' }}>

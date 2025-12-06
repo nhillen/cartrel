@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Page,
   Layout,
@@ -14,7 +14,6 @@ import {
   ResourceList,
   ResourceItem,
   Select,
-  Divider,
   Box,
   Modal,
   DataTable,
@@ -29,13 +28,11 @@ import {
 import { api } from '../lib/api';
 import type {
   ProductVariantMappings,
-  VariantMapping,
   Connection,
 } from '../lib/api';
 
 export function VariantMappings() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const connectionId = searchParams.get('connectionId');
 
   const [loading, setLoading] = useState(true);
@@ -291,7 +288,7 @@ export function VariantMappings() {
                           </Text>
                         </BlockStack>
                         <Badge tone="critical">
-                          {product.unmappedCount} unmapped
+                          {`${product.unmappedCount} unmapped`}
                         </Badge>
                       </InlineStack>
                     </ResourceItem>
@@ -382,7 +379,7 @@ export function VariantMappings() {
             onAction: () => setShowMappingModal(false),
           },
         ]}
-        large
+        size="large"
       >
         <Modal.Section>
           {selectedProduct && (

@@ -216,7 +216,7 @@ export function Payouts() {
             </Card>
             <Card>
               <BlockStack gap="200" inlineAlign="center">
-                <Text as="p" variant="headingLg" tone="info">
+                <Text as="p" variant="headingLg">
                   {formatCurrency(summary?.paidTotal || 0, summary?.currency)}
                 </Text>
                 <Text as="p" tone="subdued">{summary?.paidPayouts || 0} paid</Text>
@@ -273,6 +273,7 @@ export function Payouts() {
                 renderItem={(payout) => (
                   <ResourceItem
                     id={payout.id}
+                    onClick={() => {}}
                     accessibilityLabel={`Payout ${payout.payoutNumber}`}
                   >
                     <InlineStack align="space-between" blockAlign="center">

@@ -14,8 +14,6 @@ import {
   Divider,
   Box,
   Icon,
-  ProgressBar,
-  Select,
   TextField,
 } from '@shopify/polaris';
 import {
@@ -377,7 +375,7 @@ export function Migration() {
                             )}
                           </BlockStack>
                           <InlineStack gap="200">
-                            {stats?.shadowImports > 0 && (
+                            {(stats?.shadowImports ?? 0) > 0 && (
                               <Button
                                 url={`/connections/${conn.id}?tab=shadow`}
                                 variant="plain"
