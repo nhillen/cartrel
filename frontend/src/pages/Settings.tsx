@@ -245,6 +245,56 @@ export function Settings() {
           </Card>
         </Layout.Section>
 
+        {/* Inventory Locations */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    Inventory Locations
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Configure which warehouse locations sync inventory between suppliers
+                  </Text>
+                </BlockStack>
+              </InlineStack>
+              <Divider />
+              <Button url="/settings/locations">
+                Manage Locations
+              </Button>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        {/* Migration from another app */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    Switching from another sync app?
+                  </Text>
+                  <Text as="p" tone="subdued">
+                    Migrate risk-free with Shadow Mode - test imports without affecting your store
+                  </Text>
+                </BlockStack>
+                <Badge tone="success">Easy Migration</Badge>
+              </InlineStack>
+              <Divider />
+              <InlineStack gap="200">
+                <Button url="/settings/migration" variant="primary">
+                  Start Migration
+                </Button>
+                <Button url="/settings/migration">
+                  Compare Pricing & Features
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
         {/* Danger Zone */}
         <Layout.Section>
           <Card>

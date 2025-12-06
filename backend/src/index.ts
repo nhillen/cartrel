@@ -82,7 +82,7 @@ app.use(
           'https://monorail-edge.shopifysvc.com',
         ],
         frameSrc: ["'self'", 'https://*.myshopify.com'],
-        frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'],
+        frameAncestors: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com', 'https://accounts.shopify.com'],
         formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
         navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
       },
@@ -213,6 +213,11 @@ app.get('/pricing', (_req, res): void => {
 // Features page
 app.get('/features', (_req, res): void => {
   res.sendFile(__dirname + '/views/features.html');
+});
+
+// Dropselling page
+app.get('/dropselling', (_req, res): void => {
+  res.sendFile(__dirname + '/views/dropselling.html');
 });
 
 // Privacy policy page

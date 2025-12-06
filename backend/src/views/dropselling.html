@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropselling on Shopify - Cartrel | Sell Products Without Holding Inventory</title>
+    <meta name="description" content="Start dropselling on Shopify. List supplier products, sell to customers, and have suppliers ship directly. No inventory risk, real-time sync, automated order forwarding.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background: #F5F5F3;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 60px 24px; }
+        header { background: white; border-bottom: 1px solid #E0DED8; padding: 20px 0; margin-bottom: 60px; }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: 700; color: #214937; text-decoration: none; }
+        .nav-link { color: #475569; text-decoration: none; margin-left: 24px; font-size: 15px; }
+        .nav-link:hover { color: #214937; }
+
+        .hero { text-align: center; margin-bottom: 60px; }
+        h1 { font-size: 52px; color: #214937; margin-bottom: 20px; line-height: 1.2; }
+        .tagline { font-size: 22px; color: #475569; max-width: 800px; margin: 0 auto 40px; line-height: 1.6; }
+
+        .badge-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 40px; }
+        .hero-badge { background: #214937; color: white; padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+        .hero-badge.alt { background: #10b981; }
+
+        /* How It Works */
+        .how-it-works { background: white; border-radius: 16px; padding: 60px 48px; margin-bottom: 60px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .how-it-works h2 { font-size: 36px; color: #214937; text-align: center; margin-bottom: 48px; }
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+        .step { text-align: center; position: relative; }
+        .step-number { width: 60px; height: 60px; background: #214937; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; margin: 0 auto 20px; }
+        .step h3 { font-size: 20px; color: #214937; margin-bottom: 12px; }
+        .step p { color: #64748B; font-size: 15px; line-height: 1.6; }
+        .step-arrow { position: absolute; right: -20px; top: 30px; font-size: 24px; color: #CBD5E1; }
+
+        /* Benefits Grid */
+        .benefits { margin: 60px 0; }
+        .benefits h2 { font-size: 36px; color: #214937; text-align: center; margin-bottom: 48px; }
+        .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+        .benefit-card { background: white; padding: 40px 32px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .benefit-icon { font-size: 48px; margin-bottom: 16px; }
+        .benefit-card h3 { font-size: 22px; color: #214937; margin-bottom: 12px; }
+        .benefit-card p { color: #64748B; font-size: 15px; line-height: 1.7; }
+
+        /* Comparison */
+        .comparison { background: white; border-radius: 16px; padding: 60px 48px; margin: 60px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .comparison h2 { font-size: 36px; color: #214937; text-align: center; margin-bottom: 16px; }
+        .comparison .subtitle { text-align: center; color: #64748B; margin-bottom: 40px; font-size: 18px; }
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        .comparison-col { padding: 32px; border-radius: 12px; }
+        .comparison-col.traditional { background: #FEF2F2; border: 2px solid #FECACA; }
+        .comparison-col.dropselling { background: #ECFDF5; border: 2px solid #A7F3D0; }
+        .comparison-col h3 { font-size: 24px; margin-bottom: 20px; }
+        .comparison-col.traditional h3 { color: #991B1B; }
+        .comparison-col.dropselling h3 { color: #065F46; }
+        .comparison-col ul { list-style: none; }
+        .comparison-col li { padding: 12px 0; font-size: 16px; display: flex; align-items: flex-start; gap: 12px; }
+        .comparison-col.traditional li::before { content: '✗'; color: #DC2626; font-weight: 700; font-size: 18px; }
+        .comparison-col.dropselling li::before { content: '✓'; color: #059669; font-weight: 700; font-size: 18px; }
+
+        /* Use Cases */
+        .use-cases { margin: 60px 0; }
+        .use-cases h2 { font-size: 36px; color: #214937; text-align: center; margin-bottom: 48px; }
+        .use-case-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; }
+        .use-case { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; gap: 24px; }
+        .use-case-icon { font-size: 48px; flex-shrink: 0; }
+        .use-case h3 { font-size: 22px; color: #214937; margin-bottom: 12px; }
+        .use-case p { color: #64748B; font-size: 15px; line-height: 1.7; }
+
+        /* Features for Dropselling */
+        .dropsell-features { background: linear-gradient(135deg, #1a3d2e 0%, #214937 100%); color: white; padding: 60px 48px; border-radius: 16px; margin: 60px 0; }
+        .dropsell-features h2 { font-size: 36px; text-align: center; margin-bottom: 48px; }
+        .feature-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 900px; margin: 0 auto; }
+        .feature-item { display: flex; align-items: flex-start; gap: 16px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 12px; }
+        .feature-item-icon { font-size: 28px; }
+        .feature-item h4 { font-size: 18px; margin-bottom: 8px; }
+        .feature-item p { font-size: 14px; opacity: 0.9; line-height: 1.5; }
+
+        /* CTA */
+        .cta-section { background: white; padding: 60px; border-radius: 16px; text-align: center; margin: 60px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 2px solid #214937; }
+        .cta-section h2 { font-size: 36px; color: #214937; margin-bottom: 16px; }
+        .cta-section p { font-size: 20px; color: #64748B; margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .cta-button { background: #214937; color: white; padding: 18px 48px; border: none; border-radius: 8px; font-size: 18px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+        .cta-button:hover { background: #1a3829; }
+        .cta-note { margin-top: 16px; font-size: 14px; color: #64748B; }
+
+        footer { text-align: center; padding: 40px 20px; color: #64748B; border-top: 1px solid #E0DED8; background: white; margin-top: 60px; }
+
+        @media (max-width: 1024px) {
+            .steps { grid-template-columns: repeat(2, 1fr); }
+            .step-arrow { display: none; }
+            .benefits-grid { grid-template-columns: 1fr; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 36px; }
+            .tagline { font-size: 18px; }
+            .steps { grid-template-columns: 1fr; }
+            .use-case-grid { grid-template-columns: 1fr; }
+            .feature-list { grid-template-columns: 1fr; }
+            .use-case { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <a href="/" class="logo">Cartrel</a>
+            <nav>
+                <a href="/" class="nav-link">Home</a>
+                <a href="/features" class="nav-link">Features</a>
+                <a href="/pricing" class="nav-link">Pricing</a>
+                <a href="/dropselling" class="nav-link">Dropselling</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Start Dropselling on Shopify</h1>
+            <p class="tagline">
+                List products from trusted suppliers, sell to your customers, and have suppliers ship directly.
+                No inventory to manage. No upfront costs. Just profit.
+            </p>
+            <div class="badge-row">
+                <span class="hero-badge">Zero Inventory Risk</span>
+                <span class="hero-badge alt">Real-Time Sync</span>
+                <span class="hero-badge">Automated Fulfillment</span>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="how-it-works">
+            <h2>How Dropselling Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Connect with Suppliers</h3>
+                    <p>Browse the partner network or invite your existing suppliers. Accept connection requests and access their product catalogs.</p>
+                    <span class="step-arrow">→</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Import Products</h3>
+                    <p>Choose which products to list on your store. Set your markup, customize descriptions, or sync everything automatically.</p>
+                    <span class="step-arrow">→</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Sell to Customers</h3>
+                    <p>Your customers buy from your store at your prices. Inventory stays synced in real-time so you never oversell.</p>
+                    <span class="step-arrow">→</span>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Supplier Ships Direct</h3>
+                    <p>Orders are automatically forwarded to suppliers. They ship directly to your customer. You keep the margin.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits -->
+        <div class="benefits">
+            <h2>Why Dropselling with Cartrel?</h2>
+            <div class="benefits-grid">
+                <div class="benefit-card">
+                    <div class="benefit-icon">💰</div>
+                    <h3>Zero Upfront Investment</h3>
+                    <p>No inventory to purchase, no warehouse to rent. Only pay suppliers when you make a sale. Your capital stays free for marketing and growth.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">🔄</div>
+                    <h3>Real-Time Inventory Sync</h3>
+                    <p>Never oversell. Inventory updates automatically when suppliers change stock. Avoid the embarrassment of canceling orders.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">⚡</div>
+                    <h3>Automated Order Forwarding</h3>
+                    <p>Orders flow to suppliers automatically. No manual copying, no spreadsheets. Configure auto, manual, or shadow mode per supplier.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">📊</div>
+                    <h3>Flexible Pricing Control</h3>
+                    <p>Set markups by percentage or fixed amount. Mirror supplier prices or create your own. Price rules update your entire catalog instantly.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">🛡️</div>
+                    <h3>Quality Control</h3>
+                    <p>Import preview shows exactly what will change. 30-day rollback if anything goes wrong. Prioritize products you've actually ordered before.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="benefit-icon">📦</div>
+                    <h3>Tracking Sync</h3>
+                    <p>When suppliers ship, tracking numbers sync back to your store automatically. Your customers stay informed without you lifting a finger.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traditional vs Dropselling -->
+        <div class="comparison">
+            <h2>Traditional Retail vs Dropselling</h2>
+            <p class="subtitle">See why stockists and retailers are switching to dropselling models</p>
+            <div class="comparison-grid">
+                <div class="comparison-col traditional">
+                    <h3>Traditional Wholesale</h3>
+                    <ul>
+                        <li>Buy inventory upfront, hope it sells</li>
+                        <li>Warehouse costs eat into margins</li>
+                        <li>Dead stock ties up capital</li>
+                        <li>Manual inventory counts and updates</li>
+                        <li>You handle all shipping and returns</li>
+                        <li>Limited product range due to capital</li>
+                    </ul>
+                </div>
+                <div class="comparison-col dropselling">
+                    <h3>Dropselling with Cartrel</h3>
+                    <ul>
+                        <li>Only pay when you make a sale</li>
+                        <li>No warehouse needed</li>
+                        <li>Zero dead stock risk</li>
+                        <li>Real-time inventory sync</li>
+                        <li>Suppliers handle fulfillment</li>
+                        <li>List thousands of products instantly</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Use Cases -->
+        <div class="use-cases">
+            <h2>Perfect For</h2>
+            <div class="use-case-grid">
+                <div class="use-case">
+                    <div class="use-case-icon">🏪</div>
+                    <div>
+                        <h3>Boutique Stockists</h3>
+                        <p>Curate products from multiple suppliers. Build a unique brand without the inventory headaches. Focus on marketing and customer experience while suppliers handle fulfillment.</p>
+                    </div>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">🎨</div>
+                    <div>
+                        <h3>Niche Curators</h3>
+                        <p>Build themed collections from various suppliers. Test new product categories with zero risk. Expand your catalog based on what sells.</p>
+                    </div>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">🌍</div>
+                    <div>
+                        <h3>Regional Retailers</h3>
+                        <p>Partner with local brands and makers. Support your community while earning margin. Let suppliers ship from their own locations.</p>
+                    </div>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">📈</div>
+                    <div>
+                        <h3>Scaling Businesses</h3>
+                        <p>Expand product offerings without expanding overhead. Test new suppliers before committing. Scale up winners, drop underperformers instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features for Dropselling -->
+        <div class="dropsell-features">
+            <h2>Built for Dropsellers</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-item-icon">🎯</div>
+                    <div>
+                        <h4>Ordered Products Priority</h4>
+                        <p>See which products you've actually ordered before. Prioritize proven sellers over untested items.</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-item-icon">👁️</div>
+                    <div>
+                        <h4>Import Preview</h4>
+                        <p>See exactly what will be created or changed before importing. Field-by-field diffs with no surprises.</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-item-icon">💲</div>
+                    <div>
+                        <h4>Price Rules</h4>
+                        <p>Markup by percentage, fixed amount, or mirror prices. Preview calculations before applying to your entire catalog.</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-item-icon">🔗</div>
+                    <div>
+                        <h4>Variant Mapping</h4>
+                        <p>Auto-match product variants by SKU or options. Manual remap when needed. Never miss a size or color.</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-item-icon">⏱️</div>
+                    <div>
+                        <h4>30-Day Rollback</h4>
+                        <p>Supplier sent bad data? Roll back any change within 30 days. Individual fields or entire products.</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-item-icon">🌙</div>
+                    <div>
+                        <h4>Shadow Mode</h4>
+                        <p>Test new suppliers without affecting your live store. Validate everything works before going live.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta-section">
+            <h2>Ready to Start Dropselling?</h2>
+            <p>Join thousands of stockists using Cartrel to sell more products with less risk.</p>
+            <a href="https://apps.shopify.com/cartrel" class="cta-button">Get Started Free</a>
+            <p class="cta-note">Retailers & stockists are always free. No credit card required.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Cartrel. Wholesale & stockist infrastructure for Shopify.</p>
+        <p style="margin-top: 12px;">
+            <a href="/" style="color: #214937; margin: 0 12px;">Home</a>
+            <a href="/features" style="color: #214937; margin: 0 12px;">Features</a>
+            <a href="/pricing" style="color: #214937; margin: 0 12px;">Pricing</a>
+            <a href="/dropselling" style="color: #214937; margin: 0 12px;">Dropselling</a>
+            <a href="mailto:hello@cartrel.com" style="color: #214937; margin: 0 12px;">Contact</a>
+        </p>
+    </footer>
+</body>
+</html>

@@ -1,6 +1,14 @@
 export { Dashboard } from './Dashboard';
 export { Connections } from './Connections';
+export { ConnectionDetail } from './ConnectionDetail';
 export { Catalog } from './Catalog';
+export { ImportWizard } from './ImportWizard';
+export { VariantMappings } from './VariantMappings';
 export { Orders } from './Orders';
 export { Settings } from './Settings';
+export { Migration } from './Migration';
 export { Marketplace } from './Marketplace';
+export { Payouts } from './Payouts';
+export { Collections } from './Collections';
+export { InventoryLocations } from './InventoryLocations';
+export { ProductHistoryPage } from './ProductHistory';

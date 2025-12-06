@@ -6,6 +6,7 @@ import {
   OrderIcon,
   SettingsIcon,
   SearchIcon,
+  CashDollarIcon,
 } from '@shopify/polaris-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -49,6 +50,13 @@ export function AppLayout({ children }: AppLayoutProps) {
             icon: OrderIcon,
             selected: location.pathname.startsWith('/orders'),
             onClick: () => navigate('/orders'),
+          },
+          {
+            url: '/payouts',
+            label: 'Payouts',
+            icon: CashDollarIcon,
+            selected: location.pathname.startsWith('/payouts'),
+            onClick: () => navigate('/payouts'),
           },
           {
             url: '/marketplace',

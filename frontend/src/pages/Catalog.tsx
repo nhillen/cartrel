@@ -136,6 +136,20 @@ export function Catalog() {
         content: 'Import from Supplier',
         url: '/catalog/import',
       }}
+      secondaryActions={[
+        {
+          content: 'Collections',
+          url: '/catalog/collections',
+        },
+        {
+          content: 'Variant Mappings',
+          url: '/catalog/variants',
+        },
+        {
+          content: 'Change History',
+          url: '/catalog/history',
+        },
+      ]}
     >
       <Layout>
         {error && (
