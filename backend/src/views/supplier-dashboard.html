@@ -116,6 +116,35 @@
             background: #CBD5E1;
         }
 
+        /* Settings sub-navigation */
+        .settings-nav-item {
+            display: block;
+            width: 100%;
+            padding: 10px 12px;
+            text-align: left;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .settings-nav-item:hover {
+            background: #F1F5F9;
+            color: #0F172A;
+        }
+        .settings-nav-item.active {
+            background: #214937;
+            color: white;
+        }
+        .settings-section {
+            display: none;
+        }
+        .settings-section.active {
+            display: block;
+        }
+
         .products-grid {
             display: grid;
             gap: 16px;
@@ -425,8 +454,44 @@
 
         <!-- Settings Tab -->
         <div class="tab-content" id="settings-tab">
-            <div class="card">
-                <h2>Account Role</h2>
+            <!-- Settings Sub-Navigation -->
+            <div style="display: flex; gap: 24px;">
+                <!-- Left Sidebar -->
+                <div style="width: 200px; flex-shrink: 0;">
+                    <div style="position: sticky; top: 20px;">
+                        <div style="background: white; border-radius: 8px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 12px; font-weight: 600; color: #64748B; padding: 8px 12px; text-transform: uppercase;">Settings</div>
+                            <button onclick="showSettingsSection('account')" class="settings-nav-item active" data-section="account">
+                                👤 Account
+                            </button>
+                            <button onclick="showSettingsSection('subscription')" class="settings-nav-item" data-section="subscription">
+                                💳 Subscription
+                            </button>
+                            <button onclick="showSettingsSection('wholesale')" class="settings-nav-item" data-section="wholesale">
+                                🏪 Wholesale Defaults
+                            </button>
+                            <button onclick="showSettingsSection('pricing')" class="settings-nav-item" data-section="pricing">
+                                💰 Pricing
+                            </button>
+                            <button onclick="showSettingsSection('sync')" class="settings-nav-item" data-section="sync">
+                                🔒 Sync Restrictions
+                            </button>
+                            <button onclick="showSettingsSection('access')" class="settings-nav-item" data-section="access">
+                                📦 Access Control
+                            </button>
+                            <button onclick="showSettingsSection('inventory')" class="settings-nav-item" data-section="inventory">
+                                📍 Inventory
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content Area -->
+                <div style="flex: 1; min-width: 0;">
+                    <!-- Account Section -->
+                    <div class="settings-section active" id="settings-account">
+                        <div class="card">
+                            <h2>Account Role</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Manage how you use Cartrel. You can upgrade to access both supplier and retailer features.
                 </p>
@@ -453,10 +518,13 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="changeRole()" style="margin-bottom: 32px;">Update Role</button>
-            </div>
+                        </div>
+                    </div>
 
-            <div class="card">
-                <h2>Subscription Plan</h2>
+                    <!-- Subscription Section -->
+                    <div class="settings-section" id="settings-subscription">
+                        <div class="card">
+                            <h2>Subscription Plan</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Manage your Cartrel subscription and unlock more features.
                 </p>
@@ -499,10 +567,13 @@
                 <div id="billingSuccess" style="display: none; background: #DCFCE7; border-left: 4px solid #10B981; padding: 16px; border-radius: 4px; margin-top: 16px; color: #14532D;">
                     ✓ Subscription updated successfully!
                 </div>
-            </div>
+                        </div>
+                    </div>
 
-            <div class="card">
-                <h2>Default Wholesale Settings</h2>
+                    <!-- Wholesale Defaults Section -->
+                    <div class="settings-section" id="settings-wholesale">
+                        <div class="card">
+                            <h2>Default Wholesale Settings</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     These settings apply to all new retail partner connections.
                 </p>
@@ -522,11 +593,13 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-            </div>
+                        </div>
+                    </div>
 
-            <!-- Wholesale Pricing -->
-            <div class="card">
-                <h2>💰 Wholesale Pricing</h2>
+                    <!-- Pricing Section -->
+                    <div class="settings-section" id="settings-pricing">
+                        <div class="card">
+                            <h2>💰 Wholesale Pricing</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Configure how wholesale prices are calculated for your retail partners.
                 </p>
@@ -589,11 +662,13 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="savePricingSettings()" style="margin-top: 20px;">Save Pricing Settings</button>
-            </div>
+                        </div>
+                    </div>
 
-            <!-- Sync Restrictions -->
-            <div class="card">
-                <h2>🔒 Sync Restrictions</h2>
+                    <!-- Sync Restrictions Section -->
+                    <div class="settings-section" id="settings-sync">
+                        <div class="card">
+                            <h2>🔒 Sync Restrictions</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Control what data retailers can sync from your products.
                 </p>
@@ -657,11 +732,13 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="saveSyncRestrictions()">Save Sync Restrictions</button>
-            </div>
+                        </div>
+                    </div>
 
-            <!-- Collection & Metafield Access -->
-            <div class="card">
-                <h2>📦 Collection & Metafield Access</h2>
+                    <!-- Access Control Section -->
+                    <div class="settings-section" id="settings-access">
+                        <div class="card">
+                            <h2>📦 Collection & Metafield Access</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Control which collections and metafields retailers can access.
                 </p>
@@ -700,11 +777,13 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="saveAccessSettings()">Save Access Settings</button>
-            </div>
+                        </div>
+                    </div>
 
-            <!-- Inventory Settings -->
-            <div class="card">
-                <h2>📍 Inventory Settings</h2>
+                    <!-- Inventory Section -->
+                    <div class="settings-section" id="settings-inventory">
+                        <div class="card">
+                            <h2>📍 Inventory Settings</h2>
                 <p style="color: #64748B; margin-bottom: 24px;">
                     Configure where wholesale inventory comes from and reserve stock for your own retail.
                 </p>
@@ -740,20 +819,25 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="saveInventorySettings()">Save Inventory Settings</button>
-            </div>
 
-            <div class="card" style="background: #F8F9FA; border: 2px solid #E2E8F0;">
-                <h2>Platform Status</h2>
-                <p style="color: #64748B; margin-bottom: 16px;">
-                    Check real-time platform health and uptime.
-                </p>
-                <a href="/status" target="_blank" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
-                    <span>View Status Page</span>
-                    <span style="font-size: 12px;">↗</span>
-                </a>
-            </div>
-        </div>
-    </div>
+                            <!-- Platform Status (always visible at bottom of inventory) -->
+                            <div style="margin-top: 24px; padding: 16px; background: #F8F9FA; border-radius: 8px; border: 1px solid #E2E8F0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 600; color: #0F172A;">Platform Status</div>
+                                        <div style="font-size: 13px; color: #64748B;">Check real-time platform health and uptime</div>
+                                    </div>
+                                    <a href="/status" target="_blank" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
+                                        <span>View Status</span>
+                                        <span style="font-size: 12px;">↗</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- End right content area -->
+            </div><!-- End settings flex container -->
+        </div><!-- End settings tab -->
 
     <!-- Create Invite Modal -->
     <div id="createInviteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -2104,6 +2188,23 @@
             loadPricingSettings();
             loadSyncRestrictions();
             loadInventorySettings();
+        }
+
+        // Settings sub-navigation
+        function showSettingsSection(section) {
+            // Update nav buttons
+            document.querySelectorAll('.settings-nav-item').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.section === section) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update sections
+            document.querySelectorAll('.settings-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            document.getElementById(`settings-${section}`).classList.add('active');
         }
 
         // Load current role
