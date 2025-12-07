@@ -250,9 +250,14 @@
             color: #1C6E4F;
         }
 
+        .badge-info {
+            background: #DBEAFE;
+            color: #1D4ED8;
+        }
+
         .badge-warning {
             background: #FEF3C7;
-            color: #92400E;
+            color: #B45309;
         }
 
         .badge-secondary {
@@ -340,11 +345,32 @@
             <span class="badge badge-success">Supplier Mode</span>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" data-tab="products">Products</button>
-            <button class="tab" data-tab="partners">Partners</button>
-            <button class="tab" data-tab="orders">Orders</button>
-            <button class="tab" data-tab="settings">Settings</button>
+        <div class="tabs" id="mainTabs">
+            <!-- Supplier tabs -->
+            <button class="tab active" data-tab="products" data-roles="SUPPLIER,BOTH">📦 Products</button>
+            <button class="tab" data-tab="partners" data-roles="SUPPLIER,BOTH">🤝 Partners</button>
+            <!-- Shared tabs -->
+            <button class="tab" data-tab="orders" data-roles="SUPPLIER,RETAILER,BOTH">📋 Orders</button>
+            <!-- Retailer tabs (shown for BOTH users) -->
+            <button class="tab" data-tab="catalog" data-roles="RETAILER,BOTH" style="display:none;">🛒 Catalog</button>
+            <button class="tab" data-tab="connections" data-roles="RETAILER,BOTH" style="display:none;">🔗 Connections</button>
+            <button class="tab" data-tab="payouts" data-roles="RETAILER,BOTH" style="display:none;">💵 Payouts</button>
+            <!-- Settings always visible -->
+            <button class="tab" data-tab="settings" data-roles="SUPPLIER,RETAILER,BOTH">⚙️ Settings</button>
+        </div>
+
+        <!-- Role indicator for BOTH users -->
+        <div id="roleToggle" style="display: none; margin-bottom: 16px;">
+            <div style="background: #F0F9FF; border: 1px solid #0EA5E9; border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 14px; color: #0369A1;">
+                    <strong>Combined Store</strong> - You have access to both supplier and retailer features
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="setViewMode('supplier')" id="viewSupplierBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;">Supplier View</button>
+                    <button onclick="setViewMode('retailer')" id="viewRetailerBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;">Retailer View</button>
+                    <button onclick="setViewMode('all')" id="viewAllBtn" class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;">All Features</button>
+                </div>
+            </div>
         </div>
 
         <!-- Products Tab -->
@@ -447,6 +473,78 @@
                     <div class="empty-state">
                         <h3>No orders yet</h3>
                         <p>Purchase orders from your retail partners will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Catalog Tab (Retailer) -->
+        <div class="tab-content" id="catalog-tab">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h2>Product Catalog</h2>
+                        <p style="color: #64748B; font-size: 14px;">Browse and import products from your suppliers</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.location.href='/catalog/import?shop=' + shop">+ Import Products</button>
+                </div>
+                <div id="catalog-products-list">
+                    <div class="empty-state">
+                        <h3>No products imported yet</h3>
+                        <p>Connect to a supplier and import their products to get started.</p>
+                        <button class="btn btn-primary" onclick="window.location.href='/catalog/import?shop=' + shop" style="margin-top: 16px;">Browse Supplier Catalogs</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connections Tab (Retailer) -->
+        <div class="tab-content" id="connections-tab">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h2>Supplier Connections</h2>
+                        <p style="color: #64748B; font-size: 14px;">Manage your connections to wholesale suppliers</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openRedeemInviteModal()">+ Connect to Supplier</button>
+                </div>
+                <div id="retailer-connections-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading connections...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payouts Tab (Retailer) -->
+        <div class="tab-content" id="payouts-tab">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2>Payouts & Commissions</h2>
+                </div>
+                <p style="color: #64748B; margin-bottom: 24px;">Track payments to your suppliers for fulfilled orders</p>
+
+                <!-- Summary cards -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #FEF3C7; border-radius: 8px; padding: 20px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #B45309;" id="payouts-open-amount">$0.00</div>
+                        <div style="color: #92400E; font-size: 14px;"><span id="payouts-open-count">0</span> open payouts</div>
+                    </div>
+                    <div style="background: #DBEAFE; border-radius: 8px; padding: 20px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1D4ED8;" id="payouts-paid-amount">$0.00</div>
+                        <div style="color: #1E40AF; font-size: 14px;"><span id="payouts-paid-count">0</span> paid</div>
+                    </div>
+                    <div style="background: #D1F2E8; border-radius: 8px; padding: 20px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #1C6E4F;" id="payouts-received-amount">$0.00</div>
+                        <div style="color: #166534; font-size: 14px;"><span id="payouts-received-count">0</span> received</div>
+                    </div>
+                </div>
+
+                <div id="payouts-list">
+                    <div class="empty-state">
+                        <h3>No payouts yet</h3>
+                        <p>When you receive orders for synced products, payouts to suppliers will appear here.</p>
                     </div>
                 </div>
             </div>
@@ -868,6 +966,36 @@
         </div>
     </div>
 
+    <!-- Redeem Invite Modal (Retailer) -->
+    <div id="redeemInviteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 500px; width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="margin: 0; color: #214937;">Connect to Supplier</h2>
+                <button onclick="closeRedeemInviteModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748B;">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Invite Code</label>
+                <input
+                    type="text"
+                    id="inviteCodeInput"
+                    placeholder="Enter the invite code from your supplier"
+                    style="width: 100%; padding: 12px; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 16px; font-family: monospace;"
+                >
+                <p style="font-size: 13px; color: #64748B; margin-top: 8px;">
+                    Your supplier will provide you with an invite code to connect your stores.
+                </p>
+            </div>
+
+            <div id="redeemError" style="display: none; padding: 12px; background: #FEE2E2; border-radius: 6px; color: #DC2626; margin-bottom: 16px;"></div>
+
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="closeRedeemInviteModal()" style="flex: 1;">Cancel</button>
+                <button class="btn btn-primary" onclick="redeemInvite()" id="redeemInviteBtn" style="flex: 1;">Connect</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Partner Settings Modal -->
     <div id="partnerSettingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto;">
         <div style="background: white; border-radius: 12px; padding: 32px; max-width: 700px; width: 90%; margin: 40px auto; max-height: 90vh; overflow-y: auto;">
@@ -1003,6 +1131,115 @@
         // Store loaded products for bulk selection
         let loadedProducts = [];
         let selectedProductIds = new Set();
+
+        // Current user role and view mode
+        let currentRole = 'SUPPLIER';
+        let currentViewMode = 'all'; // 'supplier', 'retailer', or 'all'
+
+        // ============================================================================
+        // ROLE-BASED NAVIGATION
+        // ============================================================================
+
+        // Navigation config for each role
+        const navConfig = {
+            SUPPLIER: {
+                title: 'Supplier Dashboard',
+                badge: 'Supplier Mode',
+                badgeClass: 'badge-success',
+                tabs: ['products', 'partners', 'orders', 'settings'],
+                settingsSections: ['account', 'subscription', 'wholesale', 'pricing', 'sync', 'access', 'inventory']
+            },
+            RETAILER: {
+                title: 'Retailer Dashboard',
+                badge: 'Retailer Mode',
+                badgeClass: 'badge-info',
+                tabs: ['catalog', 'connections', 'orders', 'payouts', 'settings'],
+                settingsSections: ['account', 'subscription'] // Retailer settings are simpler
+            },
+            BOTH: {
+                title: 'Dashboard',
+                badge: 'Combined Store',
+                badgeClass: 'badge-warning',
+                tabs: ['products', 'partners', 'catalog', 'connections', 'orders', 'payouts', 'settings'],
+                settingsSections: ['account', 'subscription', 'wholesale', 'pricing', 'sync', 'access', 'inventory']
+            }
+        };
+
+        function initializeForRole(role) {
+            currentRole = role;
+            const config = navConfig[role] || navConfig.SUPPLIER;
+
+            // Update header
+            document.querySelector('h1').textContent = config.title;
+            const badge = document.querySelector('.header .badge');
+            badge.textContent = config.badge;
+            badge.className = `badge ${config.badgeClass}`;
+
+            // Show/hide tabs based on role
+            document.querySelectorAll('.tab').forEach(tab => {
+                const allowedRoles = tab.dataset.roles?.split(',') || [];
+                if (allowedRoles.includes(role)) {
+                    tab.style.display = '';
+                } else {
+                    tab.style.display = 'none';
+                }
+            });
+
+            // Show role toggle for BOTH users
+            if (role === 'BOTH') {
+                document.getElementById('roleToggle').style.display = 'block';
+            }
+
+            // Update settings sidebar visibility
+            updateSettingsSidebar(config.settingsSections);
+
+            // Set first visible tab as active
+            const firstVisibleTab = document.querySelector('.tab:not([style*="display: none"])');
+            if (firstVisibleTab) {
+                firstVisibleTab.click();
+            }
+        }
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+
+            // Update button states
+            document.getElementById('viewSupplierBtn').className = mode === 'supplier' ? 'btn btn-primary' : 'btn btn-secondary';
+            document.getElementById('viewRetailerBtn').className = mode === 'retailer' ? 'btn btn-primary' : 'btn btn-secondary';
+            document.getElementById('viewAllBtn').className = mode === 'all' ? 'btn btn-primary' : 'btn btn-secondary';
+
+            // Define which tabs to show for each mode
+            const supplierTabs = ['products', 'partners', 'orders', 'settings'];
+            const retailerTabs = ['catalog', 'connections', 'orders', 'payouts', 'settings'];
+            const allTabs = ['products', 'partners', 'catalog', 'connections', 'orders', 'payouts', 'settings'];
+
+            const visibleTabs = mode === 'supplier' ? supplierTabs : mode === 'retailer' ? retailerTabs : allTabs;
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                const tabName = tab.dataset.tab;
+                tab.style.display = visibleTabs.includes(tabName) ? '' : 'none';
+            });
+
+            // Update settings sections based on mode
+            const supplierSettings = ['account', 'subscription', 'wholesale', 'pricing', 'sync', 'access', 'inventory'];
+            const retailerSettings = ['account', 'subscription'];
+            const visibleSettings = mode === 'retailer' ? retailerSettings : supplierSettings;
+
+            updateSettingsSidebar(visibleSettings);
+        }
+
+        function updateSettingsSidebar(visibleSections) {
+            document.querySelectorAll('.settings-nav-item').forEach(btn => {
+                const section = btn.dataset.section;
+                btn.style.display = visibleSections.includes(section) ? '' : 'none';
+            });
+
+            // Ensure first visible section is shown
+            const firstVisibleSection = visibleSections[0];
+            if (firstVisibleSection) {
+                showSettingsSection(firstVisibleSection);
+            }
+        }
 
         // Suppress console warnings from App Bridge and browser extensions
         const originalConsoleError = console.error;
@@ -1602,6 +1839,63 @@
 
         function closeCreateInviteModal() {
             document.getElementById('createInviteModal').style.display = 'none';
+        }
+
+        // ============================================================================
+        // REDEEM INVITE MODAL (RETAILER)
+        // ============================================================================
+
+        function openRedeemInviteModal() {
+            document.getElementById('redeemInviteModal').style.display = 'flex';
+            document.getElementById('inviteCodeInput').value = '';
+            document.getElementById('redeemError').style.display = 'none';
+            document.getElementById('inviteCodeInput').focus();
+        }
+
+        function closeRedeemInviteModal() {
+            document.getElementById('redeemInviteModal').style.display = 'none';
+        }
+
+        async function redeemInvite() {
+            const code = document.getElementById('inviteCodeInput').value.trim();
+            const errorEl = document.getElementById('redeemError');
+            const btn = document.getElementById('redeemInviteBtn');
+
+            if (!code) {
+                errorEl.textContent = 'Please enter an invite code';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+            errorEl.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/invites/redeem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, shop })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to redeem invite');
+                }
+
+                closeRedeemInviteModal();
+                alert(`Successfully connected to ${data.supplierName || 'supplier'}!`);
+
+                // Reload connections
+                loadRetailerConnections();
+            } catch (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Connect';
+            }
         }
 
         // ============================================================================
@@ -2232,8 +2526,113 @@
                 } else if (data.role === 'RETAILER') {
                     newRoleSelect.innerHTML = '<option value="">-- Select New Role --</option><option value="BOTH">Both Supplier & Retailer - Access all features</option>';
                 }
+
+                // Initialize navigation based on role
+                initializeForRole(data.role);
+
+                // Load retailer-specific data if applicable
+                if (data.role === 'RETAILER' || data.role === 'BOTH') {
+                    loadRetailerConnections();
+                    loadRetailerPayouts();
+                }
             } catch (error) {
                 console.error('Error loading role:', error);
+                // Default to supplier view on error
+                initializeForRole('SUPPLIER');
+            }
+        }
+
+        // Load retailer connections for the Connections tab
+        async function loadRetailerConnections() {
+            const listEl = document.getElementById('retailer-connections-list');
+            if (!listEl) return;
+
+            try {
+                const response = await fetch(`/api/connections?shop=${shop}`);
+                const connections = await response.json();
+
+                if (connections.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No supplier connections</h3>
+                            <p>Connect to wholesale suppliers to start importing their products.</p>
+                            <button class="btn btn-primary" onclick="openRedeemInviteModal()" style="margin-top: 16px;">+ Connect to Supplier</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listEl.innerHTML = connections.map(conn => `
+                    <div class="connection-item" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #F8FAFC; border-radius: 8px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">${conn.supplierShop?.name || 'Unknown Supplier'}</div>
+                            <div style="font-size: 13px; color: #64748B;">
+                                ${conn.syncedProducts || 0} products synced •
+                                Connected ${new Date(conn.createdAt).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge ${conn.status === 'ACTIVE' ? 'badge-success' : 'badge-warning'}">${conn.status}</span>
+                            <button class="btn btn-secondary" onclick="window.location.href='/connections/${conn.id}?shop=${shop}'">Manage</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading connections:', error);
+                listEl.innerHTML = '<div class="empty-state"><p>Failed to load connections</p></div>';
+            }
+        }
+
+        // Load retailer payouts for the Payouts tab
+        async function loadRetailerPayouts() {
+            try {
+                const response = await fetch(`/api/payouts/summary?shop=${shop}`);
+                const summary = await response.json();
+
+                // Update summary cards
+                const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+
+                document.getElementById('payouts-open-amount').textContent = formatCurrency(summary.openTotal);
+                document.getElementById('payouts-open-count').textContent = summary.openPayouts || 0;
+                document.getElementById('payouts-paid-amount').textContent = formatCurrency(summary.paidTotal);
+                document.getElementById('payouts-paid-count').textContent = summary.paidPayouts || 0;
+                document.getElementById('payouts-received-amount').textContent = formatCurrency(summary.receivedTotal);
+                document.getElementById('payouts-received-count').textContent = summary.receivedPayouts || 0;
+
+                // Load recent payouts
+                const payoutsResponse = await fetch(`/api/payouts?shop=${shop}&status=OPEN`);
+                const payoutsData = await payoutsResponse.json();
+                const payouts = payoutsData.payouts || [];
+
+                const listEl = document.getElementById('payouts-list');
+                if (payouts.length === 0 && (summary.openPayouts || 0) === 0) {
+                    listEl.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No payouts yet</h3>
+                            <p>When you receive orders for synced products, payouts to suppliers will appear here.</p>
+                        </div>
+                    `;
+                } else {
+                    listEl.innerHTML = payouts.map(payout => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #E2E8F0;">
+                            <div>
+                                <div style="font-weight: 600;">${payout.payoutNumber || 'Payout'}</div>
+                                <div style="font-size: 13px; color: #64748B;">
+                                    ${payout.supplierName || 'Supplier'} • ${payout.orderCount || 0} orders • ${new Date(payout.createdAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div style="text-align: right;">
+                                    <div style="font-weight: 600;">${formatCurrency(payout.total)}</div>
+                                    ${payout.commissionAmount ? `<div style="font-size: 12px; color: #64748B;">-${formatCurrency(payout.commissionAmount)} commission</div>` : ''}
+                                </div>
+                                <span class="badge ${payout.status === 'OPEN' ? 'badge-warning' : payout.status === 'PAID' ? 'badge-info' : 'badge-success'}">${payout.status}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading payouts:', error);
             }
         }
 
