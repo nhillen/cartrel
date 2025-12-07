@@ -89,7 +89,6 @@ app.use(
           'https://accounts.shopify.com',
         ],
         formAction: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow form submissions for OAuth
-        navigateTo: ["'self'", 'https://*.myshopify.com', 'https://admin.shopify.com'], // Allow navigation for OAuth redirects
       },
     },
     crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
