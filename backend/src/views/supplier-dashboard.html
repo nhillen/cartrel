@@ -784,6 +784,133 @@
         </div>
     </div>
 
+    <!-- Partner Settings Modal -->
+    <div id="partnerSettingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto;">
+        <div style="background: white; border-radius: 12px; padding: 32px; max-width: 700px; width: 90%; margin: 40px auto; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; position: sticky; top: 0; background: white; padding-bottom: 12px; border-bottom: 1px solid #E2E8F0;">
+                <h2 style="margin: 0; color: #214937;">⚙️ Partner Settings: <span id="partnerSettingsName"></span></h2>
+                <button onclick="closePartnerSettings()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748B;">&times;</button>
+            </div>
+
+            <input type="hidden" id="partnerSettingsId">
+
+            <p style="color: #64748B; margin-bottom: 24px; font-size: 14px;">
+                Override default settings for this specific partner. Leave fields empty or unchecked to use your default settings.
+            </p>
+
+            <!-- Sync Field Overrides -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; color: #0F172A; margin-bottom: 12px;">🔒 Sync Field Restrictions</h3>
+                <p style="font-size: 13px; color: #64748B; margin-bottom: 12px;">Which fields can this partner sync? (Unchecked = use default)</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowTitle" style="width: 16px; height: 16px;">
+                        <span>Title</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowDescription" style="width: 16px; height: 16px;">
+                        <span>Description</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowImages" style="width: 16px; height: 16px;">
+                        <span>Images</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowPrice" style="width: 16px; height: 16px;">
+                        <span>Price</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowInventory" style="width: 16px; height: 16px;">
+                        <span>Inventory</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowTags" style="width: 16px; height: 16px;">
+                        <span>Tags</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowSEO" style="width: 16px; height: 16px;">
+                        <span>SEO</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #F8F9FA; border-radius: 4px; cursor: pointer;">
+                        <input type="checkbox" id="ps-allowMetafields" style="width: 16px; height: 16px;">
+                        <span>Metafields</span>
+                    </label>
+                </div>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 12px; background: #FEF3C7; border-radius: 4px; cursor: pointer; margin-top: 12px;">
+                    <input type="checkbox" id="ps-restrictToOrdered" style="width: 18px; height: 18px;">
+                    <div>
+                        <span style="font-weight: 600;">Restrict to ordered products only</span>
+                        <div style="font-size: 12px; color: #92400E;">Only let them sync products they've ordered from you</div>
+                    </div>
+                </label>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 24px 0;">
+
+            <!-- Collection Access Override -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; color: #0F172A; margin-bottom: 12px;">📦 Collection Access</h3>
+                <select id="ps-collectionAccess" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                    <option value="">Use default settings</option>
+                    <option value="ALL">All collections</option>
+                    <option value="SELECTED">Only selected collections</option>
+                    <option value="NONE">No collections</option>
+                </select>
+            </div>
+
+            <!-- Metafield Access Override -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; color: #0F172A; margin-bottom: 12px;">🏷️ Metafield Access</h3>
+                <select id="ps-metafieldAccess" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                    <option value="">Use default settings</option>
+                    <option value="ALL">All metafields</option>
+                    <option value="SELECTED">Only selected metafields</option>
+                    <option value="NONE">No metafields</option>
+                </select>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 24px 0;">
+
+            <!-- Inventory Override -->
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; color: #0F172A; margin-bottom: 12px;">📍 Inventory Settings</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <label style="font-size: 13px; color: #64748B; display: block; margin-bottom: 4px;">Source Location</label>
+                        <select id="ps-sourceLocation" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                            <option value="">Use default</option>
+                            <!-- Loaded dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; color: #64748B; display: block; margin-bottom: 4px;">Stock Buffer Override</label>
+                        <input type="number" id="ps-stockBuffer" placeholder="Use default" min="0" style="width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 6px;">
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 24px 0;">
+
+            <!-- Use Defaults Button -->
+            <div style="background: #F0F9FF; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: #0C4A6E;">Reset to Defaults</div>
+                        <div style="font-size: 13px; color: #475569;">Clear all overrides and use your default settings</div>
+                    </div>
+                    <button onclick="resetPartnerToDefaults()" style="padding: 8px 16px; background: white; border: 1px solid #E2E8F0; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="closePartnerSettings()" style="flex: 1;">Cancel</button>
+                <button class="btn btn-primary" onclick="savePartnerSettings()" style="flex: 1;">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const host = urlParams.get('host');
@@ -1192,6 +1319,10 @@
                             </div>
                             <!-- Actions Row -->
                             <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <button onclick="openPartnerSettings('${partner.id}', '${partner.nickname || partner.retailerShop}')"
+                                        style="padding: 8px 16px; background: #6366F1; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
+                                    ⚙️ Advanced Settings
+                                </button>
                                 ${!isPaused ? `
                                     <button onclick="updateConnection('${partner.id}', 'status', 'PAUSED')"
                                             style="padding: 8px 16px; background: #F59E0B; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
@@ -1387,6 +1518,127 @@
 
         function closeCreateInviteModal() {
             document.getElementById('createInviteModal').style.display = 'none';
+        }
+
+        // ============================================================================
+        // PARTNER SETTINGS MODAL
+        // ============================================================================
+
+        async function openPartnerSettings(partnerId, partnerName) {
+            document.getElementById('partnerSettingsModal').style.display = 'flex';
+            document.getElementById('partnerSettingsId').value = partnerId;
+            document.getElementById('partnerSettingsName').textContent = partnerName;
+
+            // Load locations for dropdown
+            try {
+                const locResponse = await fetch(`/api/supplier/locations?shop=${shop}`);
+                if (locResponse.ok) {
+                    const locData = await locResponse.json();
+                    const select = document.getElementById('ps-sourceLocation');
+                    select.innerHTML = '<option value="">Use default</option>' +
+                        locData.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Error loading locations:', e);
+            }
+
+            // Load partner's current settings
+            try {
+                const response = await fetch(`/api/supplier/partner-settings/${partnerId}?shop=${shop}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Populate sync fields
+                    document.getElementById('ps-allowTitle').checked = data.allowedFields?.title ?? true;
+                    document.getElementById('ps-allowDescription').checked = data.allowedFields?.description ?? true;
+                    document.getElementById('ps-allowImages').checked = data.allowedFields?.images ?? true;
+                    document.getElementById('ps-allowPrice').checked = data.allowedFields?.price ?? true;
+                    document.getElementById('ps-allowInventory').checked = data.allowedFields?.inventory ?? true;
+                    document.getElementById('ps-allowTags').checked = data.allowedFields?.tags ?? true;
+                    document.getElementById('ps-allowSEO').checked = data.allowedFields?.seo ?? true;
+                    document.getElementById('ps-allowMetafields').checked = data.allowedFields?.metafields ?? true;
+                    document.getElementById('ps-restrictToOrdered').checked = data.restrictToOrderedProducts ?? false;
+
+                    // Populate access settings
+                    document.getElementById('ps-collectionAccess').value = data.collectionAccess || '';
+                    document.getElementById('ps-metafieldAccess').value = data.metafieldAccess || '';
+
+                    // Populate inventory settings
+                    document.getElementById('ps-sourceLocation').value = data.sourceLocationId || '';
+                    document.getElementById('ps-stockBuffer').value = data.stockBuffer ?? '';
+                }
+            } catch (e) {
+                console.error('Error loading partner settings:', e);
+            }
+        }
+
+        function closePartnerSettings() {
+            document.getElementById('partnerSettingsModal').style.display = 'none';
+        }
+
+        async function savePartnerSettings() {
+            const partnerId = document.getElementById('partnerSettingsId').value;
+
+            const settings = {
+                shop,
+                partnerId,
+                allowedFields: {
+                    title: document.getElementById('ps-allowTitle').checked,
+                    description: document.getElementById('ps-allowDescription').checked,
+                    images: document.getElementById('ps-allowImages').checked,
+                    price: document.getElementById('ps-allowPrice').checked,
+                    inventory: document.getElementById('ps-allowInventory').checked,
+                    tags: document.getElementById('ps-allowTags').checked,
+                    seo: document.getElementById('ps-allowSEO').checked,
+                    metafields: document.getElementById('ps-allowMetafields').checked,
+                },
+                restrictToOrderedProducts: document.getElementById('ps-restrictToOrdered').checked,
+                collectionAccess: document.getElementById('ps-collectionAccess').value || null,
+                metafieldAccess: document.getElementById('ps-metafieldAccess').value || null,
+                sourceLocationId: document.getElementById('ps-sourceLocation').value || null,
+                stockBuffer: document.getElementById('ps-stockBuffer').value ? parseInt(document.getElementById('ps-stockBuffer').value) : null,
+            };
+
+            try {
+                const response = await fetch('/api/supplier/partner-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('Partner settings saved successfully!');
+                    closePartnerSettings();
+                    loadPartners();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to save partner settings'));
+                }
+            } catch (error) {
+                console.error('Error saving partner settings:', error);
+                alert('Error saving partner settings. Please try again.');
+            }
+        }
+
+        function resetPartnerToDefaults() {
+            if (!confirm('Are you sure you want to reset all settings for this partner to use your defaults?')) {
+                return;
+            }
+
+            // Reset all fields to defaults
+            document.getElementById('ps-allowTitle').checked = true;
+            document.getElementById('ps-allowDescription').checked = true;
+            document.getElementById('ps-allowImages').checked = true;
+            document.getElementById('ps-allowPrice').checked = true;
+            document.getElementById('ps-allowInventory').checked = true;
+            document.getElementById('ps-allowTags').checked = true;
+            document.getElementById('ps-allowSEO').checked = true;
+            document.getElementById('ps-allowMetafields').checked = true;
+            document.getElementById('ps-restrictToOrdered').checked = false;
+            document.getElementById('ps-collectionAccess').value = '';
+            document.getElementById('ps-metafieldAccess').value = '';
+            document.getElementById('ps-sourceLocation').value = '';
+            document.getElementById('ps-stockBuffer').value = '';
         }
 
         async function createInvite() {
