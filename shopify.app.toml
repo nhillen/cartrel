@@ -1,0 +1,22 @@
+# Cartrel - Shopify App Configuration
+# Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "38477b096ee4819cf7ba22322d8fa9f9"
+name = "Cartrel"
+application_url = "https://cartrel.com/app"
+embedded = true
+
+[access_scopes]
+scopes = "read_customers,write_customers,write_draft_orders,read_draft_orders,read_inventory,write_metaobject_definitions,write_metaobjects,read_orders,write_orders,read_products,write_products"
+
+[auth]
+redirect_urls = [
+  "https://cartrel.com/auth/callback",
+  "https://cartrel.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+[pos]
+embedded = false

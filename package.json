@@ -1,0 +1,14 @@
+{
+  "name": "cartrel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "shopify": "shopify",
+    "deploy": "shopify app deploy"
+  },
+  "workspaces": [
+    "backend",
+    "frontend",
+    "admin"
+  ]
+}
