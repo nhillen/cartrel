@@ -88,6 +88,9 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 # Copy views directory (HTML files) to dist
 COPY --from=build /app/src/views ./dist/views
 
+# Copy public directory (frontend bundle built by deploy script)
+COPY --from=build /app/public ./public
+
 # Add non-root user for security
 RUN groupadd --gid 1001 nodejs && \
     useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
