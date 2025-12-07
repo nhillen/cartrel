@@ -94,6 +94,7 @@ app.use(
     },
     crossOriginEmbedderPolicy: false, // Allow embedding in Shopify admin
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow resources from different origins
+    frameguard: false, // Disable X-Frame-Options - we use CSP frame-ancestors instead
   })
 );
 
