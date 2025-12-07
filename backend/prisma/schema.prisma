@@ -190,6 +190,7 @@ model Connection {
   // ============================================================================
 
   inventoryLocationId String? // Shopify location ID to sync from (null = all locations)
+  destLocationId      String? // Shopify location ID to sync to (null = default location)
   safetyStockQuantity Int     @default(0) // DEPRECATED: use stockBuffer instead
 
   // Multi-location advanced (PRD_MULTI_LOCATION_SYNC) - feature flag for multiple destinations

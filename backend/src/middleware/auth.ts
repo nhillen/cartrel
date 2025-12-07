@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../index';
 import { logger } from '../utils/logger';
+import { shopify } from '../services/shopify';
 
 /**
  * Authentication middleware
@@ -194,5 +195,86 @@ export async function optionalAuth(
     logger.error('Optional auth error:', error);
     // Continue without authentication on error
     next();
+  }
+}
+
+/**
+ * Authenticate via App Bridge session token (JWT)
+ * Use this for routes called by the embedded React app
+ */
+export async function requireSessionToken(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        error: 'Missing authorization header',
+        message: 'Authorization header with Bearer token is required.',
+      });
+      return;
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    try {
+      // Decode and verify the session token
+      const payload = await shopify.session.decodeSessionToken(token);
+      const shopDomain = payload.dest.replace('https://', '');
+
+      // Load shop from database
+      const shopRecord = await prisma.shop.findUnique({
+        where: { myshopifyDomain: shopDomain },
+      });
+
+      if (!shopRecord) {
+        logger.warn('Session token auth failed: Shop not found', { shop: shopDomain });
+        res.status(404).json({
+          error: 'Shop not found',
+          message: 'This shop has not installed the app.',
+          requiresInstall: true,
+        });
+        return;
+      }
+
+      if (!shopRecord.accessToken) {
+        logger.warn('Session token auth failed: No access token', { shop: shopDomain });
+        res.status(401).json({
+          error: 'Invalid access token',
+          message: 'Please reinstall the app.',
+          requiresReauth: true,
+        });
+        return;
+      }
+
+      // Attach shop info to request
+      req.shopId = shopRecord.id;
+      req.shopDomain = shopRecord.myshopifyDomain;
+      req.shop = {
+        id: shopRecord.id,
+        myshopifyDomain: shopRecord.myshopifyDomain,
+        accessToken: shopRecord.accessToken,
+        role: shopRecord.role,
+        plan: shopRecord.plan,
+      };
+
+      logger.debug('Session token auth successful', { shop: shopDomain });
+      next();
+    } catch (tokenError) {
+      logger.warn('Invalid session token', { error: tokenError });
+      res.status(401).json({
+        error: 'Invalid session token',
+        message: 'The session token is invalid or expired.',
+      });
+    }
+  } catch (error) {
+    logger.error('Session token auth error:', error);
+    res.status(500).json({
+      error: 'Authentication error',
+      message: 'An error occurred during authentication.',
+    });
   }
 }

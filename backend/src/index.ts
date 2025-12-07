@@ -24,6 +24,7 @@ import billingRoutes from './routes/billing';
 import statusRoutes from './routes/status';
 import adminRoutes from './routes/admin';
 import marketplaceRoutes from './routes/marketplace';
+import connectionsRoutes from './routes/connections';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeInputs } from './middleware/validation';
 import { generalApiLimiter, authLimiter, webhookLimiter } from './middleware/rateLimits';
@@ -382,6 +383,7 @@ app.use('/api/admin', adminRoutes);
 
 // Marketplace routes (partner discovery)
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/connections', connectionsRoutes);
 
 // Admin HTML interface
 app.get('/admin', (_req, res) => {
