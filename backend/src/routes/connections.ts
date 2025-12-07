@@ -11,6 +11,13 @@ import { requireSessionToken, AuthenticatedRequest } from '../middleware/auth';
 import { createShopifyGraphQLClient } from '../services/shopify';
 import { decryptAccessToken } from '../utils/crypto';
 import { nanoid } from 'nanoid';
+import type { Connection, ConnectionInvite, Shop } from '@prisma/client';
+
+// Type for connection with included shop relations
+type ConnectionWithShops = Connection & {
+  supplierShop: Pick<Shop, 'id' | 'myshopifyDomain' | 'companyName'>;
+  retailerShop: Pick<Shop, 'id' | 'myshopifyDomain' | 'companyName'>;
+};
 
 const router = Router();
 
@@ -49,7 +56,7 @@ router.get('/', async (req: AuthenticatedRequest, res, next) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const formatted = connections.map((c) => ({
+    const formatted = connections.map((c: ConnectionWithShops) => ({
       id: c.id,
       status: c.status,
       supplierShop: {
@@ -92,7 +99,7 @@ router.get('/invites', async (req: AuthenticatedRequest, res, next) => {
       take: 50,
     });
 
-    const formatted = invites.map((i) => ({
+    const formatted = invites.map((i: ConnectionInvite) => ({
       id: i.id,
       code: i.code,
       status: i.status === 'ACTIVE' ? 'PENDING' : i.status,

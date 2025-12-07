@@ -92,6 +92,11 @@ jobs:
           cd backend
           npm ci
 
+      - name: Generate Prisma client
+        run: |
+          cd backend
+          npx prisma generate
+
       - name: TypeScript validation
         run: |
           cd backend
